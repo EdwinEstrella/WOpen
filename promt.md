@@ -2,10 +2,10 @@
 
 Vas a construir un agente de WhatsApp local que se conecta a un número
 real vía Baileys (no Meta API, no Twilio) y responde mensajes con un
-LLM. Incluye un dashboard local para ver las conversaciones, leer el
+LLM (DeepSeek). El bot debe soportar capacidades multimodales: poder procesar texto, pero también leer imágenes y transcribir notas de voz, enviando estos medios a la API correspondiente de DeepSeek. Incluye un dashboard local para ver las conversaciones, leer el
 historial, intervenir manualmente y togglear cada chat entre modo IA
 (responde el bot) y modo Humano (responde la persona desde el
-dashboard).
+dashboard). También se debe incluir una pestaña en el dashboard para gestionar "System Prompts", permitiendo al usuario crear, editar, guardar y seleccionar qué prompt usar de forma dinámica. Además, el bot debe tener un sistema automático de seguimiento (follow-ups) para usuarios que dejan de responder.
 
 Todo corre de manera orquestada con Docker Compose. La data vive en PostgreSQL. La
 sesión de WhatsApp Web la guarda Baileys en una carpeta local (mapeada a un volumen en Docker).
@@ -31,25 +31,31 @@ Cuando termines, debe funcionar esto:
    reinicios posteriores del proceso bot, NO se vuelve a pedir QR
    mientras la sesión siga viva en WhatsApp.
 4. Cuando alguien escribe al WhatsApp del usuario:
-   - guardar el mensaje en PostgreSQL,
+   - guardar el mensaje en PostgreSQL.
+   - **Palabras clave de apagado:** Si el mensaje del usuario incluye palabras clave configurables (por ejemplo, "humano", "asesor" u "Ok."), el chat debe cambiar automáticamente a modo "HUMAN" y detener al bot, notificando (visualmente) en el dashboard.
+   - Si el mensaje contiene imagen o audio, Baileys debe descargar el media y enviarlo a DeepSeek para su análisis o transcripción.
    - si la conversación está en modo "AI", llamar a DeepSeek con el
-     historial reciente y el system prompt, guardar la respuesta y
-     enviarla por Baileys de vuelta;
-   - si la conversación está en modo "HUMAN", solo guardar y NO
-     responder.
+     historial reciente y el system prompt ACTIVO seleccionado en la base de datos.
+   - **Respuesta en partes:** El bot no debe responder en un solo bloque gigante de texto. Debe solicitar a DeepSeek que estructure la respuesta en un JSON con partes (part_1, part_2, part_3). El bot enviará cada parte como un mensaje individual, aplicando un `delay` proporcional a la longitud del texto (ej. `2000ms + (text.length * 10)`) para simular que está escribiendo de forma natural.
+   - si la conversación está en modo "HUMAN", solo guardar y NO responder.
 5. Dashboard real (después de conectar):
    - lista de conversaciones a la izquierda (ordenadas por último
      mensaje, más reciente arriba);
    - panel de conversación a la derecha (mensajes user/bot/human con
-     timestamp);
+     timestamp, soportando la visualización de si hubo imagen o audio);
    - toggle AI/HUMAN por chat (arriba del panel derecho);
-   - input de texto + botón "Enviar" cuando el chat está en HUMAN
-     (envía un mensaje firmado como "human" desde el dashboard, llega
-     al cliente vía Baileys);
-   - botón "Borrar" en el panel para borrar una conversación con
-     diálogo de confirmación;
+   - input de texto + botón "Enviar" cuando el chat está en HUMAN;
+   - botón "Borrar" en el panel para borrar una conversación;
    - polling cada 2 segundos a un endpoint que devuelve mensajes
-     nuevos y el estado de la conexión (NO usar WebSocket en v1).
+     nuevos.
+6. Pestaña de Prompts en el Dashboard:
+   - CRUD (Crear, Leer, Actualizar, Borrar) para System Prompts.
+   - Selector (Radio button o Dropdown) para marcar un prompt específico como "Activo".
+7. **Sistema Automático de Seguimientos (Follow-Ups):**
+   - El proceso bot debe ejecutar una tarea programada (cron) periódicamente (ej. cada X horas).
+   - Debe buscar conversaciones donde el último mensaje haya sido del bot ("assistant") y el cliente no haya respondido después de un tiempo definido (ej. 24 horas), y donde el número de intentos de seguimiento sea menor a 2.
+   - El bot enviará a la API de DeepSeek el historial de la conversación pidiendo que decida si amerita un seguimiento (formato JSON: `{ "respuesta": "SI/NO", "mensaje": "..." }`).
+   - Si DeepSeek dice "SI", se envía el mensaje, se guarda en BD y se incrementa el contador de seguimientos.
 
 # STACK OBLIGATORIO
 
@@ -59,6 +65,8 @@ Cuando termines, debe funcionar esto:
 - `pg` (node-postgres) — base de datos PostgreSQL
 - Docker y Docker Compose — orquestación de la aplicación y la BD
 - pino — logger requerido por Baileys (level: silent)
+- node-cron (o setInterval robusto) — para programar las tareas de seguimiento (follow-ups)
+- `ioredis` — cliente para Redis
 - qrcode — genera el QR como Data URL (PNG base64) en el server
 - qrcode-terminal — fallback ASCII en la consola del bot
 - Usar fetch nativo o cualquier cliente HTTP para llamar a la API de DeepSeek. NO usar el SDK de OpenAI ni nada de GPT.
@@ -66,7 +74,7 @@ Cuando termines, debe funcionar esto:
 - concurrently — para levantar bot + Next.js juntos en producción
 - Node.js 20+ (Baileys, Next.js 16, Tailwind 4 lo requieren)
 
-NO usar Prisma, Drizzle, Supabase, Redis, WebSockets, Vercel,
+NO usar Prisma, Drizzle, Supabase, WebSockets, Vercel,
 Meta API oficial ni Twilio.
 
 # ESTRUCTURA DE CARPETAS
@@ -87,8 +95,10 @@ agente-whatsapp/
 │   │       │   └── [conversationId]/route.ts  # DELETE
 │   │       ├── messages/
 │   │       │   └── [conversationId]/route.ts  # GET + POST
-│   │       └── mode/
-│   │           └── [conversationId]/route.ts  # POST cambia AI/HUMAN
+│   │       ├── mode/
+│   │       │   └── [conversationId]/route.ts  # POST cambia AI/HUMAN
+│   │       └── prompts/
+│   │           └── route.ts          # GET / POST / PUT para system prompts
 │   ├── components/
 │   │   ├── ConnectionGate.tsx
 │   │   ├── QRScreen.tsx
@@ -96,7 +106,8 @@ agente-whatsapp/
 │   │   ├── ConversationList.tsx
 │   │   ├── ConversationPanel.tsx
 │   │   ├── MessageBubble.tsx
-│   │   └── ModeToggle.tsx
+│   │   ├── ModeToggle.tsx
+│   │   └── PromptsManager.tsx
 │   └── lib/
 │       ├── db.ts
 │       ├── Deepseek.ts
@@ -106,6 +117,7 @@ agente-whatsapp/
 │           └── handler.ts
 ├── scripts/
 │   ├── env-loader.ts                 # CRÍTICO: side-effect import
+│   ├── followups-cron.ts             # CRÍTICO: Tarea programada para seguimientos
 │   └── start-bot.ts
 ├── data/                             # gitignored, runtime
 ├── auth/                             # gitignored, sesión Baileys
@@ -128,6 +140,7 @@ agente-whatsapp/
 DEEPSEEK_API_KEY=sk-...
 DEEPSEEK_MODEL=deepseek-chat
 DATABASE_URL=postgresql://user:password@db:5432/whatsapp_bot
+REDIS_URL=redis://redis:6379
 ```
 
 Exige al usuario el uso de una cuenta de DeepSeek de pago (con saldo recargado). Los tiers gratuitos o de prueba tienen rate limits muy estrictos y van a fallar en producción real con error 429. NO uses OpenAI ni alternativas gratuitas.
@@ -173,11 +186,25 @@ CREATE TABLE IF NOT EXISTS conversations (
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS system_prompts (
+  id SERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  is_active BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- Insertar un prompt por defecto si la tabla está vacía
+INSERT INTO system_prompts (title, content, is_active)
+VALUES ('Asistente Default', 'Eres un asistente virtual amable...', TRUE)
+ON CONFLICT DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS messages (
   id SERIAL PRIMARY KEY,
   conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
   role TEXT CHECK(role IN ('user','assistant','human')) NOT NULL,
   content TEXT NOT NULL,
+  media_type TEXT CHECK(media_type IN ('text', 'image', 'audio')) DEFAULT 'text',
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
@@ -218,7 +245,9 @@ Helpers que `db.ts` debe exportar:
 - `getOrCreateConversation(phone, name?)` — `{ id, phone, name, mode, ... }`
 - `getConversationById(id)` — `Conversation | null`
 - `insertMessage(conversationId, role, content, mediaType?)` — TRANSACCIONAL:
-  insert + UPDATE last_message_at en la misma transacción
+  insert + UPDATE last_message_at en la misma transacción. Si el role es 'user', hacer UPDATE de `followup_attempts` a 0 (el usuario volvió a responder).
+- `getPendingFollowUps(horasMinimas, maxAttempts)` — Consulta para traer conversaciones inactivas que requieren seguimiento.
+- `incrementFollowUpAttempt(conversationId)` — Suma 1 a `followup_attempts`.
 - `getMessages(conversationId, limit = 50)`
 - `getRecentHistory(conversationId, limit = 20)`
 - `setMode(conversationId, mode)`
@@ -457,31 +486,31 @@ para mensajes humanos:
    - Si falla: log y dejar `sent=0` (reintenta automáticamente al
      siguiente tick — útil cuando la conexión cae transitoriamente)
 
-# HANDLER DE MENSAJES ENTRANTES
+3. El proceso bot también debe iniciar el cronjob (`scripts/followups-cron.ts`) que evaluará constantemente las conversaciones inactivas en modo AI para disparar seguimientos automáticos consultando a DeepSeek.
+
+# HANDLER DE MENSAJES ENTRANTES (CON ENCOLAMIENTO)
 
 `messages.upsert` con `type: 'notify'` (ignorar 'append', 'replace').
 Por cada mensaje:
 
-1. Filtrar `msg.key.fromMe === true` (mensajes propios desde el
-   teléfono del usuario).
-2. Filtrar `remoteJid.endsWith('@g.us')` (grupos — fuera del scope v1).
-3. Filtrar JID que no termine en `@s.whatsapp.net` (no es 1:1).
-4. Extraer texto: `msg.message?.conversation` o
-   `msg.message?.extendedTextMessage?.text`. Si no hay, ignorar
-   (audio/imagen/sticker fuera del scope v1).
+1. Filtrar `msg.key.fromMe === true` (mensajes propios desde el teléfono).
+2. Filtrar `remoteJid.endsWith('@g.us')` (grupos).
+3. Filtrar JID que no termine en `@s.whatsapp.net` (solo 1:1).
+4. Extraer el contenido: si es texto (`conversation` o `extendedTextMessage`), si es audio o imagen (descargar y enviar a DeepSeek Multimodal para obtener una descripción o transcripción).
 5. `getOrCreateConversation(phone, msg.pushName)`.
-6. `insertMessage(convo.id, 'user', text)`.
-7. RE-LEER conversation por id para chequear modo (toggle pudo haber
-   pasado entre la creación y este check):
+6. `insertMessage(convo.id, 'user', text, mediaType)`.
+7. Chequear si contiene palabra clave de apagado (ej. "humano", "asesor", "Ok."). Si la tiene, ejecutar `setMode(convo.id, 'HUMAN')` y abortar ejecución AI.
+8. RE-LEER conversation por id para chequear modo:
    ```typescript
    const fresh = getConversationById(convo.id);
    if (!fresh || fresh.mode !== 'AI') return;
    ```
-8. Si modo AI: llamar al LLM con `getRecentHistory(20)` + system prompt,
-   mapear roles `'human' → 'assistant'` para el LLM (los mensajes
-   humanos del dashboard salieron del lado del bot, el LLM los ve
-   como respuestas suyas previas), guardar reply como
-   `role='assistant'`, enviar via `sock.sendMessage`.
+9. **Encolamiento de Mensajes (Debouncing con Redis):** 
+   - Cuando llega un mensaje, hacer un `RPUSH` o guardar en Redis en una lista temporal para este `convo.id`.
+   - Crear o reiniciar un temporizador (`setTimeout` de 10-15 segundos).
+   - Al finalizar el temporizador, extraer todos los mensajes encolados, concatenarlos y llamar al LLM con `getRecentHistory(20)` + el system prompt ACTIVO. (Esto asegura que si el cliente manda 5 mensajes separados rápidos, la IA responde una sola vez a todo el contexto).
+10. Mapear roles `'human' → 'assistant'` para el LLM. Guardar reply como `role='assistant'`.
+11. Mandar mensaje en múltiples partes (`part_1, part_2, part_3`) parseando la respuesta JSON de DeepSeek, usando un `delay` proporcional al tamaño del texto entre envíos vía `sock.sendMessage`.
 
 Logging detallado — agrega logs `[bot] ← Mensaje de X: "..."`,
 `[bot] llamando LLM con N mensajes...`, `[bot] LLM respondió en Xms`,
@@ -546,9 +575,11 @@ En el `docker-compose.yml`:
 1. Un servicio `db` basado en la imagen oficial de `postgres:16-alpine`.
    - Variables de entorno: `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`.
    - Volumen para persistir los datos de PostgreSQL.
-2. Un servicio `app` (tu aplicación).
-   - `depends_on: db`.
-   - Variables de entorno (pasando la `DATABASE_URL` y las de DeepSeek).
+2. Un servicio `redis` basado en la imagen oficial de `redis:7-alpine`.
+   - Volumen para persistir la data de caché de Redis (opcional, pero recomendado).
+3. Un servicio `app` (tu aplicación).
+   - `depends_on: db, redis`.
+   - Variables de entorno (pasando la `DATABASE_URL`, `REDIS_URL` y las de DeepSeek).
    - Volumen montado para la carpeta `./auth/` para no perder la sesión de WhatsApp al reiniciar el contenedor.
    - Puertos: `3000:3000`.
 
@@ -675,18 +706,4 @@ Si el suscriptor quiere expandir features:
 - Auto-toggle a HUMAN cuando el bot dice frase específica
   (detección por regex en `handler.ts`).
 - WebSocket en lugar de polling.
-- Auth básica en Next.js (middleware con basic auth).ica en Next.js (middleware con basic auth).igir el modelo de pago (`deepseek-chat`)
-   con créditos recargados desde el día uno. Nada de OpenAI.
-
-10. **Dashboard sin auth** — riesgo crítico si se despliega. Marcado
-    como bloqueante.
-
-Si el suscriptor quiere expandir features:
-- Soporte de imágenes salientes (enviar PNG de productos).
-- Function calling real con la API de DeepSeek.
-- Auto-toggle a HUMAN cuando el bot dice frase específica
-  (detección por regex en `handler.ts`).
-- WebSocket en lugar de polling.
-- Auth básica en Next.js (middleware con basic auth).ica en Next.js (middleware con basic auth).ección por regex en `handler.ts`).
-- WebSocket en lugar de polling.
-- Auth básica en Next.js (middleware con basic auth).ica en Next.js (middleware con basic auth).
+- Auth básica en Next.js (middleware con basic auth).
