@@ -1,11 +1,3 @@
-# Prompt para Claude Code — Agente WhatsApp Local
-
-> Copia TODO el bloque de abajo y pégalo a Claude Code en una carpeta
-> vacía donde ejecutes `claude`. Funciona end-to-end con todas las
-> lecciones aprendidas ya incorporadas.
-
----
-
 ```
 # CONTEXTO DEL PROYECTO
 
@@ -44,7 +36,7 @@ Cuando termines, debe funcionar esto:
    mientras la sesión siga viva en WhatsApp.
 4. Cuando alguien escribe al WhatsApp del usuario:
    - guardar el mensaje en SQLite,
-   - si la conversación está en modo "AI", llamar a OpenRouter con el
+   - si la conversación está en modo "AI", llamar a DeepSeek con el
      historial reciente y el system prompt, guardar la respuesta y
      enviarla por Baileys de vuelta;
    - si la conversación está en modo "HUMAN", solo guardar y NO
@@ -72,7 +64,7 @@ Cuando termines, debe funcionar esto:
 - pino — logger requerido por Baileys (level: silent)
 - qrcode — genera el QR como Data URL (PNG base64) en el server
 - qrcode-terminal — fallback ASCII en la consola del bot
-- openai SDK (apuntando a OpenRouter via baseURL)
+- openai SDK (apuntando a Deepseek via baseURL)
 - tsx — para ejecutar scripts TS directamente
 - concurrently — para levantar bot + Next.js juntos en producción
 - Node.js 20+ (Baileys, Next.js 16, Tailwind 4 lo requieren)
@@ -110,7 +102,7 @@ agente-whatsapp/
 │   │   └── ModeToggle.tsx
 │   └── lib/
 │       ├── db.ts
-│       ├── openrouter.ts
+│       ├── Deepseek.ts
 │       ├── system-prompt.ts
 │       └── baileys/
 │           ├── client.ts
@@ -137,12 +129,12 @@ agente-whatsapp/
 
 `.env.example`:
 ```
-OPENROUTER_API_KEY=sk-or-...
-OPENROUTER_MODEL=openai/gpt-4o-mini
+Deepseek_API_KEY=sk-or-...
+Deepseek_MODEL=openai/gpt-4o-mini
 ```
 
 Recomienda al usuario `openai/gpt-4o-mini` — los modelos `:free` de
-OpenRouter tienen rate limits muy estrictos (50 requests/día sin
+Deepseek tienen rate limits muy estrictos (50 requests/día sin
 créditos cargados) y van a fallar en producción real con error 429.
 
 # PACKAGE.JSON
@@ -263,12 +255,12 @@ leer `.env.local` manualmente. El bug clásico:
 // ❌ MAL — los `import` se hoistean al top y corren ANTES del loadEnv()
 function loadEnv() { ... }
 loadEnv();
-import { generateReply } from "../src/lib/openrouter"; // ya leyó undefined
+import { generateReply } from "../src/lib/Deepseek"; // ya leyó undefined
 ```
 
 ES modules hoistean TODOS los imports al inicio del archivo, sin
-importar dónde los escribiste. Si `openrouter.ts` lee
-`process.env.OPENROUTER_API_KEY` en su top-level, va a leer
+importar dónde los escribiste. Si `Deepseek.ts` lee
+`process.env.Deepseek_API_KEY` en su top-level, va a leer
 `undefined` porque el loadEnv() todavía no se ejecutó.
 
 **Solución:** poner el loader en su propio módulo e importarlo PRIMERO:
@@ -583,7 +575,7 @@ Si el usuario va a desplegar:
    Sin ellos cada redespliegue pierde conversaciones Y obliga a
    re-escanear el QR.
 
-Documenta en el README: si los `:free` de OpenRouter no son
+Documenta en el README: si los `:free` de Deepseek no son
 suficientes (50 req/día), recomienda `openai/gpt-4o-mini` ($0.15 por
 millón de tokens — centavos por mes para uso normal).
 
@@ -604,7 +596,7 @@ para producción.
        `postcss.config.mjs`
    (c) `src/app/layout.tsx`, `src/app/globals.css`
    (d) `src/lib/db.ts` con DDL completo y todos los helpers
-   (e) `src/lib/openrouter.ts` y `src/lib/system-prompt.ts`
+   (e) `src/lib/Deepseek.ts` y `src/lib/system-prompt.ts`
    (f) `scripts/env-loader.ts` (separado, side-effect only)
    (g) `src/lib/baileys/client.ts` (con fetchLatestBaileysVersion,
        Browsers.macOS, state machine correcta)
@@ -648,8 +640,8 @@ para producción.
        Dispositivos vinculados) borre cualquier dispositivo viejo
        de pruebas anteriores.
      * Si persiste, sugiere cambiar de IP del VPS o esperar 24h.
-   - Si tira 429 en LLM: el modelo `:free` saturó la cuota.
-     Recomienda `openai/gpt-4o-mini` en `OPENROUTER_MODEL`.
+   - Si tira 429 en LLM: el usuario no tiene saldo o está usando un endpoint gratuito.
+     Recuérdale que DEBE cargar créditos en su cuenta de DeepSeek y usar `deepseek-chat`.
 
 # PRIMER PASO
 
@@ -680,7 +672,7 @@ prompt para que tus suscriptores no las pisen:
    muy rápido, y la API solo miraba status estricto. Fix: API
    defensiva que muestra QR si `qr_string` existe.
 
-5. **OPENROUTER_API_KEY undefined en bot** — ES module hoisting.
+5. **Deepseek_API_KEY undefined en bot** — ES module hoisting.
    Fix: env-loader como módulo separado importado primero.
 
 6. **Procesos zombies** — TaskStop / Ctrl+C en Windows no siempre
@@ -693,7 +685,7 @@ prompt para que tus suscriptores no las pisen:
 8. **Node 18 default en Nixpacks** — Baileys + Next 16 + Tailwind 4
    requieren 20+. Fix: `engines.node` + `nixpacks.toml`.
 
-9. **Modelos `:free` de OpenRouter** — 429 garantizado en producción
+9. **Modelos `:free` de Deepseek** — 429 garantizado en producción
    real. Hay que recomendar pago desde el día uno.
 
 10. **Dashboard sin auth** — riesgo crítico si se despliega. Marcado
@@ -701,7 +693,7 @@ prompt para que tus suscriptores no las pisen:
 
 Si el suscriptor quiere expandir features:
 - Soporte de imágenes salientes (enviar PNG de productos).
-- Function calling real con `tools` de OpenRouter.
+- Function calling real con `tools` de Deepseek.
 - Auto-toggle a HUMAN cuando el bot dice frase específica
   (detección por regex en `handler.ts`).
 - WebSocket en lugar de polling.
