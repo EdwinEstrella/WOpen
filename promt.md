@@ -1,4 +1,3 @@
-```
 # CONTEXTO DEL PROYECTO
 
 Vas a construir un agente de WhatsApp local que se conecta a un número
@@ -8,20 +7,17 @@ historial, intervenir manualmente y togglear cada chat entre modo IA
 (responde el bot) y modo Humano (responde la persona desde el
 dashboard).
 
-Todo corre en localhost. La data vive en SQLite (archivo local). La
-sesión de WhatsApp Web la guarda Baileys en una carpeta local.
+Todo corre de manera orquestada con Docker Compose. La data vive en PostgreSQL. La
+sesión de WhatsApp Web la guarda Baileys en una carpeta local (mapeada a un volumen en Docker).
 
 # OBJETIVO FINAL
 
 Cuando termines, debe funcionar esto:
 
-1. `npm run start:bot` levanta Baileys. Si NO hay sesión guardada en
+1. El proyecto se levanta con `docker-compose up --build`. Esto iniciará tanto la base de datos PostgreSQL como el servicio de la aplicación (Next.js + Bot). Si NO hay sesión guardada en
    `./auth/`, queda esperando a que el usuario escanee el QR desde
-   el frontend (NO desde la terminal — el QR principal vive en el
-   dashboard). En la terminal también se imprime el QR ASCII como
-   fallback de debugging, pero el usuario final escanea desde el
-   navegador.
-2. `npm run dev` levanta el dashboard Next.js en localhost:3000.
+   el frontend.
+2. El servicio web levanta el dashboard Next.js accesible en localhost:3000.
    Cuando el usuario abre la página por primera vez:
    - Si NO hay sesión Baileys conectada, el dashboard muestra una
      pantalla "Conectar número" con el QR renderizado como imagen
@@ -35,7 +31,7 @@ Cuando termines, debe funcionar esto:
    reinicios posteriores del proceso bot, NO se vuelve a pedir QR
    mientras la sesión siga viva en WhatsApp.
 4. Cuando alguien escribe al WhatsApp del usuario:
-   - guardar el mensaje en SQLite,
+   - guardar el mensaje en PostgreSQL,
    - si la conversación está en modo "AI", llamar a DeepSeek con el
      historial reciente y el system prompt, guardar la respuesta y
      enviarla por Baileys de vuelta;
@@ -60,11 +56,12 @@ Cuando termines, debe funcionar esto:
 - Next.js 16 App Router + TypeScript + React 19. Turbopack default.
 - Tailwind CSS 4
 - @whiskeysockets/baileys 6.7+ — cliente WhatsApp Web vía QR
-- better-sqlite3 11+ — base de datos local (file-based)
+- `pg` (node-postgres) — base de datos PostgreSQL
+- Docker y Docker Compose — orquestación de la aplicación y la BD
 - pino — logger requerido por Baileys (level: silent)
 - qrcode — genera el QR como Data URL (PNG base64) en el server
 - qrcode-terminal — fallback ASCII en la consola del bot
-- openai SDK (apuntando a Deepseek via baseURL)
+- Usar fetch nativo o cualquier cliente HTTP para llamar a la API de DeepSeek. NO usar el SDK de OpenAI ni nada de GPT.
 - tsx — para ejecutar scripts TS directamente
 - concurrently — para levantar bot + Next.js juntos en producción
 - Node.js 20+ (Baileys, Next.js 16, Tailwind 4 lo requieren)
@@ -115,13 +112,12 @@ agente-whatsapp/
 ├── .env.local
 ├── .env.example
 ├── .gitignore
+├── docker-compose.yml
+├── Dockerfile
 ├── package.json
 ├── tsconfig.json
 ├── next.config.ts
 ├── postcss.config.mjs
-├── Procfile                          # para deploy con buildpack
-├── nixpacks.toml                     # para EasyPanel/Railway
-├── .nvmrc                            # para forzar Node 22
 └── README.md
 ```
 
@@ -129,13 +125,12 @@ agente-whatsapp/
 
 `.env.example`:
 ```
-Deepseek_API_KEY=sk-or-...
-Deepseek_MODEL=openai/gpt-4o-mini
+DEEPSEEK_API_KEY=sk-...
+DEEPSEEK_MODEL=deepseek-chat
+DATABASE_URL=postgresql://user:password@db:5432/whatsapp_bot
 ```
 
-Recomienda al usuario `openai/gpt-4o-mini` — los modelos `:free` de
-Deepseek tienen rate limits muy estrictos (50 requests/día sin
-créditos cargados) y van a fallar en producción real con error 429.
+Exige al usuario el uso de una cuenta de DeepSeek de pago (con saldo recargado). Los tiers gratuitos o de prueba tienen rate limits muy estrictos y van a fallar en producción real con error 429. NO uses OpenAI ni alternativas gratuitas.
 
 # PACKAGE.JSON
 
@@ -162,32 +157,28 @@ Scripts:
 porque si no fallan en producción cuando el buildpack ejecuta
 `npm ci --omit=dev`.
 
-# SCHEMA SQLITE
+# SCHEMA POSTGRESQL
 
-`src/lib/db.ts` debe inicializar better-sqlite3 apuntando a
-`./data/messages.db`, crear la carpeta y archivo si no existen, y
-ejecutar este DDL al arrancar (incluye PRAGMA WAL para concurrencia
-entre el proceso bot y el de Next.js):
+`src/lib/db.ts` debe inicializar el pool de conexiones de `pg` usando
+`process.env.DATABASE_URL` y ejecutar este DDL al arrancar:
 
 ```sql
-PRAGMA journal_mode = WAL;
-PRAGMA foreign_keys = ON;
-
 CREATE TABLE IF NOT EXISTS conversations (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   phone TEXT UNIQUE NOT NULL,
   name TEXT,
   mode TEXT CHECK(mode IN ('AI','HUMAN')) NOT NULL DEFAULT 'AI',
-  last_message_at INTEGER,
-  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  followup_attempts INTEGER NOT NULL DEFAULT 0,
+  last_message_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS messages (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  conversation_id INTEGER NOT NULL REFERENCES conversations(id),
+  id SERIAL PRIMARY KEY,
+  conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
   role TEXT CHECK(role IN ('user','assistant','human')) NOT NULL,
   content TEXT NOT NULL,
-  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_messages_conv
@@ -195,22 +186,23 @@ CREATE INDEX IF NOT EXISTS idx_messages_conv
 
 CREATE TABLE IF NOT EXISTS connection_state (
   id INTEGER PRIMARY KEY CHECK (id = 1),
-  status TEXT CHECK(status IN ('disconnected','qr','connecting','connected'))
-    NOT NULL DEFAULT 'disconnected',
+  status TEXT CHECK(status IN ('disconnected','qr','connecting','connected')) NOT NULL DEFAULT 'disconnected',
   qr_string TEXT,
   phone TEXT,
-  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
-INSERT OR IGNORE INTO connection_state (id, status) VALUES (1, 'disconnected');
+INSERT INTO connection_state (id, status)
+VALUES (1, 'disconnected')
+ON CONFLICT (id) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS outbox (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   conversation_id INTEGER NOT NULL,
   phone TEXT NOT NULL,
   content TEXT NOT NULL,
   sent INTEGER NOT NULL DEFAULT 0,
-  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_outbox_pending
@@ -225,26 +217,19 @@ ahí, el bot los lee cada 2s y los envía vía Baileys.
 Helpers que `db.ts` debe exportar:
 - `getOrCreateConversation(phone, name?)` — `{ id, phone, name, mode, ... }`
 - `getConversationById(id)` — `Conversation | null`
-- `insertMessage(conversationId, role, content)` — TRANSACCIONAL:
+- `insertMessage(conversationId, role, content, mediaType?)` — TRANSACCIONAL:
   insert + UPDATE last_message_at en la misma transacción
 - `getMessages(conversationId, limit = 50)`
-- `getRecentHistory(conversationId, limit = 20)` — devuelve los
-  últimos N en orden cronológico ASCENDENTE (consulta DESC + reverse
-  en JS, mucho más eficiente que ORDER BY ASC sobre toda la tabla)
+- `getRecentHistory(conversationId, limit = 20)`
 - `setMode(conversationId, mode)`
-- `listConversations()` — incluye `last_message_preview` con subquery
-  para evitar N+1
+- `listConversations()`
 - `getConnectionState()` y `setConnectionState({status, qr_string?, phone?})`
-  — `setConnectionState` PRESERVA campos no provistos: si pasas solo
-  `{status: 'connecting'}` el `qr_string` previo NO se borra. Solo
-  pasar `null` explícito borra. Esto importa para no perder el QR
-  durante transiciones intermedias.
 - `enqueueOutbox(conversationId, phone, content)`
 - `getPendingOutbox(limit = 20)`
 - `markOutboxSent(id)`
-- `deleteConversation(id)` — borra mensajes + outbox pendiente +
-  conversación en una transacción atómica. Outbox `sent=1` se deja
-  como histórico (NO se borra).
+- `deleteConversation(id)`
+- `getActiveSystemPrompt()` — Obtiene el texto del prompt configurado como activo.
+- `getAllSystemPrompts()`, `saveSystemPrompt(title, content)`, `setActiveSystemPrompt(id)`
 
 # ⚠️ LECCIÓN APRENDIDA — CARGA DE .env.local EN start-bot.ts
 
@@ -260,7 +245,7 @@ import { generateReply } from "../src/lib/Deepseek"; // ya leyó undefined
 
 ES modules hoistean TODOS los imports al inicio del archivo, sin
 importar dónde los escribiste. Si `Deepseek.ts` lee
-`process.env.Deepseek_API_KEY` en su top-level, va a leer
+`process.env.DEEPSEEK_API_KEY` en su top-level, va a leer
 `undefined` porque el loadEnv() todavía no se ejecutó.
 
 **Solución:** poner el loader en su propio módulo e importarlo PRIMERO:
@@ -442,13 +427,13 @@ Lo mismo con `cookies()` y `headers()` de `next/headers` — son async.
 
 # ⚠️ NEXT.JS — serverExternalPackages
 
-Sin esto, Next.js intenta empaquetar baileys/better-sqlite3/pino
+Sin esto, Next.js intenta empaquetar baileys y pino
 en su bundle del server y rompe. `next.config.ts`:
 
 ```typescript
 import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["@whiskeysockets/baileys", "better-sqlite3", "pino"],
+  serverExternalPackages: ["@whiskeysockets/baileys", "pino"],
 };
 export default nextConfig;
 ```
@@ -551,33 +536,28 @@ Estados visuales clave:
   mensaje "El bot responde automáticamente"). Habilitado y enviable
   en modo HUMAN.
 
-# DEPLOY EN PRODUCCIÓN (EasyPanel sin Docker)
+# DOCKER Y DEPLOY
 
-Si el usuario va a desplegar:
+El proyecto y la base de datos se orquestan completamente con `docker-compose.yml`.
 
-1. `Procfile` con `web: npm run start:all`
-2. `nixpacks.toml`:
-   ```toml
-   providers = ["node"]
-   [variables]
-   NIXPACKS_NODE_VERSION = "22"
-   [phases.setup]
-   nixPkgs = ["nodejs_22", "npm-10_x", "python3", "gcc", "gnumake"]
-   [phases.install]
-   cmds = ["npm ci --include=dev"]
-   [phases.build]
-   cmds = ["npm run build"]
-   [start]
-   cmd = "npm run start:all"
-   ```
-3. `.nvmrc`: `22`
-4. Volúmenes persistentes obligatorios: `/app/data` y `/app/auth`.
-   Sin ellos cada redespliegue pierde conversaciones Y obliga a
-   re-escanear el QR.
+Crea un `Dockerfile` multietapa para la aplicación Next.js y el bot, exponiendo el puerto 3000 y ejecutando el script de arranque conjunto (`npm run start:all`).
 
-Documenta en el README: si los `:free` de Deepseek no son
-suficientes (50 req/día), recomienda `openai/gpt-4o-mini` ($0.15 por
-millón de tokens — centavos por mes para uso normal).
+En el `docker-compose.yml`:
+1. Un servicio `db` basado en la imagen oficial de `postgres:16-alpine`.
+   - Variables de entorno: `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`.
+   - Volumen para persistir los datos de PostgreSQL.
+2. Un servicio `app` (tu aplicación).
+   - `depends_on: db`.
+   - Variables de entorno (pasando la `DATABASE_URL` y las de DeepSeek).
+   - Volumen montado para la carpeta `./auth/` para no perder la sesión de WhatsApp al reiniciar el contenedor.
+   - Puertos: `3000:3000`.
+
+Para ejecutar en local o en un servidor, el usuario solo debe clonar el repo y correr:
+`docker-compose up -d --build`
+
+Documenta en el README: Es obligatorio cargar créditos en la consola
+de DeepSeek y usar el modelo `deepseek-chat`. Las capas gratuitas
+dan error 429 y no sirven para producción. Nada de OpenAI.
 
 # SEGURIDAD — DASHBOARD SIN AUTH
 
@@ -608,7 +588,7 @@ para producción.
        ConversationPanel (con botón Borrar y composer HUMAN),
        DashboardHeader, QRScreen, ConnectionGate
    (l) `src/app/page.tsx`
-   (m) `Procfile`, `nixpacks.toml`, `.nvmrc`
+   (m) `Dockerfile` y `docker-compose.yml`
    (n) `README.md`
 
 2. Después de los archivos críticos (db.ts, baileys/client.ts,
@@ -620,12 +600,12 @@ para producción.
 
 4. Cuando termines de declarar dependencias, ejecuta `npm install` tú
    mismo (avisa al usuario que tarda ~1 min por la compilación
-   nativa de better-sqlite3).
+   nativa de pg u otras utilidades).
 
 5. NO inventes features fuera del scope. Si tienes ideas de mejora
    anótalas en una sección "Mejoras pendientes" del README.
 
-6. NO uses Drizzle, Prisma, Supabase, Redis, WebSockets ni Vercel.
+6. NO uses Drizzle, Prisma, Supabase, WebSockets ni Vercel.
 
 7. Idioma de comentarios en código y mensajes al usuario: español
    neutro.
@@ -650,7 +630,6 @@ todas las deps en `dependencies` salvo las puramente de tipos) y
 espera confirmación antes de ejecutar `npm install`.
 
 Empieza ahora.
-```
 
 ---
 
@@ -672,29 +651,42 @@ prompt para que tus suscriptores no las pisen:
    muy rápido, y la API solo miraba status estricto. Fix: API
    defensiva que muestra QR si `qr_string` existe.
 
-5. **Deepseek_API_KEY undefined en bot** — ES module hoisting.
+5. **DEEPSEEK_API_KEY undefined en bot** — ES module hoisting.
    Fix: env-loader como módulo separado importado primero.
 
 6. **Procesos zombies** — TaskStop / Ctrl+C en Windows no siempre
    mata los hijos de tsx. Documentado para que sepan matarlos
    manualmente con tasklist + taskkill si ocurre.
 
-7. **better-sqlite3 native build en Linux/Nixpacks** — pide python3,
-   gcc, gnumake. Sin ellos el build remoto falla.
+7. **Docker Compose build** — Asegúrate de que el Dockerfile expone correctamente el puerto 3000 y que la red entre Next.js y la base de datos PostgreSQL funcione.
 
-8. **Node 18 default en Nixpacks** — Baileys + Next 16 + Tailwind 4
-   requieren 20+. Fix: `engines.node` + `nixpacks.toml`.
+8. **Node 20+ requerido** — La imagen Docker para la aplicación debe basarse en `node:20-alpine` (o superior) ya que Baileys, Next 16 y Tailwind 4 lo requieren.
 
-9. **Modelos `:free` de Deepseek** — 429 garantizado en producción
-   real. Hay que recomendar pago desde el día uno.
+9. **Modelos de DeepSeek** — Los tiers gratuitos dan 429 garantizado
+   en producción real. Hay que exigir el modelo de pago (`deepseek-chat`)
+   con créditos recargados desde el día uno. Nada de OpenAI.
 
 10. **Dashboard sin auth** — riesgo crítico si se despliega. Marcado
     como bloqueante.
 
 Si el suscriptor quiere expandir features:
 - Soporte de imágenes salientes (enviar PNG de productos).
-- Function calling real con `tools` de Deepseek.
+- Function calling real con la API de DeepSeek.
 - Auto-toggle a HUMAN cuando el bot dice frase específica
   (detección por regex en `handler.ts`).
 - WebSocket en lugar de polling.
-- Auth básica en Next.js (middleware con basic auth).
+- Auth básica en Next.js (middleware con basic auth).ica en Next.js (middleware con basic auth).igir el modelo de pago (`deepseek-chat`)
+   con créditos recargados desde el día uno. Nada de OpenAI.
+
+10. **Dashboard sin auth** — riesgo crítico si se despliega. Marcado
+    como bloqueante.
+
+Si el suscriptor quiere expandir features:
+- Soporte de imágenes salientes (enviar PNG de productos).
+- Function calling real con la API de DeepSeek.
+- Auto-toggle a HUMAN cuando el bot dice frase específica
+  (detección por regex en `handler.ts`).
+- WebSocket en lugar de polling.
+- Auth básica en Next.js (middleware con basic auth).ica en Next.js (middleware con basic auth).ección por regex en `handler.ts`).
+- WebSocket en lugar de polling.
+- Auth básica en Next.js (middleware con basic auth).ica en Next.js (middleware con basic auth).
