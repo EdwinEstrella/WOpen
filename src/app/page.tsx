@@ -17,11 +17,17 @@ import {
 	BrainIcon,
 	ZapIcon,
 	UsersIcon,
-	SettingsIcon
+	SettingsIcon,
 } from "../components/Icons.tsx";
 import type { ConversationListRow } from "../lib/db.ts";
 
-type Tab = "dashboard" | "chats" | "prompts" | "automations" | "contacts" | "settings";
+type Tab =
+	| "dashboard"
+	| "chats"
+	| "prompts"
+	| "automations"
+	| "contacts"
+	| "settings";
 
 export default function Home() {
 	const [activeTab, setActiveTab] = useState<Tab>("dashboard");
@@ -49,11 +55,12 @@ export default function Home() {
 	}, []);
 
 	// Sincronizar el objeto seleccionado de la lista actualizada
-	const selectedConversation = conversations.find((c) => c.id === selectedId) || null;
+	const selectedConversation =
+		conversations.find((c) => c.id === selectedId) || null;
 
 	const handleModeChangeLocal = (newMode: "AI" | "HUMAN") => {
 		setConversations((prev) =>
-			prev.map((c) => (c.id === selectedId ? { ...c, mode: newMode } : c))
+			prev.map((c) => (c.id === selectedId ? { ...c, mode: newMode } : c)),
 		);
 	};
 
@@ -66,24 +73,25 @@ export default function Home() {
 		<ConnectionGate>
 			{(phone, onDisconnect) => (
 				<div className="h-screen w-full flex bg-background text-on-surface antialiased font-sans overflow-hidden">
-					
 					{/* Sidebar Lateral Fijo (Stitch Navigation) */}
-					<nav className="fixed left-0 top-0 h-screen w-[280px] bg-surface border-r border-outline-variant/10 flex flex-col py-6 px-4 z-50">
-						
+					<nav className="fixed left-0 top-0 h-screen w-[280px] bg-surface/95 border-r border-outline-variant/30 flex flex-col py-6 px-4 z-50 shadow-[20px_0_60px_rgba(12,83,58,0.14)] backdrop-blur-xl">
 						{/* Header de Marca */}
 						<div className="flex items-center gap-3 mb-10 px-2 shrink-0">
-							<div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center shrink-0 border border-primary/30 glow-active">
-								<RobotIcon className="text-primary" size={20} />
+							<div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shrink-0 border border-primary/40 glow-active">
+								<RobotIcon className="text-on-primary" size={20} />
 							</div>
 							<div>
-								<h1 className="font-display text-base font-bold text-primary leading-tight">Bot Personal</h1>
-								<p className="text-[10px] font-semibold text-on-surface-variant/70 uppercase tracking-wide mt-0.5">WhatsApp CRM</p>
+								<h1 className="font-display text-base font-bold text-primary leading-tight">
+									Bot Personal
+								</h1>
+								<p className="text-[10px] font-semibold text-on-surface-variant/70 uppercase tracking-wide mt-0.5">
+									WhatsApp CRM
+								</p>
 							</div>
 						</div>
 
 						{/* Links de Navegación */}
 						<div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
-							
 							{/* Dashboard overview */}
 							<button
 								onClick={() => setActiveTab("dashboard")}
@@ -161,16 +169,19 @@ export default function Home() {
 								<SettingsIcon size={16} />
 								<span>Ajustes</span>
 							</button>
-
 						</div>
 
 						{/* Footer / Status */}
 						<div className="mt-auto pt-6 border-t border-outline-variant/10 space-y-2 shrink-0">
 							<div className="flex items-center justify-between px-2 py-1">
-								<span className="text-[10px] uppercase font-bold tracking-widest text-on-surface-variant/80">Sistema</span>
+								<span className="text-[10px] uppercase font-bold tracking-widest text-on-surface-variant/80">
+									Sistema
+								</span>
 								<div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-primary/10 border border-primary/20">
 									<span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-									<span className="text-[9px] text-primary font-bold uppercase tracking-wider">Online</span>
+									<span className="text-[9px] text-primary font-bold uppercase tracking-wider">
+										Online
+									</span>
 								</div>
 							</div>
 							<div className="text-[9px] text-center text-on-surface-variant/40 font-mono tracking-widest">
@@ -180,14 +191,12 @@ export default function Home() {
 					</nav>
 
 					{/* Contenedor Principal de Contenido (pl-[280px] para respetar el Sidebar Fijo) */}
-					<div className="pl-[280px] flex-1 h-screen w-full flex flex-col relative overflow-hidden bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-surface-container/20 via-surface to-background">
-						
+					<div className="pl-[280px] flex-1 h-screen w-full flex flex-col relative overflow-hidden bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/18 via-surface to-background before:absolute before:inset-0 before:bg-[linear-gradient(135deg,rgba(78,222,163,0.10),transparent_35%,rgba(255,185,95,0.10))] before:pointer-events-none">
 						{/* Encabezado Superior */}
 						<DashboardHeader phone={phone} onDisconnect={onDisconnect} />
 
 						{/* Contenido Dinámico de Pestañas */}
-						<main className="flex-1 p-6 overflow-hidden flex flex-col min-h-0">
-							
+						<main className="flex-1 p-6 overflow-hidden flex flex-col min-h-0 relative z-10">
 							{activeTab === "dashboard" && <DashboardOverview />}
 
 							{activeTab === "chats" && (
@@ -211,10 +220,17 @@ export default function Home() {
 											/>
 										) : (
 											<div className="h-full flex flex-col items-center justify-center text-on-surface-variant p-8 text-center bg-surface-container-lowest/5">
-												<MessagesIcon className="text-on-surface-variant/30 animate-pulse mb-4" size={48} />
-												<h3 className="font-display text-sm font-bold text-on-surface mb-1">Tu bandeja de entrada</h3>
+												<MessagesIcon
+													className="text-on-surface-variant/30 animate-pulse mb-4"
+													size={48}
+												/>
+												<h3 className="font-display text-sm font-bold text-on-surface mb-1">
+													Tu bandeja de entrada
+												</h3>
 												<p className="text-xs max-w-xs text-on-surface-variant/80">
-													Seleccioná una conversación del panel izquierdo para empezar a gestionar la automatización o responder manualmente.
+													Seleccioná una conversación del panel izquierdo para
+													empezar a gestionar la automatización o responder
+													manualmente.
 												</p>
 											</div>
 										)}
@@ -226,13 +242,13 @@ export default function Home() {
 
 							{activeTab === "automations" && <AutomationsOverview />}
 
-							{activeTab === "contacts" && <ContactsOverview />}
+							{activeTab === "contacts" && (
+								<ContactsOverview conversations={conversations} />
+							)}
 
 							{activeTab === "settings" && <SettingsPanel />}
-
 						</main>
 					</div>
-
 				</div>
 			)}
 		</ConnectionGate>

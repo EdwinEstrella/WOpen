@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { KeyIcon, RepeatIcon, MailIcon, BellIcon } from "./Icons.tsx";
+import { KeyIcon, MailIcon, BellIcon } from "./Icons.tsx";
 
 export default function SettingsPanel() {
 	const [settings, setSettings] = useState<Record<string, any>>({});
@@ -27,7 +27,7 @@ export default function SettingsPanel() {
 		loadSettings();
 	}, []);
 
-	const handleSave = async (e: React.FormEvent) => {
+	const handleSave = async (e: { preventDefault: () => void }) => {
 		e.preventDefault();
 		setSaving(true);
 		try {
@@ -67,35 +67,32 @@ export default function SettingsPanel() {
 
 	return (
 		<div className="glass-panel rounded-3xl p-6 max-w-3xl mx-auto w-full shadow-2xl flex flex-col max-h-full overflow-hidden">
-			
 			{/* Encabezado */}
 			<div className="border-b border-outline-variant/10 pb-4 mb-6 shrink-0">
-				<h2 className="font-display text-sm font-bold text-on-surface uppercase tracking-wider">Ajustes del Sistema</h2>
-				<span className="text-[10px] text-on-surface-variant/80 font-medium">Configurá las palabras clave, reactivaciones y políticas de seguimiento</span>
+				<h2 className="font-display text-sm font-bold text-on-surface uppercase tracking-wider">
+					Ajustes del Sistema
+				</h2>
+				<span className="text-[10px] text-on-surface-variant/80 font-medium">
+					Configurá la palabra de activación y las políticas de seguimiento
+				</span>
 			</div>
 
 			{/* Formulario */}
-			<form onSubmit={handleSave} className="flex-1 overflow-y-auto pr-1 space-y-6">
-				
+			<form
+				onSubmit={handleSave}
+				className="flex-1 overflow-y-auto pr-1 space-y-6"
+			>
 				{/* Grupo 1: Palabras Clave */}
 				<div className="bg-surface/80 border border-outline-variant/20 p-5 rounded-2xl space-y-4">
 					<h3 className="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-2">
-						<KeyIcon className="text-primary" size={14} /> Palabras Clave (Control del Dueño)
+						<KeyIcon className="text-primary" size={14} /> Palabras Clave
+						(Control del Dueño)
 					</h3>
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 						<div className="flex flex-col gap-1.5">
-							<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Apagar Bot (Keyword)</label>
-							<input
-								type="text"
-								value={settings.bot_off_keyword || ""}
-								onChange={(e) => handleChange("bot_off_keyword", e.target.value)}
-								placeholder="Ej: bot off"
-								className="px-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
-								required
-							/>
-						</div>
-						<div className="flex flex-col gap-1.5">
-							<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Prender Bot (Keyword)</label>
+							<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">
+								Prender Bot (Keyword)
+							</label>
 							<input
 								type="text"
 								value={settings.bot_on_keyword || ""}
@@ -107,81 +104,64 @@ export default function SettingsPanel() {
 						</div>
 					</div>
 
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 border-t border-outline-variant/10 pt-4">
-						<div className="flex flex-col gap-1.5">
-							<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Modo de Coincidencia</label>
-							<select
-								value={settings.keyword_match_mode || "exact"}
-								onChange={(e) => handleChange("keyword_match_mode", e.target.value)}
-								className="px-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary"
-							>
-								<option value="exact">Exacta (Debe ser el mensaje idéntico)</option>
-								<option value="contains">Contiene (Debe contener la palabra)</option>
-							</select>
-						</div>
-						<div className="flex items-center gap-3 mt-5">
-							<input
-								type="checkbox"
-								id="keyword_case_sensitive"
-								checked={!!settings.keyword_case_sensitive}
-								onChange={(e) => handleChange("keyword_case_sensitive", e.target.checked)}
-								className="w-4 h-4 rounded bg-surface-container-low border border-outline-variant/30 text-primary focus:ring-0"
-							/>
-							<label htmlFor="keyword_case_sensitive" className="text-xs text-on-surface-variant font-semibold select-none cursor-pointer">
-								Sensible a mayúsculas/minúsculas
-							</label>
-						</div>
-					</div>
-				</div>
-
-				{/* Grupo 2: Reactivación Automática */}
-				<div className="bg-surface/80 border border-outline-variant/20 p-5 rounded-2xl space-y-4">
-					<h3 className="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-2">
-						<RepeatIcon className="text-primary" size={14} /> Reactivación Automática
-					</h3>
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-						<div className="flex flex-col gap-1.5">
-							<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Días para reactivación por respuesta</label>
-							<input
-								type="number"
-								min="1"
-								max="30"
-								value={settings.owner_reactivation_days || 3}
-								onChange={(e) => handleChange("owner_reactivation_days", Number(e.target.value))}
-								className="px-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
-								required
-							/>
-							<span className="text-[9px] text-on-surface-variant/70 leading-relaxed mt-1">
-								Si intervenís en un chat humano, el bot se reactivará automáticamente tras este período de inactividad.
-							</span>
-						</div>
+					<div className="flex items-center gap-3 mt-4 border-t border-outline-variant/10 pt-4">
+						<input
+							type="checkbox"
+							id="keyword_case_sensitive"
+							checked={!!settings.keyword_case_sensitive}
+							onChange={(e) =>
+								handleChange("keyword_case_sensitive", e.target.checked)
+							}
+							className="w-4 h-4 rounded bg-surface-container-low border border-outline-variant/30 text-primary focus:ring-0"
+						/>
+						<label
+							htmlFor="keyword_case_sensitive"
+							className="text-xs text-on-surface-variant font-semibold select-none cursor-pointer"
+						>
+							Sensible a mayúsculas/minúsculas para coincidencia exacta
+						</label>
 					</div>
 				</div>
 
 				{/* Grupo 3: Seguimientos Automáticos */}
 				<div className="bg-surface/80 border border-outline-variant/20 p-5 rounded-2xl space-y-4">
 					<h3 className="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-2">
-						<MailIcon className="text-primary" size={14} /> Seguimientos Automáticos (Follow-Ups)
+						<MailIcon className="text-primary" size={14} /> Seguimientos
+						Automáticos (Follow-Ups)
 					</h3>
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 						<div className="flex flex-col gap-1.5">
-							<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Intervalo de evaluación (horas)</label>
+							<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">
+								Intervalo de evaluación (horas)
+							</label>
 							<input
 								type="number"
 								min="1"
-								value={settings.followup_interval_hours || 6}
-								onChange={(e) => handleChange("followup_interval_hours", Number(e.target.value))}
+								value={settings.followup_interval_hours || 12}
+								onChange={(e) =>
+									handleChange(
+										"followup_interval_hours",
+										Number(e.target.value),
+									)
+								}
 								className="px-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary"
 								required
 							/>
 						</div>
 						<div className="flex flex-col gap-1.5">
-							<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Espera tras mensaje de IA (horas)</label>
+							<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">
+								Espera tras mensaje de IA (horas)
+							</label>
 							<input
 								type="number"
 								min="1"
-								value={settings.followup_min_hours_after_assistant || 24}
-								onChange={(e) => handleChange("followup_min_hours_after_assistant", Number(e.target.value))}
+								value={settings.followup_min_hours_after_assistant || 12}
+								onChange={(e) =>
+									handleChange(
+										"followup_min_hours_after_assistant",
+										Number(e.target.value),
+									)
+								}
 								className="px-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary"
 								required
 							/>
@@ -190,24 +170,35 @@ export default function SettingsPanel() {
 
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 border-t border-outline-variant/10 pt-4">
 						<div className="flex flex-col gap-1.5">
-							<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Intentos máximos de seguimiento</label>
+							<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">
+								Intentos máximos de seguimiento
+							</label>
 							<input
 								type="number"
 								min="1"
 								max="5"
 								value={settings.followup_max_attempts || 2}
-								onChange={(e) => handleChange("followup_max_attempts", Number(e.target.value))}
+								onChange={(e) =>
+									handleChange("followup_max_attempts", Number(e.target.value))
+								}
 								className="px-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary"
 								required
 							/>
 						</div>
 						<div className="flex flex-col gap-1.5">
-							<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Ventana libre de WhatsApp (horas)</label>
+							<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">
+								Ventana libre de WhatsApp (horas)
+							</label>
 							<input
 								type="number"
 								min="1"
 								value={settings.whatsapp_freeform_window_hours || 24}
-								onChange={(e) => handleChange("whatsapp_freeform_window_hours", Number(e.target.value))}
+								onChange={(e) =>
+									handleChange(
+										"whatsapp_freeform_window_hours",
+										Number(e.target.value),
+									)
+								}
 								className="px-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary"
 								required
 							/>
@@ -219,10 +210,15 @@ export default function SettingsPanel() {
 							type="checkbox"
 							id="block_outside_24h_followups"
 							checked={!!settings.block_outside_24h_followups}
-							onChange={(e) => handleChange("block_outside_24h_followups", e.target.checked)}
+							onChange={(e) =>
+								handleChange("block_outside_24h_followups", e.target.checked)
+							}
 							className="w-4 h-4 rounded bg-surface-container-low border border-outline-variant/30 text-primary focus:ring-0"
 						/>
-						<label htmlFor="block_outside_24h_followups" className="text-xs text-on-surface-variant font-semibold select-none cursor-pointer">
+						<label
+							htmlFor="block_outside_24h_followups"
+							className="text-xs text-on-surface-variant font-semibold select-none cursor-pointer"
+						>
 							Bloquear seguimientos fuera de la ventana de 24 horas (Anti-Spam)
 						</label>
 					</div>
@@ -231,13 +227,20 @@ export default function SettingsPanel() {
 				{/* Grupo 4: Telegram */}
 				<div className="bg-surface/80 border border-outline-variant/20 p-5 rounded-2xl space-y-3">
 					<h3 className="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-2">
-						<BellIcon className="text-primary" size={14} /> Canal de Alertas (Telegram)
+						<BellIcon className="text-primary" size={14} /> Canal de Alertas
+						(Telegram)
 					</h3>
-					<p className="text-[9px] text-on-surface-variant/80">Las credenciales se administran de manera segura desde las variables de entorno de tu servidor (.env.local)</p>
-					
+					<p className="text-[9px] text-on-surface-variant/80">
+						Las credenciales se administran de manera segura desde las variables
+						de entorno de tu servidor (.env.local)
+					</p>
+
 					<div className="flex items-center gap-2.5 bg-primary/10 border border-primary/20 text-primary text-xs p-3 rounded-xl">
 						<BellIcon size={14} className="animate-bounce" />
-						<span><b>Estado de Alertas:</b> Integración de notificaciones de Telegram activa en el backend.</span>
+						<span>
+							<b>Estado de Alertas:</b> Integración de notificaciones de
+							Telegram activa en el backend.
+						</span>
 					</div>
 				</div>
 
@@ -251,7 +254,6 @@ export default function SettingsPanel() {
 						{saving ? "Guardando..." : "Guardar Cambios"}
 					</button>
 				</div>
-
 			</form>
 		</div>
 	);

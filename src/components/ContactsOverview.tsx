@@ -1,156 +1,157 @@
-import React, { useState } from "react";
-import { PlusIcon, RobotIcon, UserIcon } from "./Icons.tsx";
+import { useMemo, useState } from "react";
+import { RobotIcon, UserIcon } from "./Icons.tsx";
+import type { ConversationListRow } from "../lib/db.ts";
 
-interface Contact {
-	id: number;
-	name: string;
-	phone: string;
-	status: "Leads" | "Cliente" | "Frío";
-	mode: "AI" | "Human";
-	tags: string[];
-	lastInteraction: string;
+interface ContactsOverviewProps {
+	conversations: ConversationListRow[];
 }
 
-export default function ContactsOverview() {
-	const [contacts, setContacts] = useState<Contact[]>([
-		{
-			id: 1,
-			name: "Edwin Estrella",
-			phone: "+54 9 11 1234-5678",
-			status: "Cliente",
-			mode: "AI",
-			tags: ["Interés Venta", "Premium"],
-			lastInteraction: "Hace 5 minutos"
-		},
-		{
-			id: 2,
-			name: "María Belén",
-			phone: "+54 9 11 8765-4321",
-			status: "Leads",
-			mode: "Human",
-			tags: ["Soporte Técnico"],
-			lastInteraction: "Hace 1 hora"
-		},
-		{
-			id: 3,
-			name: "Rodrigo Gómez",
-			phone: "+54 9 341 555-9876",
-			status: "Frío",
-			mode: "AI",
-			tags: ["Consulta General"],
-			lastInteraction: "Hace 2 días"
-		}
-	]);
+function formatLastInteraction(
+	value: Date | string | null | undefined,
+): string {
+	if (!value) return "Sin mensajes";
+	const date = value instanceof Date ? value : new Date(value);
+	if (Number.isNaN(date.getTime())) return "Sin fecha válida";
+	return new Intl.DateTimeFormat("es-AR", {
+		dateStyle: "medium",
+		timeStyle: "short",
+	}).format(date);
+}
+
+export default function ContactsOverview({
+	conversations,
+}: ContactsOverviewProps) {
+	const [query, setQuery] = useState("");
+	const [modeFilter, setModeFilter] = useState<"ALL" | "AI" | "HUMAN">("ALL");
+
+	const contacts = useMemo(() => {
+		const normalized = query.trim().toLocaleLowerCase();
+		return conversations.filter((conversation) => {
+			const matchesMode =
+				modeFilter === "ALL" || conversation.mode === modeFilter;
+			const haystack =
+				`${conversation.name ?? ""} ${conversation.phone} ${conversation.jid ?? ""}`.toLocaleLowerCase();
+			return matchesMode && (!normalized || haystack.includes(normalized));
+		});
+	}, [conversations, modeFilter, query]);
 
 	return (
 		<div className="flex-1 flex flex-col h-full overflow-hidden">
-			{/* CRM Header */}
 			<div className="flex justify-between items-center mb-6 shrink-0">
 				<div>
-					<h2 className="font-display text-lg font-bold text-on-surface">Gestión de Contactos CRM</h2>
-					<p className="text-xs text-on-surface-variant mt-1">Administrá y categorizá los contactos y la intervención de IA por chat</p>
+					<h2 className="font-display text-lg font-bold text-on-surface">
+						Gestión de Contactos CRM
+					</h2>
+					<p className="text-xs text-on-surface-variant mt-1">
+						Contactos persistidos desde conversaciones reales de WhatsApp.
+					</p>
 				</div>
-				<div>
-					<button className="px-4 py-2 rounded-lg bg-primary text-on-primary text-xs font-bold hover:bg-primary-container transition-colors active:scale-95 glow-active flex items-center gap-1.5">
-						<PlusIcon size={12} /> Agregar Contacto
-					</button>
+				<div className="text-xs text-on-surface-variant">
+					<strong className="text-primary font-semibold">
+						{contacts.length}
+					</strong>{" "}
+					contactos reales
 				</div>
 			</div>
 
-			{/* Contact Table Grid */}
 			<div className="flex-1 glass-panel rounded-2xl overflow-hidden flex flex-col min-h-[400px]">
-				
-				{/* Filters SubBar */}
-				<div className="px-6 py-4 border-b border-outline-variant/10 bg-surface-container-low/30 flex justify-between items-center shrink-0">
+				<div className="px-6 py-4 border-b border-outline-variant/20 bg-surface-container-low/70 flex justify-between items-center shrink-0">
 					<div className="flex items-center gap-4">
 						<input
 							type="text"
+							value={query}
+							onChange={(event) => setQuery(event.target.value)}
 							placeholder="Buscar por nombre o teléfono..."
-							className="bg-surface-container-low border border-outline-variant/30 rounded-xl px-4 py-1.5 text-xs focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all w-64 placeholder-on-surface-variant/50 text-on-surface"
+							className="bg-surface-container-lowest border border-outline-variant/40 rounded-xl px-4 py-1.5 text-xs focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all w-64 placeholder-on-surface-variant/60 text-on-surface"
 						/>
-						<select className="bg-surface-container-low border border-outline-variant/30 rounded-xl px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary">
-							<option>Todos los Estados</option>
-							<option>Leads</option>
-							<option>Cliente</option>
-							<option>Frío</option>
+						<select
+							value={modeFilter}
+							onChange={(event) =>
+								setModeFilter(event.target.value as "ALL" | "AI" | "HUMAN")
+							}
+							className="bg-surface-container-lowest border border-outline-variant/40 rounded-xl px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary"
+						>
+							<option value="ALL">Todos los modos</option>
+							<option value="AI">AI</option>
+							<option value="HUMAN">HUMAN</option>
 						</select>
 					</div>
-					<div className="text-xs text-on-surface-variant">
-						Mostrando <strong className="text-primary font-semibold">{contacts.length}</strong> contactos
+					<div className="text-[10px] text-on-surface-variant uppercase tracking-wider font-bold">
+						Fuente: /api/conversations
 					</div>
 				</div>
 
-				{/* Table */}
 				<div className="flex-1 overflow-y-auto">
-					<table className="w-full text-left border-collapse">
-						<thead>
-							<tr className="border-b border-outline-variant/10 text-on-surface-variant text-[10px] font-bold uppercase tracking-wider bg-surface-container-lowest/20">
-								<th className="px-6 py-4">Contacto</th>
-								<th className="px-6 py-4">Teléfono</th>
-								<th className="px-6 py-4">Categoría</th>
-								<th className="px-6 py-4">Modo Bot</th>
-								<th className="px-6 py-4">Etiquetas</th>
-								<th className="px-6 py-4">Última Charla</th>
-								<th className="px-6 py-4 text-right">Acciones</th>
-							</tr>
-						</thead>
-						<tbody className="divide-y divide-outline-variant/10 text-xs">
-							{contacts.map((contact) => (
-								<tr key={contact.id} className="hover:bg-surface-container-low/20 transition-colors">
-									<td className="px-6 py-4 font-semibold text-on-surface flex items-center gap-3">
-										<div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center font-display text-primary text-xs font-bold shrink-0">
-											{contact.name.charAt(0)}
-										</div>
-										{contact.name}
-									</td>
-									<td className="px-6 py-4 text-on-surface-variant font-mono">{contact.phone}</td>
-									<td className="px-6 py-4">
-										<span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-											contact.status === "Cliente"
-												? "bg-primary/10 border border-primary/20 text-primary"
-												: contact.status === "Leads"
-												? "bg-secondary/10 border border-secondary/20 text-secondary"
-												: "bg-outline/10 border border-outline/20 text-on-surface-variant"
-										}`}>
-											{contact.status}
-										</span>
-									</td>
-									<td className="px-6 py-4">
-										<span className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase flex items-center gap-1.5 w-fit ${
-											contact.mode === "AI"
-												? "bg-primary/10 border border-primary/20 text-primary"
-												: "bg-secondary/10 border border-secondary/20 text-secondary"
-										}`}>
-											{contact.mode === "AI" ? (
-												<>
-													<RobotIcon size={12} /> AI
-												</>
-											) : (
-												<>
-													<UserIcon size={12} /> HUM
-												</>
-											)}
-										</span>
-									</td>
-									<td className="px-6 py-4 flex gap-1 flex-wrap">
-										{contact.tags.map((tag, i) => (
-											<span key={i} className="px-2 py-0.5 rounded bg-surface-container-high/60 border border-outline-variant/30 text-[10px] text-on-surface-variant">
-												{tag}
-											</span>
-										))}
-									</td>
-									<td className="px-6 py-4 text-on-surface-variant/80">{contact.lastInteraction}</td>
-									<td className="px-6 py-4 text-right">
-										<button className="px-2 py-1 rounded hover:bg-surface-container-high text-primary hover:underline font-semibold">
-											Ver Historial
-										</button>
-									</td>
+					{contacts.length === 0 ? (
+						<div className="h-full flex flex-col items-center justify-center text-center p-8 text-on-surface-variant">
+							<h3 className="font-display text-sm font-bold text-on-surface mb-1">
+								Sin contactos persistidos
+							</h3>
+							<p className="text-xs max-w-sm">
+								Cuando entren conversaciones reales, van a aparecer acá sin
+								datos ficticios ni etiquetas inventadas.
+							</p>
+						</div>
+					) : (
+						<table className="w-full text-left border-collapse">
+							<thead>
+								<tr className="border-b border-outline-variant/20 text-on-surface-variant text-[10px] font-bold uppercase tracking-wider bg-surface-container-lowest/60">
+									<th className="px-6 py-4">Contacto</th>
+									<th className="px-6 py-4">Teléfono</th>
+									<th className="px-6 py-4">JID</th>
+									<th className="px-6 py-4">Modo Bot</th>
+									<th className="px-6 py-4">Último mensaje</th>
+									<th className="px-6 py-4">Última charla</th>
 								</tr>
-							))}
-						</tbody>
-					</table>
+							</thead>
+							<tbody className="divide-y divide-outline-variant/10 text-xs">
+								{contacts.map((contact) => (
+									<tr
+										key={contact.id}
+										className="hover:bg-surface-container-low/50 transition-colors"
+									>
+										<td className="px-6 py-4 font-semibold text-on-surface flex items-center gap-3">
+											<div className="w-8 h-8 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center font-display text-primary text-xs font-bold shrink-0">
+												{(contact.name || contact.phone)
+													.charAt(0)
+													.toLocaleUpperCase()}
+											</div>
+											{contact.name || "Sin nombre"}
+										</td>
+										<td className="px-6 py-4 text-on-surface-variant font-mono">
+											{contact.phone}
+										</td>
+										<td className="px-6 py-4 text-on-surface-variant/80 font-mono max-w-[220px] truncate">
+											{contact.jid ?? "—"}
+										</td>
+										<td className="px-6 py-4">
+											<span
+												className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase flex items-center gap-1.5 w-fit ${
+													contact.mode === "AI"
+														? "bg-primary/15 border border-primary/30 text-primary"
+														: "bg-secondary/15 border border-secondary/30 text-secondary"
+												}`}
+											>
+												{contact.mode === "AI" ? (
+													<RobotIcon size={12} />
+												) : (
+													<UserIcon size={12} />
+												)}
+												{contact.mode}
+											</span>
+										</td>
+										<td className="px-6 py-4 text-on-surface-variant/90 max-w-xs truncate">
+											{contact.last_message_content ?? "Sin mensajes"}
+										</td>
+										<td className="px-6 py-4 text-on-surface-variant/80">
+											{formatLastInteraction(contact.last_message_at)}
+										</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					)}
 				</div>
-
 			</div>
 		</div>
 	);
