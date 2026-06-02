@@ -29,9 +29,19 @@ export default function DashboardHeader({
 		} finally {
 			setLoading(false);
 		}
-	};
+		};
 
-	return (
+		const handleLogout = async () => {
+		if (!confirm("¿Cerrar sesión en el panel?")) return;
+		try {
+			await fetch("/api/auth/logout", { method: "POST" });
+			window.location.href = "/login";
+		} catch (error) {
+			console.error("[header] Error cerrando sesión:", error);
+		}
+		};
+
+		return (
 		<header className="bg-surface/60 backdrop-blur-xl border-b border-outline-variant/10 flex justify-between items-center h-16 px-6 shrink-0 z-40">
 			
 			{/* Título de Sección */}
@@ -88,12 +98,16 @@ export default function DashboardHeader({
 
 				<span className="text-on-surface-variant/20 hidden sm:inline">|</span>
 
-				{/* Avatar de adorno premium */}
-				<div className="w-8 h-8 rounded-full overflow-hidden border border-outline-variant/30 hover:border-primary/50 transition-colors cursor-pointer flex items-center justify-center bg-surface-container">
-					<UserIcon className="text-on-surface-variant/60" size={14} />
-				</div>
+				{/* Avatar / Logout */}
+				<button 
+					onClick={handleLogout}
+					title="Cerrar Sesión"
+					className="w-8 h-8 rounded-full overflow-hidden border border-outline-variant/30 hover:border-error/50 hover:bg-error/10 hover:text-error transition-colors cursor-pointer flex items-center justify-center bg-surface-container"
+				>
+					<UserIcon className="text-on-surface-variant/60 hover:text-error transition-colors" size={14} />
+				</button>
 			</div>
 
-		</header>
-	);
-}
+			</header>
+			);
+			}
