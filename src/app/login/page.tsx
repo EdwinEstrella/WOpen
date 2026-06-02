@@ -10,7 +10,7 @@ export default function LoginPage() {
 	const [loading, setLoading] = useState(false);
 	const router = useRouter();
 
-	const handleLogin = async (e: React.FormEvent) => {
+	const handleLogin = async (e: { preventDefault: () => void }) => {
 		e.preventDefault();
 		setError("");
 		setLoading(true);
@@ -40,8 +40,12 @@ export default function LoginPage() {
 		<div className="min-h-screen bg-black flex items-center justify-center p-4">
 			<div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl">
 				<div className="text-center mb-8">
-					<h1 className="text-2xl font-bold text-white mb-2">Acceso al Sistema</h1>
-					<p className="text-sm text-zinc-400">Panel de Administración - WhatsApp Bot</p>
+					<h1 className="text-2xl font-bold text-white mb-2">
+						Acceso al Sistema
+					</h1>
+					<p className="text-sm text-zinc-400">
+						Panel de Administración - WhatsApp Bot
+					</p>
 				</div>
 
 				{error && (
@@ -52,7 +56,9 @@ export default function LoginPage() {
 
 				<form onSubmit={handleLogin} className="space-y-4">
 					<div>
-						<label className="block text-xs font-medium text-zinc-400 mb-1">Correo Electrónico</label>
+						<label className="block text-xs font-medium text-zinc-400 mb-1">
+							Correo Electrónico
+						</label>
 						<input
 							type="email"
 							value={email}
@@ -64,7 +70,9 @@ export default function LoginPage() {
 					</div>
 
 					<div>
-						<label className="block text-xs font-medium text-zinc-400 mb-1">Contraseña</label>
+						<label className="block text-xs font-medium text-zinc-400 mb-1">
+							Contraseña
+						</label>
 						<input
 							type="password"
 							value={password}
@@ -78,7 +86,7 @@ export default function LoginPage() {
 					<button
 						type="submit"
 						disabled={loading}
-						className="w-full bg-white text-black font-bold rounded-xl py-2.5 mt-4 hover:bg-zinc-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+						className="w-full bg-emerald-400 text-emerald-950 font-bold rounded-xl py-2.5 mt-4 hover:bg-amber-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_24px_rgba(52,211,153,0.25)]"
 					>
 						{loading ? "Entrando..." : "Ingresar"}
 					</button>

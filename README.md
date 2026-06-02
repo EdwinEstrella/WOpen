@@ -42,7 +42,7 @@ La forma recomendada de desplegar el proyecto es usando **Docker Compose**, ya q
 Creá un archivo `.env.local` en la raíz del proyecto basándote en `.env.example`:
 
 ```bash
-DEEPSEEK_API_KEY=sk-tu-api-key-de-deepseek
+DEEPSEEK_API_KEY=tu-api-key-de-deepseek
 DEEPSEEK_MODEL=deepseek-chat
 DATABASE_URL=postgresql://user:password@db:5432/whatsapp_bot
 REDIS_URL=redis://redis:6379
@@ -59,6 +59,19 @@ docker-compose up -d --build
 ```
 
 Esto descargará las imágenes oficiales, compilará la aplicación Next.js y levantará los servicios. Podrás acceder al dashboard en `http://localhost:3000`.
+
+### Persistencia de WhatsApp en deploy
+
+La sesión de WhatsApp se guarda con Baileys en el directorio configurado por `WHATSAPP_AUTH_DIR` (`/app/auth` en Docker). Ese directorio **debe ser persistente**: si se borra o queda dentro de un contenedor efímero, WhatsApp va a pedir QR otra vez después de cada deploy.
+
+El `docker-compose.yml` usa volúmenes nombrados para conservar credenciales y datos entre rebuilds/recreates:
+
+```yaml
+whatsapp_auth:/app/auth
+bot_data:/app/data
+```
+
+No borres esos volúmenes salvo que quieras desvincular WhatsApp manualmente. El botón de desconexión del dashboard es destructivo por diseño: elimina la sesión y fuerza un nuevo QR.
 
 ---
 

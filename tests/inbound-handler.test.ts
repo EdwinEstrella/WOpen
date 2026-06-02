@@ -21,6 +21,7 @@ function upsert(input: {
 	text?: string;
 	name?: string;
 	timestamp?: Date;
+	senderPn?: string;
 }): WhatsAppUpsert {
 	return {
 		type: input.type ?? "notify",
@@ -30,6 +31,7 @@ function upsert(input: {
 					remoteJid: input.remoteJid ?? "549111@s.whatsapp.net",
 					id: input.id ?? "wamid-1",
 					fromMe: input.fromMe ?? false,
+					senderPn: input.senderPn,
 				},
 				pushName: input.name ?? "Cliente",
 				messageTimestamp: input.timestamp ?? at("2026-06-04T12:00:00Z"),
@@ -44,6 +46,7 @@ function makeDeps() {
 	const turnState = createInMemoryTurnState();
 	const calls: string[] = [];
 	const sent: string[] = [];
+	const sentJids: string[] = [];
 	const telegram: unknown[] = [];
 	let deepSeekRaw =
 		'{"response":{"part_1":"Hola","part_2":"¿En qué te ayudo?","part_3":""},"handoff":{"required":false,"reason":""}}';
@@ -66,9 +69,10 @@ function makeDeps() {
 			calls.push(`deepseek:${input.conversationId}`);
 			return deepSeekRaw;
 		},
-		sendMessage: async (_jid, text) => {
+		sendMessage: async (jid, text) => {
 			calls.push(`send:${text}`);
 			sent.push(text);
+			sentJids.push(jid);
 		},
 		notifyTelegramHumanNeeded: async (payload) => {
 			calls.push("telegram");
@@ -83,6 +87,7 @@ function makeDeps() {
 		turnState,
 		calls,
 		sent,
+		sentJids,
 		telegram,
 		setDeepSeekRaw: (raw: string) => {
 			deepSeekRaw = raw;
@@ -122,6 +127,25 @@ describe("owner-aware inbound handler filters", () => {
 			calls.filter((call) => call.startsWith("deepseek:")).length,
 			1,
 		);
+	});
+
+	it("uses senderPn as canonical chat JID for @lid inbound messages", async () => {
+		const { handler, repo, sentJids } = makeDeps();
+		await handler.handleUpsert(
+			upsert({
+				id: "lid-1",
+				remoteJid: "171855029772514@lid",
+				senderPn: "18496294358@s.whatsapp.net",
+				text: "Hola desde LID",
+			}),
+		);
+
+		const convo = repo.getOrCreateConversation({ phone: "18496294358" });
+		assert.equal(convo.jid, "18496294358@s.whatsapp.net");
+		assert.deepEqual(sentJids, [
+			"18496294358@s.whatsapp.net",
+			"18496294358@s.whatsapp.net",
+		]);
 	});
 });
 

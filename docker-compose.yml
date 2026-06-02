@@ -34,12 +34,18 @@ services:
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
       - ADMIN_EMAIL=${ADMIN_EMAIL}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - WHATSAPP_AUTH_DIR=/app/auth
+      - BOT_DATA_DIR=/app/data
     volumes:
-      - ./auth:/app/auth
-      - ./data:/app/data
+      - whatsapp_auth:/app/auth
+      - bot_data:/app/data
 
 volumes:
   pgdata:
     driver: local
   redisdata:
+    driver: local
+  whatsapp_auth:
+    driver: local
+  bot_data:
     driver: local

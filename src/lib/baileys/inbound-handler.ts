@@ -171,9 +171,16 @@ function isValidOneToOneNotify(
 	);
 }
 
-function phoneFromJid(jid: string, messageKey?: { senderPn?: string }): string {
-	const raw = messageKey?.senderPn || jid;
-	return raw.split("@")[0] ?? raw;
+function canonicalChatJid(message: WhatsAppMessage): string {
+	const remoteJid = message.key.remoteJid as string;
+	if (remoteJid.endsWith("@lid") && message.key.senderPn) {
+		return message.key.senderPn;
+	}
+	return remoteJid;
+}
+
+function phoneFromJid(jid: string): string {
+	return jid.split("@")[0] ?? jid;
 }
 
 function detectMediaTypeAndContent(message: WhatsAppMessage): {
@@ -229,7 +236,7 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 		if (!isValidOneToOneNotify(upsert, message)) return { status: "ignored" };
 
 		const now = deps.now();
-		const remoteJid = message.key.remoteJid as string;
+		const chatJid = canonicalChatJid(message);
 		const whatsappMessageId = message.key.id;
 		const fromMe = message.key.fromMe === true;
 		if (
@@ -241,10 +248,10 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 			return { status: "duplicate" };
 		}
 
-		const phone = phoneFromJid(remoteJid, message.key as any);
+		const phone = phoneFromJid(chatJid);
 		const beforeConversation = await deps.repo.getOrCreateConversation({
 			phone,
-			jid: remoteJid,
+			jid: chatJid,
 			name: message.pushName ?? null,
 		});
 		const rawSettings = await deps.repo.getSettings();
@@ -396,7 +403,7 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 			const messageKeys = queuedMessages
 				.filter((msg) => msg.messageId && !msg.messageId.startsWith("db-"))
 				.map((msg) => ({
-					remoteJid,
+					remoteJid: chatJid,
 					id: msg.messageId,
 					fromMe: false,
 				}));
@@ -405,7 +412,9 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 			}
 
 			// 2. Mostrar estado "escribiendo" (composing)
-			await deps.sendPresenceUpdate("composing", remoteJid).catch(() => {});
+			await deps.sendPresenceUpdate("composing", chatJid).catch((error) => {
+				console.warn("[bot] No se pudo enviar presencia composing:", error);
+			});
 
 			const history = await deps.getRecentHistory(beforeConversation.id);
 			const systemPrompt = await deps.getActiveSystemPrompt();
@@ -460,7 +469,12 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 					created_at: now,
 				});
 				// Detener estado escribiendo si falló
-				await deps.sendPresenceUpdate("paused", remoteJid).catch(() => {});
+				await deps.sendPresenceUpdate("paused", chatJid).catch((error) => {
+					console.warn(
+						"[bot] No se pudo pausar presencia tras JSON inválido:",
+						error,
+					);
+				});
 				return done({
 					status: "ai_invalid_json",
 					conversationId: beforeConversation.id,
@@ -468,7 +482,7 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 			}
 
 			for (const part of parsed.parts) {
-				await deps.sendMessage(remoteJid, part);
+				await deps.sendMessage(chatJid, part);
 				await deps.repo.insertMessageAndTouchConversation({
 					conversation_id: beforeConversation.id,
 					direction: "outbound",
@@ -482,7 +496,9 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 			}
 
 			// 3. Detener estado "escribiendo" (paused)
-			await deps.sendPresenceUpdate("paused", remoteJid).catch(() => {});
+			await deps.sendPresenceUpdate("paused", chatJid).catch((error) => {
+				console.warn("[bot] No se pudo pausar presencia:", error);
+			});
 
 			const handoff = planHandoffActions(parsed.handoff);
 			if (handoff) {
@@ -496,7 +512,7 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 				await deps.notifyTelegramHumanNeeded({
 					conversationId: beforeConversation.id,
 					phone,
-					jid: remoteJid,
+					jid: chatJid,
 					reason: handoff.reason,
 					lastMessage: text,
 				});

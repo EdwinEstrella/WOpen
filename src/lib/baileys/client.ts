@@ -7,10 +7,10 @@ import {
 } from "@whiskeysockets/baileys";
 import pino from "pino";
 import fs from "node:fs";
-import path from "node:path";
 import { Redis } from "ioredis";
 import { createIoredisTurnState } from "../redis-adapter.ts";
 import { createInboundHandler } from "./inbound-handler.ts";
+import { runtimePaths } from "../runtime-paths.ts";
 import {
 	getConnectionState,
 	setConnectionState,
@@ -28,11 +28,13 @@ import {
 } from "../db.ts";
 
 const logger = pino({ level: "silent" });
-const authDir = path.resolve(process.cwd(), "auth");
-const dataDir = path.resolve(process.cwd(), "data");
+const authDir = runtimePaths.authDir;
+const dataDir = runtimePaths.dataDir;
 
-if (!fs.existsSync(dataDir)) {
-	fs.mkdirSync(dataDir, { recursive: true });
+for (const dir of [authDir, dataDir]) {
+	if (!fs.existsSync(dir)) {
+		fs.mkdirSync(dir, { recursive: true });
+	}
 }
 
 // Cliente global de Redis
@@ -110,8 +112,12 @@ function startOutboxProcessor() {
 		try {
 			const pending = await getPendingOutbox(20);
 			for (const item of pending) {
-				const jid = item.phone.includes("@") ? item.phone : `${item.phone}@s.whatsapp.net`;
-				console.log(`[bot] Enviando mensaje de Outbox a ${jid}: "${item.content.substring(0, 30)}..."`);
+				const jid = item.phone.includes("@")
+					? item.phone
+					: `${item.phone}@s.whatsapp.net`;
+				console.log(
+					`[bot] Enviando mensaje de Outbox a ${jid}: "${item.content.substring(0, 30)}..."`,
+				);
 				await globalSock.sendMessage(jid, { text: item.content });
 				await markOutboxSent(item.id);
 			}
@@ -131,16 +137,20 @@ function stopOutboxProcessor() {
 // Función principal para iniciar el socket de Baileys
 export async function startWASocket() {
 	console.log("[bot] Iniciando conexión con WhatsApp...");
-	
+
 	let version: [number, number, number] | undefined;
 	try {
 		const fetched = await fetchLatestBaileysVersion();
 		version = fetched.version;
 		if (version) {
-			console.log(`[bot] Usando última versión de Baileys detectada: ${version.join(".")}`);
+			console.log(
+				`[bot] Usando última versión de Baileys detectada: ${version.join(".")}`,
+			);
 		}
 	} catch (err) {
-		console.warn("[bot] No se pudo obtener la última versión de Baileys de forma dinámica, usando fallback.");
+		console.warn(
+			"[bot] No se pudo obtener la última versión de Baileys de forma dinámica, usando fallback.",
+		);
 	}
 
 	const { state, saveCreds } = await useMultiFileAuthState(authDir);
@@ -173,7 +183,9 @@ export async function startWASocket() {
 			try {
 				const qrcodeTerminal = await import("qrcode-terminal");
 				qrcodeTerminal.generate(qr, { small: true });
-			} catch {}
+			} catch (error) {
+				console.warn("[bot] No se pudo imprimir el QR en consola:", error);
+			}
 		}
 
 		// 2. Estado de conexión: connecting
@@ -211,7 +223,9 @@ export async function startWASocket() {
 			console.log(`[bot] Conexión cerrada. Status code: ${status}`);
 
 			if (status === DisconnectReason.loggedOut) {
-				console.log("[bot] Sesión cerrada (loggedOut). Limpiando credenciales.");
+				console.log(
+					"[bot] Sesión cerrada (loggedOut). Limpiando credenciales.",
+				);
 				await setConnectionState({
 					status: "disconnected",
 					qr_string: null,
@@ -219,7 +233,12 @@ export async function startWASocket() {
 				});
 				try {
 					fs.rmSync(authDir, { recursive: true, force: true });
-				} catch {}
+				} catch (error) {
+					console.warn(
+						"[bot] No se pudo limpiar el directorio de credenciales:",
+						error,
+					);
+				}
 				globalSock = null;
 			} else {
 				// Reconexión con backoff
@@ -232,14 +251,21 @@ export async function startWASocket() {
 
 	// Registro del handler de mensajes entrantes con depuración
 	sock.ev.on("messages.upsert", async (upsert: any) => {
-		console.log(`[bot-debug] messages.upsert recibido. Tipo: ${upsert.type}, Cantidad: ${upsert.messages?.length}`);
+		console.log(
+			`[bot-debug] messages.upsert recibido. Tipo: ${upsert.type}, Cantidad: ${upsert.messages?.length}`,
+		);
 		for (const msg of upsert.messages || []) {
-			console.log(`[bot-debug] Mensaje key: ${JSON.stringify(msg.key)}, pushName: ${msg.pushName}, timestamp: ${msg.messageTimestamp}`);
+			console.log(
+				`[bot-debug] Mensaje key: ${JSON.stringify(msg.key)}, pushName: ${msg.pushName}, timestamp: ${msg.messageTimestamp}`,
+			);
 		}
 		try {
 			await inboundHandler.handleUpsert(upsert);
 		} catch (error) {
-			console.error("[bot] Error procesando mensaje entrante en handleUpsert:", error);
+			console.error(
+				"[bot] Error procesando mensaje entrante en handleUpsert:",
+				error,
+			);
 		}
 	});
 }
@@ -263,7 +289,9 @@ export async function shutdownWASocket() {
 			globalSock.ev.removeAllListeners("creds.update");
 			globalSock.ev.removeAllListeners("messages.upsert");
 			globalSock.end(undefined);
-		} catch {}
+		} catch (error) {
+			console.warn("[bot] Error cerrando el socket anterior:", error);
+		}
 		globalSock = null;
 	}
 }

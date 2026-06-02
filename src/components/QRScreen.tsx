@@ -15,7 +15,7 @@ export default function QRScreen({ status, qrPng, updatedAt }: QRScreenProps) {
 	// Contador para detectar inactividad prolongada en la DB
 	useEffect(() => {
 		let interval: NodeJS.Timeout | null = null;
-		
+
 		if (status === "disconnected" && !qrPng) {
 			interval = setInterval(() => {
 				setSecondsDisconnected((prev) => prev + 1);
@@ -29,22 +29,33 @@ export default function QRScreen({ status, qrPng, updatedAt }: QRScreenProps) {
 		};
 	}, [status, qrPng]);
 
-	const showWarning = status === "disconnected" && !qrPng && secondsDisconnected >= 10;
+	const showWarning =
+		status === "disconnected" && !qrPng && secondsDisconnected >= 10;
+	const lastUpdatedLabel = updatedAt
+		? new Intl.DateTimeFormat("es-AR", {
+				timeStyle: "medium",
+			}).format(new Date(updatedAt))
+		: null;
 
 	return (
 		<div className="glass-panel rounded-3xl p-8 max-w-md w-full mx-auto text-center shadow-2xl relative border-outline-variant/20 bg-surface/80 backdrop-blur-xl">
-			
 			<div className="mb-6 w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto shrink-0 glow-active">
 				<PhoneIcon className="text-primary" size={24} />
 			</div>
-			
-			<h2 className="font-display text-base font-bold text-on-surface mb-2">Vincular Dispositivo WhatsApp</h2>
+
+			<h2 className="font-display text-base font-bold text-on-surface mb-2">
+				Vincular Dispositivo WhatsApp
+			</h2>
 			<p className="text-[11px] text-on-surface-variant/80 mb-6 px-4 leading-relaxed">
-				Escaneá el código QR desde la sección <strong className="text-on-surface font-semibold">"Dispositivos vinculados"</strong> en la aplicación móvil de WhatsApp de tu teléfono.
+				Escaneá el código QR desde la sección{" "}
+				<strong className="text-on-surface font-semibold">
+					"Dispositivos vinculados"
+				</strong>{" "}
+				en la aplicación móvil de WhatsApp de tu teléfono.
 			</p>
 
-			{/* Caja de renderizado del QR (Mantiene fondo claro/blanco para garantizar lectura por cámaras) */}
-			<div className="relative w-64 h-64 bg-white border border-outline-variant/20 rounded-2xl flex flex-col items-center justify-center overflow-hidden mb-6 p-4 mx-auto shadow-inner">
+			{/* Caja de renderizado del QR: fondo claro neutro sólo para garantizar lectura por cámaras */}
+			<div className="relative w-64 h-64 bg-[#f1ead7] border border-primary/30 rounded-2xl flex flex-col items-center justify-center overflow-hidden mb-6 p-4 mx-auto shadow-inner">
 				{status === "qr" && qrPng ? (
 					<img
 						src={qrPng}
@@ -57,12 +68,16 @@ export default function QRScreen({ status, qrPng, updatedAt }: QRScreenProps) {
 							<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
 							<span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
 						</span>
-						<span className="text-[10px] font-bold text-slate-800 uppercase tracking-widest animate-pulse">Vinculando...</span>
+						<span className="text-[10px] font-bold text-slate-800 uppercase tracking-widest animate-pulse">
+							Vinculando...
+						</span>
 					</div>
 				) : (
 					<div className="flex flex-col items-center gap-3">
 						<div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin glow-active"></div>
-						<span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Esperando credenciales...</span>
+						<span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+							Esperando credenciales...
+						</span>
 					</div>
 				)}
 			</div>
@@ -75,7 +90,9 @@ export default function QRScreen({ status, qrPng, updatedAt }: QRScreenProps) {
 							<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75"></span>
 							<span className="relative inline-flex rounded-full h-2 w-2 bg-secondary"></span>
 						</span>
-						<span className="font-semibold text-secondary uppercase tracking-wider">Esperando escaneo QR...</span>
+						<span className="font-semibold text-secondary uppercase tracking-wider">
+							Esperando escaneo QR...
+						</span>
 					</>
 				)}
 				{status === "connecting" && (
@@ -84,7 +101,9 @@ export default function QRScreen({ status, qrPng, updatedAt }: QRScreenProps) {
 							<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
 							<span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
 						</span>
-						<span className="font-semibold text-primary uppercase tracking-wider">Iniciando sesión...</span>
+						<span className="font-semibold text-primary uppercase tracking-wider">
+							Iniciando sesión...
+						</span>
 					</>
 				)}
 				{status === "disconnected" && (
@@ -92,16 +111,27 @@ export default function QRScreen({ status, qrPng, updatedAt }: QRScreenProps) {
 						<span className="relative flex h-2 w-2">
 							<span className="relative inline-flex rounded-full h-2 w-2 bg-on-surface-variant/40"></span>
 						</span>
-						<span className="font-semibold text-on-surface-variant uppercase tracking-wider">Desconectado ({secondsDisconnected}s)</span>
+						<span className="font-semibold text-on-surface-variant uppercase tracking-wider">
+							Desconectado ({secondsDisconnected}s)
+						</span>
 					</>
 				)}
 			</div>
 
+			{lastUpdatedLabel && (
+				<p className="text-[9px] text-on-surface-variant/60 mb-4 font-mono uppercase tracking-wider">
+					Última actualización: {lastUpdatedLabel}
+				</p>
+			)}
+
 			{/* Alerta de inactividad de daemon */}
 			{showWarning && (
 				<div className="p-3.5 bg-error/10 border border-error/20 rounded-xl text-error text-[10px] leading-relaxed animate-fade-in text-left">
-					⚠️ <b>¿Lleva demasiado tiempo desconectado?</b><br />
-					Si el código QR no se genera, asegúrate de que el daemon del bot de WhatsApp esté encendido en tu servidor ejecutando el script <code>npm run start:bot</code>.
+					⚠️ <b>¿Lleva demasiado tiempo desconectado?</b>
+					<br />
+					Si el código QR no se genera, asegúrate de que el daemon del bot de
+					WhatsApp esté encendido en tu servidor ejecutando el script{" "}
+					<code>npm run start:bot</code>.
 				</div>
 			)}
 		</div>
