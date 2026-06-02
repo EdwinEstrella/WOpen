@@ -51,6 +51,22 @@ async function main() {
 	}, 1000);
 }
 
+// Manejo de apagado limpio (Graceful Shutdown)
+async function handleShutdown(signal: string) {
+	console.log(`[bot-process] Recibido ${signal}. Cerrando de forma limpia...`);
+	try {
+		await shutdownWASocket();
+		console.log("[bot-process] Socket de WhatsApp cerrado correctamente.");
+		process.exit(0);
+	} catch (error) {
+		console.error("[bot-process] Error durante el cierre limpio:", error);
+		process.exit(1);
+	}
+}
+
+process.on("SIGTERM", () => handleShutdown("SIGTERM"));
+process.on("SIGINT", () => handleShutdown("SIGINT"));
+
 main().catch((error) => {
 	console.error("[bot-process] Error crítico al arrancar main:", error);
 	process.exit(1);
