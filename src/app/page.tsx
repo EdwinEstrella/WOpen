@@ -7,10 +7,15 @@ import ConversationList from "../components/ConversationList.tsx";
 import ConversationPanel from "../components/ConversationPanel.tsx";
 import PromptsManager from "../components/PromptsManager.tsx";
 import SettingsPanel from "../components/SettingsPanel.tsx";
+import DashboardOverview from "../components/DashboardOverview.tsx";
+import AutomationsOverview from "../components/AutomationsOverview.tsx";
+import ContactsOverview from "../components/ContactsOverview.tsx";
 import type { ConversationListRow } from "../lib/db.ts";
 
+type Tab = "dashboard" | "chats" | "prompts" | "automations" | "contacts" | "settings";
+
 export default function Home() {
-	const [activeTab, setActiveTab] = useState<"chats" | "prompts" | "settings">("chats");
+	const [activeTab, setActiveTab] = useState<Tab>("dashboard");
 	const [conversations, setConversations] = useState<ConversationListRow[]>([]);
 	const [selectedId, setSelectedId] = useState<number | null>(null);
 
@@ -51,94 +56,174 @@ export default function Home() {
 	return (
 		<ConnectionGate>
 			{(phone, onDisconnect) => (
-				<div className="h-screen flex flex-col bg-slate-50 overflow-hidden">
-					{/* Encabezado Principal */}
-					<DashboardHeader phone={phone} onDisconnect={onDisconnect} />
+				<div className="h-screen w-full flex bg-background text-on-surface antialiased font-sans overflow-hidden">
+					
+					{/* Sidebar Lateral Fijo (Stitch Navigation) */}
+					<nav className="fixed left-0 top-0 h-screen w-[280px] bg-surface border-r border-outline-variant/10 flex flex-col py-6 px-4 z-50">
+						
+						{/* Header de Marca */}
+						<div className="flex items-center gap-3 mb-10 px-2 shrink-0">
+							<div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center shrink-0 border border-primary/30 glow-active">
+								<span className="text-xl text-primary">🤖</span>
+							</div>
+							<div>
+								<h1 className="font-display text-base font-bold text-primary leading-tight">Bot Personal</h1>
+								<p className="text-[10px] font-semibold text-on-surface-variant/70 uppercase tracking-wide mt-0.5">WhatsApp CRM</p>
+							</div>
+						</div>
 
-					{/* Menú de Pestañas / Tabs Navegación */}
-					<div className="bg-white border-b border-gray-200 shadow-sm flex-shrink-0">
-						<div className="max-w-[1440px] mx-auto px-6 flex gap-8">
+						{/* Links de Navegación */}
+						<div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
+							
+							{/* Dashboard overview */}
+							<button
+								onClick={() => setActiveTab("dashboard")}
+								className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
+									activeTab === "dashboard"
+										? "text-primary border-r-2 border-primary bg-primary/5 glow-active scale-95"
+										: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
+								}`}
+							>
+								<span className="text-sm">📊</span>
+								<span>Dashboard</span>
+							</button>
+
+							{/* Conversations Workspace */}
 							<button
 								onClick={() => setActiveTab("chats")}
-								className={`py-4 font-bold text-sm tracking-wider uppercase border-b-2 transition-all duration-300 ${
+								className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
 									activeTab === "chats"
-										? "border-emerald-600 text-emerald-600"
-										: "border-transparent text-gray-500 hover:text-emerald-600"
+										? "text-primary border-r-2 border-primary bg-primary/5 glow-active scale-95"
+										: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
 								}`}
 							>
-								💬 Chats
+								<span className="text-sm">💬</span>
+								<span>Conversaciones</span>
 							</button>
+
+							{/* AI System Prompts */}
 							<button
 								onClick={() => setActiveTab("prompts")}
-								className={`py-4 font-bold text-sm tracking-wider uppercase border-b-2 transition-all duration-300 ${
+								className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
 									activeTab === "prompts"
-										? "border-emerald-600 text-emerald-600"
-										: "border-transparent text-gray-500 hover:text-emerald-600"
+										? "text-primary border-r-2 border-primary bg-primary/5 glow-active scale-95"
+										: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
 								}`}
 							>
-								✍️ System Prompts
+								<span className="text-sm">✍️</span>
+								<span>AI Prompts</span>
 							</button>
+
+							{/* Workflow Builder */}
+							<button
+								onClick={() => setActiveTab("automations")}
+								className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
+									activeTab === "automations"
+										? "text-primary border-r-2 border-primary bg-primary/5 glow-active scale-95"
+										: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
+								}`}
+							>
+								<span className="text-sm">⚡</span>
+								<span>Automatizaciones</span>
+							</button>
+
+							{/* Contacts CRM */}
+							<button
+								onClick={() => setActiveTab("contacts")}
+								className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
+									activeTab === "contacts"
+										? "text-primary border-r-2 border-primary bg-primary/5 glow-active scale-95"
+										: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
+								}`}
+							>
+								<span className="text-sm">👥</span>
+								<span>Contactos CRM</span>
+							</button>
+
+							{/* Settings Panel */}
 							<button
 								onClick={() => setActiveTab("settings")}
-								className={`py-4 font-bold text-sm tracking-wider uppercase border-b-2 transition-all duration-300 ${
+								className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
 									activeTab === "settings"
-										? "border-emerald-600 text-emerald-600"
-										: "border-transparent text-gray-500 hover:text-emerald-600"
+										? "text-primary border-r-2 border-primary bg-primary/5 glow-active scale-95"
+										: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
 								}`}
 							>
-								⚙️ Ajustes
+								<span className="text-sm">⚙️</span>
+								<span>Ajustes</span>
 							</button>
+
 						</div>
+
+						{/* Footer / Status */}
+						<div className="mt-auto pt-6 border-t border-outline-variant/10 space-y-2 shrink-0">
+							<div className="flex items-center justify-between px-2 py-1">
+								<span className="text-[10px] uppercase font-bold tracking-widest text-on-surface-variant/80">Sistema</span>
+								<div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-primary/10 border border-primary/20">
+									<span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+									<span className="text-[9px] text-primary font-bold uppercase tracking-wider">Online</span>
+								</div>
+							</div>
+							<div className="text-[9px] text-center text-on-surface-variant/40 font-mono tracking-widest">
+								NEXUS CRM v1.0.0
+							</div>
+						</div>
+					</nav>
+
+					{/* Contenedor Principal de Contenido (pl-[280px] para respetar el Sidebar Fijo) */}
+					<div className="pl-[280px] flex-1 h-screen w-full flex flex-col relative overflow-hidden bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-surface-container/20 via-surface to-background">
+						
+						{/* Encabezado Superior */}
+						<DashboardHeader phone={phone} onDisconnect={onDisconnect} />
+
+						{/* Contenido Dinámico de Pestañas */}
+						<main className="flex-1 p-6 overflow-hidden flex flex-col min-h-0">
+							
+							{activeTab === "dashboard" && <DashboardOverview />}
+
+							{activeTab === "chats" && (
+								<div className="flex-1 glass-panel rounded-3xl overflow-hidden flex min-h-[500px] shadow-2xl">
+									{/* Columna Izquierda: Lista de Chats */}
+									<div className="w-80 flex-shrink-0 border-r border-outline-variant/10">
+										<ConversationList
+											conversations={conversations}
+											selectedId={selectedId}
+											onSelectConversation={setSelectedId}
+										/>
+									</div>
+
+									{/* Columna Derecha: Panel de Conversación Activa */}
+									<div className="flex-1 min-w-0 bg-surface-container-lowest/10">
+										{selectedConversation ? (
+											<ConversationPanel
+												conversation={selectedConversation}
+												onModeChanged={handleModeChangeLocal}
+												onDeleted={handleDeleteLocal}
+											/>
+										) : (
+											<div className="h-full flex flex-col items-center justify-center text-on-surface-variant p-8 text-center bg-surface-container-lowest/5">
+												<span className="text-4xl mb-4 animate-bounce">💬</span>
+												<h3 className="font-display text-sm font-bold text-on-surface mb-1">Tu bandeja de entrada</h3>
+												<p className="text-xs max-w-xs text-on-surface-variant/80">
+													Seleccioná una conversación del panel izquierdo para empezar a gestionar la automatización o responder manualmente.
+												</p>
+											</div>
+										)}
+									</div>
+								</div>
+							)}
+
+							{activeTab === "prompts" && <PromptsManager />}
+
+							{activeTab === "automations" && <AutomationsOverview />}
+
+							{activeTab === "contacts" && <ContactsOverview />}
+
+							{activeTab === "settings" && <SettingsPanel />}
+
+						</main>
 					</div>
 
-					{/* Contenido Dinámico de la Pestaña Activa */}
-					<main className={`flex-1 max-w-[1440px] w-full mx-auto p-6 flex flex-col min-h-0 ${
-						activeTab !== "chats" ? "overflow-y-auto" : "overflow-hidden"
-					}`}>
-						{activeTab === "chats" && (
-							<div className="flex-1 bg-white border border-gray-200 rounded-3xl overflow-hidden shadow-lg flex min-h-[500px]">
-								{/* Columna Izquierda: Lista de Chats */}
-								<div className="w-80 flex-shrink-0">
-									<ConversationList
-										conversations={conversations}
-										selectedId={selectedId}
-										onSelectConversation={setSelectedId}
-									/>
-								</div>
-
-								{/* Columna Derecha: Panel de Conversación Activa */}
-								<div className="flex-1 min-w-0">
-									{selectedConversation ? (
-										<ConversationPanel
-											conversation={selectedConversation}
-											onModeChanged={handleModeChangeLocal}
-											onDeleted={handleDeleteLocal}
-										/>
-									) : (
-										<div className="h-full flex flex-col items-center justify-center text-gray-400 p-8 text-center">
-											<span className="text-4xl mb-3 animate-bounce">💬</span>
-											<h3 className="font-bold text-gray-700 mb-1">Tu bandeja de entrada</h3>
-											<p className="text-xs max-w-xs text-gray-400">
-												Seleccioná un chat del panel izquierdo para empezar a gestionar la automatización o responder manualmente.
-											</p>
-										</div>
-									)}
-								</div>
-							</div>
-						)}
-
-						{activeTab === "prompts" && (
-							<div className="flex-1">
-								<PromptsManager />
-							</div>
-						)}
-
-						{activeTab === "settings" && (
-							<div className="flex-1">
-								<SettingsPanel />
-							</div>
-						)}
-					</main>
 				</div>
 			)}
 		</ConnectionGate>

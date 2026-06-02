@@ -37,28 +37,28 @@ export default function ModeToggle({
 	};
 
 	return (
-		<div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl shadow-inner border border-gray-200">
+		<div className="flex items-center gap-1 bg-surface-container border border-outline-variant/20 p-1 rounded-xl shadow-inner shrink-0">
 			<button
 				onClick={() => handleToggle("AI")}
 				disabled={loading}
-				className={`px-4 py-2 rounded-lg font-semibold text-xs tracking-wider uppercase transition-all duration-300 ${
+				className={`px-3 py-1.5 rounded-lg font-display text-[9px] font-bold uppercase tracking-wider transition-all duration-200 ${
 					currentMode === "AI"
-						? "bg-emerald-600 text-white shadow-md transform scale-105"
-						: "text-gray-500 hover:text-emerald-600 hover:bg-emerald-50/50"
+						? "bg-primary text-on-primary shadow-md scale-105 glow-active"
+						: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
 				} disabled:opacity-50`}
 			>
-				🤖 Modo IA
+				🤖 MODO IA
 			</button>
 			<button
 				onClick={() => handleToggle("HUMAN")}
 				disabled={loading}
-				className={`px-4 py-2 rounded-lg font-semibold text-xs tracking-wider uppercase transition-all duration-300 ${
+				className={`px-3 py-1.5 rounded-lg font-display text-[9px] font-bold uppercase tracking-wider transition-all duration-200 ${
 					currentMode === "HUMAN"
-						? "bg-amber-500 text-white shadow-md transform scale-105"
-						: "text-gray-500 hover:text-amber-500 hover:bg-amber-50/50"
+						? "bg-secondary text-on-secondary shadow-md scale-105"
+						: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
 				} disabled:opacity-50`}
 			>
-				👤 Humano
+				👤 HUMANO
 			</button>
 		</div>
 	);

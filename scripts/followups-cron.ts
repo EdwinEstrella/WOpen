@@ -66,9 +66,12 @@ const scheduler = createFollowUpScheduler({
 
 export async function runFollowupSchedulerOnce() {
 	try {
-		console.log("[scheduler] Ejecutando verificación de follow-ups...");
 		const result = await scheduler.runOnce();
-		console.log("[scheduler] Verificación completada:", result);
+		// Solo mostramos logs en consola si hubo candidatos encontrados o se procesó/envió algún seguimiento
+		if (result && (result.candidates > 0 || result.processed > 0 || result.sent > 0)) {
+			console.log("[scheduler] Ejecutando verificación de follow-ups...");
+			console.log("[scheduler] Verificación completada con actividad:", result);
+		}
 		return result;
 	} catch (error) {
 		console.error("[scheduler] Error ejecutando el followup scheduler:", error);

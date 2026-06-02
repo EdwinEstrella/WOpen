@@ -105,11 +105,13 @@ export default function PromptsManager() {
 	};
 
 	return (
-		<div className="bg-white border border-gray-100 rounded-3xl shadow-lg p-6 max-w-4xl mx-auto w-full">
-			<div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-6">
+		<div className="glass-panel rounded-3xl p-6 max-w-4xl mx-auto w-full shadow-2xl flex flex-col max-h-full overflow-hidden">
+			
+			{/* Encabezado */}
+			<div className="flex items-center justify-between border-b border-outline-variant/10 pb-4 mb-6 shrink-0">
 				<div className="flex flex-col">
-					<h2 className="text-lg font-bold text-gray-800">Gestión de System Prompts</h2>
-					<span className="text-[10px] text-gray-400 font-medium">Configurá el comportamiento de la IA en tiempo real</span>
+					<h2 className="font-display text-sm font-bold text-on-surface uppercase tracking-wider">Gestión de System Prompts</h2>
+					<span className="text-[10px] text-on-surface-variant/80 font-medium">Configurá el comportamiento de la IA en tiempo real</span>
 				</div>
 				
 				{!formVisible && (
@@ -120,123 +122,128 @@ export default function PromptsManager() {
 							setContent("");
 							setFormVisible(true);
 						}}
-						className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs tracking-wider uppercase shadow-md transition-all duration-300 active:scale-95"
+						className="px-4 py-2 bg-primary text-on-primary rounded-xl font-display text-[10px] font-bold uppercase tracking-wider transition-all duration-200 active:scale-95 glow-active"
 					>
-						➕ Nuevo Prompt
+						＋ Nuevo Prompt
 					</button>
 				)}
 			</div>
 
-			{/* Formulario de Alta / Modificación */}
-			{formVisible && (
-				<form onSubmit={handleSubmit} className="bg-gray-50 border border-gray-100 p-6 rounded-2xl mb-8 animate-fade-in">
-					<h3 className="text-sm font-bold text-gray-700 mb-4">{editId ? "✍️ Editar Prompt" : "✨ Crear Nuevo Prompt"}</h3>
-					<div className="flex flex-col gap-4">
-						<div className="flex flex-col gap-1">
-							<label className="text-[10px] font-bold text-gray-500 uppercase">Título descriptivo</label>
-							<input
-								type="text"
-								value={title}
-								onChange={(e) => setTitle(e.target.value)}
-								placeholder="Ej: Asistente Inmobiliario - Tono Formal"
-								className="px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500 bg-white"
-								required
-							/>
+			{/* Contenido con Scroll para Formularios y Listas */}
+			<div className="flex-1 overflow-y-auto space-y-6 pr-1">
+				
+				{/* Formulario de Alta / Modificación */}
+				{formVisible && (
+					<form onSubmit={handleSubmit} className="bg-surface/80 border border-outline-variant/20 p-6 rounded-2xl animate-fade-in space-y-4">
+						<h3 className="text-xs font-bold text-on-surface uppercase tracking-wider">{editId ? "✍️ Editar Prompt" : "✨ Crear Nuevo Prompt"}</h3>
+						<div className="flex flex-col gap-4">
+							<div className="flex flex-col gap-1.5">
+								<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Título Descriptivo</label>
+								<input
+									type="text"
+									value={title}
+									onChange={(e) => setTitle(e.target.value)}
+									placeholder="Ej: Asistente Inmobiliario - Tono Formal"
+									className="px-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all text-on-surface"
+									required
+								/>
+							</div>
+							<div className="flex flex-col gap-1.5">
+								<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Instrucciones del Sistema (System Prompt)</label>
+								<textarea
+									value={content}
+									onChange={(e) => setContent(e.target.value)}
+									placeholder="Ej: Eres un asistente virtual que responde de forma amable..."
+									rows={8}
+									className="px-4 py-3 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs font-mono focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all text-on-surface leading-relaxed"
+									required
+								/>
+							</div>
+							<div className="flex items-center gap-3 justify-end mt-2">
+								<button
+									type="button"
+									onClick={() => setFormVisible(false)}
+									className="px-4 py-2 border border-outline-variant/30 text-on-surface-variant hover:text-on-surface hover:bg-surface-bright rounded-xl font-display text-[10px] font-bold uppercase tracking-wider transition-all duration-200"
+								>
+									Cancelar
+								</button>
+								<button
+									type="submit"
+									className="px-5 py-2 bg-primary text-on-primary rounded-xl font-display text-[10px] font-bold uppercase tracking-wider transition-all duration-200 active:scale-95 glow-active"
+								>
+									{editId ? "Actualizar" : "Crear"}
+								</button>
+							</div>
 						</div>
-						<div className="flex flex-col gap-1">
-							<label className="text-[10px] font-bold text-gray-500 uppercase">Instrucciones del Sistema (System Prompt)</label>
-							<textarea
-								value={content}
-								onChange={(e) => setContent(e.target.value)}
-								placeholder="Ej: Eres un asistente virtual que responde de forma amable..."
-								rows={8}
-								className="px-4 py-3 border border-gray-200 rounded-xl text-sm font-mono focus:outline-none focus:border-emerald-500 bg-white"
-								required
-							/>
-						</div>
-						<div className="flex items-center gap-3 justify-end mt-2">
-							<button
-								type="button"
-								onClick={() => setFormVisible(false)}
-								className="px-4 py-2 border border-gray-200 text-gray-500 hover:bg-gray-100 rounded-xl font-bold text-xs tracking-wider uppercase transition-all duration-300"
-							>
-								Cancelar
-							</button>
-							<button
-								type="submit"
-								className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs tracking-wider uppercase shadow-md transition-all duration-300 active:scale-95"
-							>
-								{editId ? "Actualizar" : "Crear"}
-							</button>
-						</div>
+					</form>
+				)}
+
+				{/* Listado de Prompts */}
+				{loading && prompts.length === 0 ? (
+					<div className="flex items-center justify-center p-8 text-xs text-on-surface-variant/70 font-medium">
+						Cargando prompts...
 					</div>
-				</form>
-			)}
+				) : (
+					<div className="flex flex-col gap-4">
+						{prompts.map((prompt) => (
+							<div
+								key={prompt.id}
+								className={`border rounded-2xl p-5 flex flex-col gap-3 transition-all duration-200 ${
+									prompt.is_active
+										? "border-primary bg-primary/5 glow-active"
+										: "border-outline-variant/10 bg-surface-container-low/20 hover:border-outline-variant/30"
+								}`}
+							>
+								<div className="flex items-center justify-between">
+									<div className="flex items-center gap-3">
+										<h4 className="text-xs font-bold text-on-surface">{prompt.title}</h4>
+										{prompt.is_active && (
+											<span className="bg-primary/10 text-primary border border-primary/20 text-[8px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
+												Activo
+											</span>
+										)}
+									</div>
 
-			{/* Listado de Prompts */}
-			{loading && prompts.length === 0 ? (
-				<div className="flex items-center justify-center p-8 text-xs text-gray-400">
-					Cargando prompts...
-				</div>
-			) : (
-				<div className="flex flex-col gap-4">
-					{prompts.map((prompt) => (
-						<div
-							key={prompt.id}
-							className={`border rounded-2xl p-4 flex flex-col gap-3 transition-all duration-300 ${
-								prompt.is_active
-									? "border-emerald-500 bg-emerald-50/20 shadow-sm"
-									: "border-gray-100 bg-white hover:border-gray-200"
-							}`}
-						>
-							<div className="flex items-center justify-between">
-								<div className="flex items-center gap-3">
-									<h4 className="font-bold text-sm text-gray-800">{prompt.title}</h4>
-									{prompt.is_active && (
-										<span className="bg-emerald-100 text-emerald-800 border border-emerald-200 text-[8px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-											Activo
-										</span>
-									)}
+									{/* Acciones */}
+									<div className="flex items-center gap-3">
+										{!prompt.is_active && (
+											<button
+												onClick={() => handleSetActive(prompt.id)}
+												className="px-3 py-1.5 border border-primary text-primary hover:bg-primary/10 rounded-xl font-display text-[9px] font-extrabold uppercase tracking-wider transition-all duration-200"
+											>
+												⚡ Activar
+											</button>
+										)}
+
+										<button
+											onClick={() => startEdit(prompt)}
+											className="p-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-bright rounded-lg text-xs transition-colors"
+											title="Editar prompt"
+										>
+											✏️
+										</button>
+
+										{!prompt.is_active && (
+											<button
+												onClick={() => handleDelete(prompt.id)}
+												className="p-1.5 text-error/80 hover:text-error hover:bg-error/15 rounded-lg text-xs transition-colors"
+												title="Eliminar prompt"
+											>
+												🗑️
+											</button>
+										)}
+									</div>
 								</div>
 
-								{/* Selector / Radio Button para activar */}
-								<div className="flex items-center gap-3">
-									{!prompt.is_active && (
-										<button
-											onClick={() => handleSetActive(prompt.id)}
-											className="px-3 py-1.5 border border-emerald-600 text-emerald-600 hover:bg-emerald-50 rounded-xl font-bold text-[10px] tracking-wider uppercase transition-all duration-300"
-										>
-											⚡ Activar
-										</button>
-									)}
-
-									<button
-										onClick={() => startEdit(prompt)}
-										className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg text-xs font-semibold"
-										title="Editar prompt"
-									>
-										✏️
-									</button>
-
-									{!prompt.is_active && (
-										<button
-											onClick={() => handleDelete(prompt.id)}
-											className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg text-xs font-semibold"
-											title="Eliminar prompt"
-										>
-											🗑️
-										</button>
-									)}
+								{/* Editor View */}
+								<div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-3.5 text-[11px] font-mono text-on-surface-variant max-h-32 overflow-y-auto whitespace-pre-wrap leading-relaxed">
+									{prompt.content}
 								</div>
 							</div>
-
-							<div className="bg-gray-50 rounded-xl p-3 border border-gray-100 text-xs font-mono text-gray-600 max-h-32 overflow-y-auto whitespace-pre-wrap leading-relaxed">
-								{prompt.content}
-							</div>
-						</div>
-					))}
-				</div>
-			)}
+						))}
+					</div>
+				)}
+			</div>
 		</div>
 	);
 }

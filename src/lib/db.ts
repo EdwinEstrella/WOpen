@@ -165,6 +165,7 @@ export async function listConversations(): Promise<ConversationListRow[]> {
 		        m.content AS last_message_content, 
 		        m.role AS last_message_role
 		 FROM conversations c
+		 LEFT JOIN connection_state cs ON cs.id = 1
 		 LEFT JOIN LATERAL (
 		   SELECT content, role
 		   FROM messages
@@ -172,6 +173,7 @@ export async function listConversations(): Promise<ConversationListRow[]> {
 		   ORDER BY created_at DESC
 		   LIMIT 1
 		 ) m ON TRUE
+		 WHERE c.phone <> cs.phone OR cs.phone IS NULL
 		 ORDER BY c.last_message_at DESC NULLS LAST, c.id DESC`
 	);
 	return res.rows;

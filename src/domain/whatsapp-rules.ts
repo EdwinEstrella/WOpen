@@ -101,27 +101,87 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export function parseNormalReply(raw: string): NormalReplyParseResult {
-  let data: unknown;
-  try {
-    data = parseJsonObject(raw);
-  } catch {
-    return { ok: false, sendRaw: false, reason: "invalid_json" };
+  // Intentamos primero limpiar posibles bloques de código markdown que a veces envuelven la respuesta
+  let cleanRaw = raw.trim();
+  if (cleanRaw.startsWith("```json")) {
+    cleanRaw = cleanRaw.substring(7);
+    if (cleanRaw.endsWith("```")) {
+      cleanRaw = cleanRaw.substring(0, cleanRaw.length - 3);
+    }
+    cleanRaw = cleanRaw.trim();
+  } else if (cleanRaw.startsWith("```")) {
+    cleanRaw = cleanRaw.substring(3);
+    if (cleanRaw.endsWith("```")) {
+      cleanRaw = cleanRaw.substring(0, cleanRaw.length - 3);
+    }
+    cleanRaw = cleanRaw.trim();
   }
-  if (!isRecord(data) || !isRecord(data.response)) return { ok: false, sendRaw: false, reason: "invalid_schema" };
 
-  const parts = [data.response.part_1, data.response.part_2, data.response.part_3]
-    .filter((part): part is string => typeof part === "string")
-    .map((part) => part.trim())
+  // 1. INTENTAMOS PARSEAR COMO JSON ESTRUCTURADO (Compatibilidad heredada)
+  try {
+    const data = JSON.parse(cleanRaw);
+    if (isRecord(data) && isRecord(data.response)) {
+      const parts = [data.response.part_1, data.response.part_2, data.response.part_3]
+        .filter((part): part is string => typeof part === "string")
+        .map((part) => part.trim())
+        .filter(Boolean);
+
+      if (parts.length > 0) {
+        const handoffRecord = isRecord(data.handoff) ? data.handoff : {};
+        return {
+          ok: true,
+          parts,
+          handoff: {
+            required: handoffRecord.required === true,
+            reason: typeof handoffRecord.reason === "string" ? handoffRecord.reason : "",
+          },
+        };
+      }
+    }
+  } catch {
+    // Si falla el parseo JSON, no pasa nada, hacemos el fallback a texto plano inteligente.
+  }
+
+  // 2. FALLBACK A TEXTO PLANO INTELIGENTE
+  // Detección de Handoff por etiquetas de texto (ej. [HUMAN], [HANDOFF])
+  let handoffRequired = false;
+  let handoffReason = "";
+
+  const handoffRegex = /\[(HUMAN|HUMANO|HANDOFF)\]/gi;
+  if (handoffRegex.test(cleanRaw)) {
+    handoffRequired = true;
+    handoffReason = "Intervención solicitada por etiqueta en la respuesta del asistente.";
+    // Limpiamos las etiquetas del texto final
+    cleanRaw = cleanRaw.replace(handoffRegex, "").trim();
+  }
+
+  // Dividimos el texto plano de forma inteligente por saltos de línea dobles
+  const paragraphs = cleanRaw
+    .split(/\n\n+/)
+    .map((p) => p.trim())
     .filter(Boolean);
-  if (parts.length === 0) return { ok: false, sendRaw: false, reason: "empty_parts" };
 
-  const handoffRecord = isRecord(data.handoff) ? data.handoff : {};
+  if (paragraphs.length === 0) {
+    return { ok: false, sendRaw: false, reason: "empty_parts" };
+  }
+
+  // Limitamos a un máximo de 3 partes, agrupando los excedentes en la última parte
+  const parts: string[] = [];
+  if (paragraphs.length <= 3) {
+    parts.push(...paragraphs);
+  } else {
+    parts.push(paragraphs[0]);
+    parts.push(paragraphs[1]);
+    // Agrupamos del párrafo 2 en adelante
+    parts.push(paragraphs.slice(2).join("\n\n"));
+  }
+
   return {
     ok: true,
     parts,
     handoff: {
-      required: handoffRecord.required === true,
-      reason: typeof handoffRecord.reason === "string" ? handoffRecord.reason : "",
+      required: handoffRequired,
+      reason: handoffReason,
     },
   };
 }

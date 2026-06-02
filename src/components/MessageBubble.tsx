@@ -22,38 +22,44 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 		: "";
 
 	return (
-		<div className={`flex w-full ${isUser ? "justify-start" : "justify-end"} mb-3 animate-fade-in`}>
+		<div className={`flex w-full ${isUser ? "justify-start" : "justify-end"} mb-4`}>
 			<div
-				className={`max-w-[70%] p-4 rounded-2xl shadow-sm border transition-all duration-300 ${
+				className={`max-w-[75%] p-4 rounded-2xl border transition-all duration-300 shadow-lg ${
 					isUser
-						? "bg-white border-gray-200 text-gray-800 rounded-bl-none"
+						? "bg-surface-container-low/70 border-outline-variant/20 text-on-surface rounded-bl-none"
 						: isAssistant
-							? "bg-emerald-50 border-emerald-200 text-emerald-900 rounded-br-none"
-							: "bg-amber-50 border-amber-200 text-amber-900 rounded-br-none"
+							? "bg-primary/10 border-primary/30 text-on-surface rounded-br-none glow-active"
+							: "bg-secondary/10 border-secondary/30 text-on-surface rounded-br-none"
 				}`}
 			>
 				{/* Encabezado descriptivo de quién envió el mensaje */}
-				<div className="flex items-center justify-between gap-6 mb-1">
-					<span className="text-[10px] font-bold uppercase tracking-wider opacity-60">
-						{isUser ? "👤 Cliente" : isAssistant ? "🤖 IA (Asistente)" : "👨‍💼 Asesor Humano"}
+				<div className="flex items-center justify-between gap-6 mb-2 border-b border-outline-variant/5 pb-1 shrink-0">
+					<span className={`text-[9px] font-extrabold uppercase tracking-widest ${
+						isUser 
+							? "text-on-surface-variant/80" 
+							: isAssistant 
+							? "text-primary" 
+							: "text-secondary"
+					}`}>
+						{isUser ? "👤 Cliente" : isAssistant ? "🤖 IA" : "👨‍💼 Agente"}
 					</span>
-					<span className="text-[10px] opacity-50">{timeStr}</span>
+					<span className="text-[9px] font-mono text-on-surface-variant/50">{timeStr}</span>
 				</div>
 
 				{/* Soporte para tipos de medios (Multimedia) */}
 				{media_type === "image" && (
-					<div className="flex items-center gap-2 mb-2 p-2 bg-black/5 rounded-lg border border-black/10 text-xs">
-						📷 <i>Imagen recibida (Procesada por DeepSeek Multimodal)</i>
+					<div className="flex items-center gap-2 mb-2 p-2 bg-background/50 rounded-lg border border-outline-variant/10 text-xs text-on-surface-variant/90">
+						📷 <i>Imagen recibida (Procesada por IA Multimodal)</i>
 					</div>
 				)}
 				{media_type === "audio" && (
-					<div className="flex items-center gap-2 mb-2 p-2 bg-black/5 rounded-lg border border-black/10 text-xs">
+					<div className="flex items-center gap-2 mb-2 p-2 bg-background/50 rounded-lg border border-outline-variant/10 text-xs text-on-surface-variant/90">
 						🎙️ <i>Nota de voz recibida (Transcribiendo...)</i>
 					</div>
 				)}
 
 				{/* Contenido del mensaje */}
-				<p className="text-sm leading-relaxed whitespace-pre-wrap break-words m-0">{content}</p>
+				<p className="text-xs leading-relaxed whitespace-pre-wrap break-words m-0 text-on-surface/90 font-medium">{content}</p>
 			</div>
 		</div>
 	);

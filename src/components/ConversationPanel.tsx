@@ -44,22 +44,20 @@ export default function ConversationPanel({
 		}
 	};
 
-	// Efecto para inicializar y recargar mensajes periódicamente (polling de 2 segundos)
+	// Polling de 2 segundos
 	useEffect(() => {
 		loadMessages();
 		const interval = setInterval(loadMessages, 2000);
 		return () => clearInterval(interval);
 	}, [conversation.id]);
 
-	// Auto-scroll al fondo al cargar mensajes nuevos respetando la posición del scroll del usuario
+	// Auto-scroll respetuoso
 	useEffect(() => {
 		const container = chatContainerRef.current;
 		if (!container) return;
 
-		// Consideramos que está abajo si está a menos de 150px del final
 		const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
 
-		// Hacemos scroll si el usuario ya estaba abajo o si es la primera carga de la conversación
 		if (isAtBottom || isFirstLoadRef.current) {
 			chatEndRef.current?.scrollIntoView({
 				behavior: isFirstLoadRef.current ? "auto" : "smooth",
@@ -68,7 +66,7 @@ export default function ConversationPanel({
 		}
 	}, [messages]);
 
-	// Enviar mensaje manual (en modo HUMAN)
+	// Enviar mensaje manual
 	const handleSend = async (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!text.trim() || sending || conversation.mode === "AI") return;
@@ -116,12 +114,13 @@ export default function ConversationPanel({
 	const displayName = conversation.name?.trim() || `+${conversation.phone}`;
 
 	return (
-		<div className="flex flex-col h-full bg-slate-50">
-			{/* Cabecera del panel de conversación */}
-			<div className="p-4 bg-white border-b border-gray-200 flex items-center justify-between shadow-sm">
+		<div className="flex flex-col h-full bg-transparent">
+			
+			{/* Cabecera del Panel de Conversación */}
+			<div className="p-4 bg-surface/80 border-b border-outline-variant/10 flex items-center justify-between shrink-0">
 				<div className="flex flex-col">
-					<span className="font-bold text-gray-800 text-base">{displayName}</span>
-					<span className="text-[10px] text-gray-400 font-medium">JID: {conversation.phone}@s.whatsapp.net</span>
+					<span className="font-display text-sm font-bold text-on-surface">{displayName}</span>
+					<span className="text-[9px] font-mono text-on-surface-variant/60 tracking-wider mt-0.5">JID: {conversation.phone}@s.whatsapp.net</span>
 				</div>
 				
 				<div className="flex items-center gap-4">
@@ -134,7 +133,7 @@ export default function ConversationPanel({
 					<button
 						onClick={handleDelete}
 						disabled={deleting}
-						className="p-2 text-red-500 hover:bg-red-50 hover:text-red-700 rounded-lg text-xs font-semibold transition-all duration-300 disabled:opacity-50"
+						className="px-2.5 py-1 text-error/80 hover:text-error hover:bg-error/10 border border-transparent hover:border-error/20 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-200 disabled:opacity-50"
 						title="Borrar conversación completa de la DB"
 					>
 						🗑️ Borrar
@@ -142,11 +141,11 @@ export default function ConversationPanel({
 				</div>
 			</div>
 
-			{/* Contenedor del chat con scroll */}
-			<div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 flex flex-col min-h-0">
+			{/* Contenedor de Mensajes con Scroll */}
+			<div ref={chatContainerRef} className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 min-h-0">
 				{messages.length === 0 ? (
-					<div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-xs">
-						<span>💬</span>
+					<div className="flex-1 flex flex-col items-center justify-center text-on-surface-variant/60 text-xs gap-2">
+						<span className="text-2xl animate-bounce">💬</span>
 						<p>No hay mensajes en este chat. Escribí un mensaje para iniciar.</p>
 					</div>
 				) : (
@@ -155,26 +154,27 @@ export default function ConversationPanel({
 				<div ref={chatEndRef} />
 			</div>
 
-			{/* Formulario / Composer inferior */}
-			<div className="p-4 bg-white border-t border-gray-200 shadow-lg">
+			{/* Composer / Input Inferior */}
+			<div className="p-4 bg-surface/80 border-t border-outline-variant/10 shrink-0">
 				{isAi ? (
-					<div className="flex items-center justify-center p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-800 text-xs font-semibold animate-pulse">
-						🤖 El bot responde automáticamente en este chat. Cambiá a modo Humano si querés intervenir manualmente.
+					<div className="flex items-center justify-center gap-2 p-3 bg-primary/5 border border-primary/20 rounded-xl text-primary text-xs font-semibold animate-pulse glow-active">
+						<span>🤖</span>
+						<span>El bot responde automáticamente. Cambiá a modo Humano si querés intervenir manualmente.</span>
 					</div>
 				) : (
-					<form onSubmit={handleSend} className="flex gap-2 w-full">
+					<form onSubmit={handleSend} className="flex gap-2.5 w-full">
 						<input
 							type="text"
 							value={text}
 							onChange={(e) => setText(e.target.value)}
 							placeholder="Escribí un mensaje en modo Humano..."
 							disabled={sending}
-							className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-amber-500 transition-all duration-300 disabled:bg-gray-50"
+							className="flex-1 px-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/20 transition-all duration-200 disabled:opacity-50 text-on-surface placeholder-on-surface-variant/50"
 						/>
 						<button
 							type="submit"
 							disabled={sending || !text.trim()}
-							className="px-6 py-2.5 bg-amber-500 text-white rounded-xl font-bold text-xs tracking-wider uppercase shadow-md hover:bg-amber-600 active:scale-95 transition-all duration-300 disabled:opacity-50 disabled:scale-100"
+							className="px-5 py-2 bg-secondary text-on-secondary border border-secondary-container hover:bg-secondary-container rounded-xl font-display text-[10px] font-bold uppercase tracking-wider transition-all duration-200 active:scale-95 disabled:opacity-50"
 						>
 							{sending ? "Enviando..." : "Enviar ➡️"}
 						</button>
