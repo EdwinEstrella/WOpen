@@ -31,13 +31,17 @@ Cuando termines, debe funcionar esto:
    reinicios posteriores del proceso bot, NO se vuelve a pedir QR
    mientras la sesión siga viva en WhatsApp.
 4. Cuando alguien escribe al WhatsApp del usuario:
-   - guardar el mensaje en PostgreSQL.
-   - **Palabras clave de apagado:** Si el mensaje del usuario incluye palabras clave configurables (por ejemplo, "humano", "asesor" u "Ok."), el chat debe cambiar automáticamente a modo "HUMAN" y detener al bot, notificando (visualmente) en el dashboard.
-   - Si el mensaje contiene imagen o audio, Baileys debe descargar el media y enviarlo a DeepSeek para su análisis o transcripción.
-   - si la conversación está en modo "AI", llamar a DeepSeek con el
-     historial reciente y el system prompt ACTIVO seleccionado en la base de datos.
-   - **Respuesta en partes:** El bot no debe responder en un solo bloque gigante de texto. Debe solicitar a DeepSeek que estructure la respuesta en un JSON con partes (part_1, part_2, part_3). El bot enviará cada parte como un mensaje individual, aplicando un `delay` proporcional a la longitud del texto (ej. `2000ms + (text.length * 10)`) para simular que está escribiendo de forma natural.
-   - si la conversación está en modo "HUMAN", solo guardar y NO responder.
+   - Tratar cada mensaje válido como un **turno de procesamiento**: persistir primero, leer historial reciente, decidir modo, responder si corresponde y cerrar el turno limpiando estado transitorio. Cerrar el turno NO significa cerrar Baileys, borrar `./auth/` ni pedir QR nuevo.
+   - Guardar el mensaje en PostgreSQL antes de cualquier llamada a DeepSeek.
+   - Si el mensaje viene del cliente, guardarlo como `role='user'`. Si viene desde el WhatsApp conectado del dueño (`fromMe === true`), guardarlo como `role='human'` y usarlo para controles administrativos.
+   - **Palabras configurables de control del dueño:** desde Ajustes se configuran una palabra para apagar/bloquear el bot por chat y una palabra para activarlo, por ejemplo `ok.`. Solo funcionan si las escribe el dueño desde su WhatsApp. Si las escribe un cliente, son texto normal y NO cambian el modo administrativo.
+   - Si el dueño envía la palabra de apagado, el chat pasa a modo `HUMAN`, el bot no responde y se registra/notifica el cambio.
+   - Si el dueño envía la palabra de activación, el chat vuelve a modo `AI`. Si el dueño responde en un chat `HUMAN` después de 3 días de intervención/inactividad, también debe reactivarse el bot para ese chat y registrarse el evento.
+   - Si el mensaje contiene imagen o audio, Baileys debe descargar el media y enviarlo a DeepSeek para su análisis o transcripción antes de generar contexto.
+   - Si la conversación está en modo `AI`, llamar a DeepSeek con el historial reciente persistido y el system prompt ACTIVO seleccionado en la base de datos.
+   - **Herramienta Humano:** si DeepSeek detecta que la conversación necesita una persona —cliente listo para cerrar, pide humano/asesor, está molesto, hay objeción crítica o falta información que el bot no debe inventar— debe devolver una señal de handoff. El sistema cambia el chat a `HUMAN`, apaga el bot para ese chat, guarda el evento y manda una notificación por Telegram al dueño.
+   - **Respuesta en partes:** El bot no debe responder en un solo bloque gigante de texto. Debe solicitar a DeepSeek que estructure la respuesta en un JSON con partes (`part_1`, `part_2`, `part_3`) y opcionalmente `handoff`. El bot enviará cada parte como un mensaje individual, aplicando un `delay` proporcional a la longitud del texto (ej. `2000ms + (text.length * 10)`) para simular que está escribiendo de forma natural.
+   - Si la conversación está en modo `HUMAN`, solo guardar y NO responder automáticamente.
 5. Dashboard real (después de conectar):
    - lista de conversaciones a la izquierda (ordenadas por último
      mensaje, más reciente arriba);
@@ -51,11 +55,18 @@ Cuando termines, debe funcionar esto:
 6. Pestaña de Prompts en el Dashboard:
    - CRUD (Crear, Leer, Actualizar, Borrar) para System Prompts.
    - Selector (Radio button o Dropdown) para marcar un prompt específico como "Activo".
-7. **Sistema Automático de Seguimientos (Follow-Ups):**
+7. Pestaña de Ajustes:
+   - Permite configurar `bot_off_keyword` y `bot_on_keyword` por defecto global.
+   - Permite configurar sensibilidad de mayúsculas/minúsculas y coincidencia exacta.
+   - Permite configurar días para reactivación automática por respuesta del dueño (default 3), ventana de follow-ups, máximo de intentos y bloqueo fuera de 24h.
+   - Permite configurar Telegram (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` vía entorno; UI solo muestra estado/configuración no secreta).
+8. **Sistema Automático de Seguimientos (Follow-Ups):**
    - El proceso bot debe ejecutar una tarea programada (cron) periódicamente (ej. cada X horas).
-   - Debe buscar conversaciones donde el último mensaje haya sido del bot ("assistant") y el cliente no haya respondido después de un tiempo definido (ej. 24 horas), y donde el número de intentos de seguimiento sea menor a 2.
-   - El bot enviará a la API de DeepSeek el historial de la conversación pidiendo que decida si amerita un seguimiento (formato JSON: `{ "respuesta": "SI/NO", "mensaje": "..." }`).
-   - Si DeepSeek dice "SI", se envía el mensaje, se guarda en BD y se incrementa el contador de seguimientos.
+   - Debe buscar conversaciones en modo `AI` donde el último mensaje visible haya sido del bot (`assistant`), el cliente no haya respondido después, no exista cola/lock/debounce activo, haya pasado el tiempo mínimo configurado y el número de intentos sea menor a 2.
+   - El bot enviará a DeepSeek el historial de la conversación pidiendo que decida si amerita un seguimiento con JSON estricto: `{ "respuesta": "SI" | "NO", "mensaje": "..." }`.
+   - Si DeepSeek dice `SI`, el mensaje es válido y la conversación está dentro de la ventana permitida de 24 horas desde el último mensaje del cliente, se envía, se guarda en BD y se incrementa el contador.
+   - Si pasaron más de 24 horas y la configuración bloquea mensajes free-form fuera de ventana, NO enviar seguimiento automático: registrar bloqueo por riesgo de spam/política y opcionalmente notificar/derivar a humano.
+   - Si el cliente responde a un seguimiento, el flujo de seguimiento se cancela/reinicia y vuelve a ejecutarse el flujo normal de mensaje entrante.
 
 # STACK OBLIGATORIO
 
@@ -97,6 +108,8 @@ agente-whatsapp/
 │   │       │   └── [conversationId]/route.ts  # GET + POST
 │   │       ├── mode/
 │   │       │   └── [conversationId]/route.ts  # POST cambia AI/HUMAN
+│   │       ├── settings/
+│   │       │   └── route.ts          # GET / PUT keywords, followups y ventana 24h
 │   │       └── prompts/
 │   │           └── route.ts          # GET / POST / PUT para system prompts
 │   ├── components/
@@ -107,7 +120,8 @@ agente-whatsapp/
 │   │   ├── ConversationPanel.tsx
 │   │   ├── MessageBubble.tsx
 │   │   ├── ModeToggle.tsx
-│   │   └── PromptsManager.tsx
+│   │   ├── PromptsManager.tsx
+│   │   └── SettingsPanel.tsx
 │   └── lib/
 │       ├── db.ts
 │       ├── Deepseek.ts
@@ -141,9 +155,13 @@ DEEPSEEK_API_KEY=sk-...
 DEEPSEEK_MODEL=deepseek-chat
 DATABASE_URL=postgresql://user:password@db:5432/whatsapp_bot
 REDIS_URL=redis://redis:6379
+TELEGRAM_BOT_TOKEN=123456:abc...
+TELEGRAM_CHAT_ID=123456789
 ```
 
 Exige al usuario el uso de una cuenta de DeepSeek de pago (con saldo recargado). Los tiers gratuitos o de prueba tienen rate limits muy estrictos y van a fallar en producción real con error 429. NO uses OpenAI ni alternativas gratuitas.
+
+Telegram se usa solo para notificar al dueño cuando la herramienta Humano apaga el bot o cuando un seguimiento queda bloqueado por ventana 24h. Si `TELEGRAM_BOT_TOKEN` o `TELEGRAM_CHAT_ID` faltan, el sistema debe registrar el evento en logs/BD y continuar sin romper el turno.
 
 # PACKAGE.JSON
 
@@ -179,11 +197,24 @@ porque si no fallan en producción cuando el buildpack ejecuta
 CREATE TABLE IF NOT EXISTS conversations (
   id SERIAL PRIMARY KEY,
   phone TEXT UNIQUE NOT NULL,
+  jid TEXT UNIQUE,
   name TEXT,
   mode TEXT CHECK(mode IN ('AI','HUMAN')) NOT NULL DEFAULT 'AI',
+  mode_reason TEXT,
+  mode_changed_at TIMESTAMP WITH TIME ZONE,
+  mode_changed_by TEXT CHECK(mode_changed_by IN ('system','owner','dashboard','assistant')),
   followup_attempts INTEGER NOT NULL DEFAULT 0,
+  last_followup_at TIMESTAMP WITH TIME ZONE,
+  followup_blocked_at TIMESTAMP WITH TIME ZONE,
+  followup_blocked_reason TEXT,
   last_message_at TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  last_user_message_at TIMESTAMP WITH TIME ZONE,
+  last_assistant_message_at TIMESTAMP WITH TIME ZONE,
+  last_human_message_at TIMESTAMP WITH TIME ZONE,
+  last_owner_intervention_at TIMESTAMP WITH TIME ZONE,
+  last_ai_reactivated_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS system_prompts (
@@ -202,11 +233,21 @@ ON CONFLICT DO NOTHING;
 CREATE TABLE IF NOT EXISTS messages (
   id SERIAL PRIMARY KEY,
   conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  whatsapp_message_id TEXT,
+  direction TEXT CHECK(direction IN ('inbound','outbound')) NOT NULL,
   role TEXT CHECK(role IN ('user','assistant','human')) NOT NULL,
   content TEXT NOT NULL,
-  media_type TEXT CHECK(media_type IN ('text', 'image', 'audio')) DEFAULT 'text',
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  media_type TEXT CHECK(media_type IN ('text', 'image', 'audio', 'unknown')) DEFAULT 'text',
+  source TEXT CHECK(source IN ('whatsapp','dashboard','bot','scheduler','system')) NOT NULL DEFAULT 'whatsapp',
+  from_me BOOLEAN NOT NULL DEFAULT FALSE,
+  raw_timestamp TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_whatsapp_id
+  ON messages(whatsapp_message_id)
+  WHERE whatsapp_message_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_messages_conv
   ON messages(conversation_id, created_at);
@@ -234,6 +275,42 @@ CREATE TABLE IF NOT EXISTS outbox (
 
 CREATE INDEX IF NOT EXISTS idx_outbox_pending
   ON outbox(sent, created_at);
+
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO settings (key, value) VALUES
+  ('bot_off_keyword', '"bot off"'::jsonb),
+  ('bot_on_keyword', '"ok."'::jsonb),
+  ('keyword_match_mode', '"exact"'::jsonb),
+  ('keyword_case_sensitive', 'false'::jsonb),
+  ('owner_reactivation_days', '3'::jsonb),
+  ('debounce_ms', '12000'::jsonb),
+  ('processing_lock_ttl_ms', '90000'::jsonb),
+  ('dedupe_ttl_seconds', '86400'::jsonb),
+  ('conversation_queue_ttl_seconds', '300'::jsonb),
+  ('followup_interval_hours', '6'::jsonb),
+  ('followup_min_hours_after_assistant', '24'::jsonb),
+  ('followup_max_attempts', '2'::jsonb),
+  ('whatsapp_freeform_window_hours', '24'::jsonb),
+  ('block_outside_24h_followups', 'true'::jsonb)
+ON CONFLICT (key) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS conversation_events (
+  id SERIAL PRIMARY KEY,
+  conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  event_type TEXT NOT NULL,
+  actor_role TEXT CHECK(actor_role IN ('user','assistant','human','system')) NOT NULL,
+  reason TEXT,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_conversation_events_conv_created
+  ON conversation_events(conversation_id, created_at);
 ```
 
 `connection_state` es una fila única que sirve de "buzón" entre
@@ -242,23 +319,26 @@ el proceso bot y el de Next.js (corren en procesos separados).
 ahí, el bot los lee cada 2s y los envía vía Baileys.
 
 Helpers que `db.ts` debe exportar:
-- `getOrCreateConversation(phone, name?)` — `{ id, phone, name, mode, ... }`
-- `getConversationById(id)` — `Conversation | null`
-- `insertMessage(conversationId, role, content, mediaType?)` — TRANSACCIONAL:
-  insert + UPDATE last_message_at en la misma transacción. Si el role es 'user', hacer UPDATE de `followup_attempts` a 0 (el usuario volvió a responder).
-- `getPendingFollowUps(horasMinimas, maxAttempts)` — Consulta para traer conversaciones inactivas que requieren seguimiento.
-- `incrementFollowUpAttempt(conversationId)` — Suma 1 a `followup_attempts`.
-- `getMessages(conversationId, limit = 50)`
-- `getRecentHistory(conversationId, limit = 20)`
-- `setMode(conversationId, mode)`
-- `listConversations()`
-- `getConnectionState()` y `setConnectionState({status, qr_string?, phone?})`
-- `enqueueOutbox(conversationId, phone, content)`
-- `getPendingOutbox(limit = 20)`
-- `markOutboxSent(id)`
-- `deleteConversation(id)`
+- `getOrCreateConversation(phone, jid?, name?)` — `{ id, phone, jid, name, mode, ... }`.
+- `getConversationById(id)` — `Conversation | null`.
+- `insertMessageAndTouchConversation(input)` — TRANSACCIONAL: inserta en `messages` y actualiza `last_message_at`, `last_user_message_at`, `last_assistant_message_at` o `last_human_message_at` según `role`. Si `role='user'`, reinicia/cancela `followup_attempts` porque el cliente volvió a responder.
+- `messageExistsByWhatsappId(whatsappMessageId)` — respaldo persistente para dedupe además de Redis.
+- `getPendingFollowUps({ minHoursAfterAssistant, maxAttempts, freeformWindowHours })` — trae conversaciones en `AI` donde el último mensaje visible es `assistant`, no hay `user` posterior, no superan intentos y respetan ventana 24h si aplica.
+- `incrementFollowUpAttempt(conversationId)` y `markFollowUpBlocked(conversationId, reason)`.
+- `getMessages(conversationId, limit = 50)`.
+- `getRecentHistory(conversationId, limit = 20)` — devuelve roles `user`, `assistant`, `human` con timestamps; para el LLM puede mapear `human` como contexto del asesor, no como respuesta del bot.
+- `setMode(conversationId, mode, { reason, changedBy })` — registra `mode_reason`, `mode_changed_at`, `mode_changed_by` y opcionalmente `conversation_events`.
+- `recordConversationEvent(conversationId, eventType, actorRole, reason?, metadata?)`.
+- `getSettings()` / `setSetting(key, value)` — incluye keywords owner-only, TTLs, 3 días, follow-ups y ventana 24h.
+- `listConversations()` — incluye modo, timestamps, intentos de seguimiento y último evento relevante.
+- `getConnectionState()` y `setConnectionState({status, qr_string?, phone?})`.
+- `enqueueOutbox(conversationId, phone, content)`.
+- `getPendingOutbox(limit = 20)`.
+- `markOutboxSent(id)`.
+- `deleteConversation(id)`.
 - `getActiveSystemPrompt()` — Obtiene el texto del prompt configurado como activo.
-- `getAllSystemPrompts()`, `saveSystemPrompt(title, content)`, `setActiveSystemPrompt(id)`
+- `getAllSystemPrompts()`, `saveSystemPrompt(title, content)`, `setActiveSystemPrompt(id)`.
+- `notifyTelegramHumanNeeded({ conversation, reason, lastMessage })` — envía notificación al dueño usando `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID` cuando la herramienta Humano apaga el bot.
 
 # ⚠️ LECCIÓN APRENDIDA — CARGA DE .env.local EN start-bot.ts
 
@@ -488,33 +568,94 @@ para mensajes humanos:
 
 3. El proceso bot también debe iniciar el cronjob (`scripts/followups-cron.ts`) que evaluará constantemente las conversaciones inactivas en modo AI para disparar seguimientos automáticos consultando a DeepSeek.
 
+# REDIS — ESTADO TRANSITORIO DE TURNOS
+
+Redis solo guarda estado temporal. PostgreSQL es la fuente de verdad para conversaciones, mensajes, modo `AI/HUMAN`, timestamps y follow-ups.
+
+Usar prefijo versionado `wa:v1:`:
+
+- `wa:v1:dedupe:msg:{whatsappMessageId}` — `SET NX EX 86400` para no procesar dos veces el mismo mensaje de Baileys.
+- `wa:v1:turn:queue:{conversationId}` — lista de mensajes aceptados durante debounce; TTL sugerido 300s.
+- `wa:v1:turn:debounce:{conversationId}` — marca de timer/debounce activo; TTL `debounce_ms + 60s`.
+- `wa:v1:turn:lock:{conversationId}` — lock con token aleatorio y TTL `processing_lock_ttl_ms`; liberar con compare-and-delete, nunca con delete ciego.
+- `wa:v1:turn:processing:{conversationId}` — JSON de observabilidad `{ token, startedAt, messageIds }` para que follow-ups no colisionen.
+- `wa:v1:followups:runner-lock` — lock global del scheduler.
+- `wa:v1:followups:lock:{conversationId}` — lock corto por conversación antes de enviar seguimiento.
+
+Al cerrar un turno borrar únicamente claves transitorias del turno (`queue`, `debounce`, `processing`, lock propio por token). NO borrar historial PostgreSQL, modo durable, `./auth/`, socket Baileys ni dedupe keys todavía vigentes.
+
 # HANDLER DE MENSAJES ENTRANTES (CON ENCOLAMIENTO)
 
 `messages.upsert` con `type: 'notify'` (ignorar 'append', 'replace').
-Por cada mensaje:
+Por cada mensaje válido ejecutar un turno:
 
-1. Filtrar `msg.key.fromMe === true` (mensajes propios desde el teléfono).
-2. Filtrar `remoteJid.endsWith('@g.us')` (grupos).
-3. Filtrar JID que no termine en `@s.whatsapp.net` (solo 1:1).
-4. Extraer el contenido: si es texto (`conversation` o `extendedTextMessage`), si es audio o imagen (descargar y enviar a DeepSeek Multimodal para obtener una descripción o transcripción).
-5. `getOrCreateConversation(phone, msg.pushName)`.
-6. `insertMessage(convo.id, 'user', text, mediaType)`.
-7. Chequear si contiene palabra clave de apagado (ej. "humano", "asesor", "Ok."). Si la tiene, ejecutar `setMode(convo.id, 'HUMAN')` y abortar ejecución AI.
-8. RE-LEER conversation por id para chequear modo:
-   ```typescript
-   const fresh = getConversationById(convo.id);
-   if (!fresh || fresh.mode !== 'AI') return;
-   ```
-9. **Encolamiento de Mensajes (Debouncing con Redis):** 
-   - Cuando llega un mensaje, hacer un `RPUSH` o guardar en Redis en una lista temporal para este `convo.id`.
-   - Crear o reiniciar un temporizador (`setTimeout` de 10-15 segundos).
-   - Al finalizar el temporizador, extraer todos los mensajes encolados, concatenarlos y llamar al LLM con `getRecentHistory(20)` + el system prompt ACTIVO. (Esto asegura que si el cliente manda 5 mensajes separados rápidos, la IA responde una sola vez a todo el contexto).
-10. Mapear roles `'human' → 'assistant'` para el LLM. Guardar reply como `role='assistant'`.
-11. Mandar mensaje en múltiples partes (`part_1, part_2, part_3`) parseando la respuesta JSON de DeepSeek, usando un `delay` proporcional al tamaño del texto entre envíos vía `sock.sendMessage`.
+1. Aceptar solo `remoteJid` 1:1 que termine en `@s.whatsapp.net`; ignorar grupos `@g.us`.
+2. NO filtrar ciegamente `msg.key.fromMe === true`. Los mensajes propios desde el WhatsApp conectado son mensajes del dueño y deben persistirse como `role='human'` para intervención/control.
+3. Extraer `whatsappMessageId`, `remoteJid`, `fromMe`, timestamp, nombre y contenido. Si es audio o imagen, descargar y enviar a DeepSeek Multimodal para descripción/transcripción.
+4. Aplicar dedupe antes de responder: `SET wa:v1:dedupe:msg:{id} NX EX ...` y también respetar el índice único `messages.whatsapp_message_id`. Si ya existe, abortar sin enviar.
+5. `getOrCreateConversation(phone, jid, msg.pushName)`.
+6. Persistir antes de cualquier LLM:
+   - `fromMe === false` → `role='user'`, `direction='inbound'`, `source='whatsapp'`, reiniciar/cancelar follow-ups.
+   - `fromMe === true` → `role='human'`, `direction='outbound'`, `source='whatsapp'`, actualizar `last_owner_intervention_at`.
+7. Si el mensaje es del dueño (`role='human'`):
+   - Normalizar texto según settings (`trim`, case-insensitive si corresponde, match exacto por defecto).
+   - Si coincide con `bot_off_keyword`, ejecutar `setMode(convo.id, 'HUMAN', { reason: 'owner_keyword_off', changedBy: 'owner' })`, registrar evento y abortar AI.
+   - Si coincide con `bot_on_keyword` (ej. `ok.`), ejecutar `setMode(convo.id, 'AI', { reason: 'owner_keyword_on', changedBy: 'owner' })`, registrar evento y abortar AI hasta el próximo mensaje del cliente.
+   - Si el chat está en `HUMAN` y la última intervención humana/actividad relevante fue hace 3 días o más, reactivar con `setMode(..., 'AI', { reason: 'owner_reply_after_3_days', changedBy: 'owner' })` y registrar `last_ai_reactivated_at`. Calcular este umbral usando timestamps previos al update del mensaje actual.
+   - Si no hay keyword ni regla de 3 días, solo guardar el mensaje humano y no llamar a DeepSeek.
+8. Si el mensaje es del cliente, re-leer conversation por id. Si `mode !== 'AI'`, cerrar turno y NO responder.
+9. **Encolamiento de Mensajes (Debouncing con Redis):**
+   - Guardar el mensaje aceptado en `wa:v1:turn:queue:{conversationId}` y marcar `wa:v1:turn:debounce:{conversationId}`.
+   - Crear/reiniciar timer de 10-15s o `debounce_ms` desde settings.
+   - Al finalizar el timer, tomar lock `wa:v1:turn:lock:{conversationId}`. Si no se obtiene, no responder.
+   - Leer todos los mensajes encolados y cargar `getRecentHistory(20)` + system prompt ACTIVO. El historial debe incluir los mensajes recién persistidos para que si el cliente manda 5 mensajes separados rápidos, la IA responda una sola vez con todo el contexto.
+10. Llamar a DeepSeek con contrato JSON estricto:
+    ```json
+    {
+      "response": { "part_1": "...", "part_2": "...", "part_3": "..." },
+      "handoff": { "required": false, "reason": "" }
+    }
+    ```
+    Si el JSON es inválido, intentar una reparación/retry. Si sigue inválido, no enviar texto crudo no validado; registrar error y, si corresponde, derivar a humano.
+11. **Herramienta Humano:** si `handoff.required === true` o el razonamiento detecta que necesita humano, ejecutar:
+    - `setMode(convo.id, 'HUMAN', { reason: handoff.reason || 'assistant_handoff', changedBy: 'assistant' })`.
+    - `recordConversationEvent(..., 'handoff_to_human', 'assistant', reason)`.
+    - `notifyTelegramHumanNeeded(...)` con teléfono, nombre, último mensaje, motivo y link/ID de conversación.
+    - Opcionalmente enviar al cliente una frase breve tipo "Te derivo con una persona para ayudarte mejor." si está dentro del contexto del turno.
+12. Si no hay handoff, enviar `part_1`, `part_2`, `part_3` no vacíos en orden, con delay proporcional al texto vía `sock.sendMessage`, y persistir cada parte como `role='assistant'`, `direction='outbound'`, `source='bot'`.
+13. En `finally`, cerrar el turno: limpiar queue/debounce/processing y liberar lock por token. Esta limpieza debe ser idempotente y nunca tocar `./auth/`, conexión Baileys ni datos durables.
 
 Logging detallado — agrega logs `[bot] ← Mensaje de X: "..."`,
 `[bot] llamando LLM con N mensajes...`, `[bot] LLM respondió en Xms`,
 `[bot] → Enviado a Y`. Sirve mucho para debugging.
+
+# FOLLOW-UPS — PARIDAD CON seguimiento.json SIN COLISIONES
+
+`scripts/followups-cron.ts` debe correr con `node-cron` o `setInterval` robusto, tomar `wa:v1:followups:runner-lock` y evaluar candidatos cada `followup_interval_hours`.
+
+Un chat es candidato solo si cumple TODO:
+
+1. `mode='AI'`.
+2. El último mensaje visible es `role='assistant'`.
+3. No existe mensaje `role='user'` posterior a ese assistant.
+4. `followup_attempts < followup_max_attempts` (default 2).
+5. Pasó `followup_min_hours_after_assistant` desde el último assistant.
+6. No hay `wa:v1:turn:queue`, `debounce`, `lock` ni `processing` activo para esa conversación.
+7. Se pudo tomar `wa:v1:followups:lock:{conversationId}`.
+8. Está dentro de `whatsapp_freeform_window_hours` desde `last_user_message_at`, o `block_outside_24h_followups=false`.
+
+Si está fuera de 24h y el bloqueo está activo, NO enviar mensaje automático: registrar `followup_blocked_24h`, guardar `followup_blocked_reason`, y opcionalmente notificar por Telegram para que el dueño intervenga manualmente. Esto evita que WhatsApp lo marque como spam o fuera de política.
+
+Para candidatos válidos, llamar a DeepSeek con historial reciente y exigir JSON estricto:
+
+```json
+{ "respuesta": "SI", "mensaje": "texto breve" }
+```
+
+- Si `respuesta === "SI"` y `mensaje` es string no vacío, enviar por Baileys, persistir como `role='assistant'`, `source='scheduler'`, actualizar `last_followup_at` e incrementar intentos.
+- Si `respuesta === "NO"`, no enviar y registrar decisión si se desea.
+- Si el JSON es inválido o falta `mensaje`, no enviar texto crudo; registrar `deepseek_json_invalid` o `followup_skipped`.
+- Si el cliente responde después de cualquier follow-up, el handler inbound tiene prioridad, reinicia/cancela `followup_attempts` y continúa el flujo normal.
 
 # SYSTEM PROMPT INICIAL
 
@@ -523,8 +664,25 @@ Logging detallado — agrega logs `[bot] ← Mensaje de X: "..."`,
 export const SYSTEM_PROMPT = `
 Eres un asistente virtual amable. Responde en español neutro,
 en mensajes breves de 2 a 4 líneas. No uses emojis.
-Si el usuario pide algo que no puedes resolver, responde:
-"Déjame derivarte con un asesor humano."
+
+Siempre responde con JSON válido:
+{
+  "response": {
+    "part_1": "mensaje breve obligatorio",
+    "part_2": "mensaje opcional o string vacío",
+    "part_3": "mensaje opcional o string vacío"
+  },
+  "handoff": {
+    "required": false,
+    "reason": ""
+  }
+}
+
+Usa handoff.required=true como herramienta Humano cuando el cliente
+pida una persona/asesor, esté listo para cerrar, esté molesto, haga una
+objeción crítica, pida algo que no debes inventar o necesite intervención
+humana. En ese caso, incluye reason claro y una respuesta breve para avisar
+que será derivado.
 `.trim();
 ```
 
@@ -703,7 +861,6 @@ prompt para que tus suscriptores no las pisen:
 Si el suscriptor quiere expandir features:
 - Soporte de imágenes salientes (enviar PNG de productos).
 - Function calling real con la API de DeepSeek.
-- Auto-toggle a HUMAN cuando el bot dice frase específica
-  (detección por regex en `handler.ts`).
-- WebSocket en lugar de polling.
+- Mejoras de la herramienta Humano: motivos de handoff más detallados, notificaciones Telegram enriquecidas y reglas auditables por negocio.
+- Polling optimizado; NO usar WebSockets porque están fuera del stack permitido.
 - Auth básica en Next.js (middleware con basic auth).

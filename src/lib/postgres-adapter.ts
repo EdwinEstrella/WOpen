@@ -1,0 +1,472 @@
+import {
+	DATABASE_SCHEMA_SQL,
+	DEFAULT_SETTINGS,
+	type ConversationEventRow,
+	type ConversationEventType,
+	type ConversationRow,
+	type EventActorRole,
+	type FollowUpQueryInput,
+	type InsertMessageInput,
+	type MessageRow,
+	type ModeChangedBy,
+} from "./db-contract.ts";
+import type { ConversationMode } from "../domain/whatsapp-rules.ts";
+
+export interface PostgresQueryable {
+	query<T = unknown>(
+		text: string,
+		values?: readonly unknown[],
+	): Promise<{ rows: T[] }>;
+}
+
+export interface PostgresClient extends PostgresQueryable {
+	release(): void;
+}
+
+export interface PostgresPool extends PostgresQueryable {
+	connect?: () => Promise<PostgresClient>;
+}
+
+const nowDate = () => new Date();
+const actorFor = (changedBy: ModeChangedBy): EventActorRole =>
+	changedBy === "assistant"
+		? "assistant"
+		: changedBy === "system"
+			? "system"
+			: "human";
+
+export async function initializePostgresSchema(pool: PostgresQueryable) {
+	await pool.query(DATABASE_SCHEMA_SQL);
+}
+
+function valueOrNull(value: unknown) {
+	return value === undefined ? null : value;
+}
+
+const UPDATE_CONVERSATION_COLUMNS = new Set([
+	"mode",
+	"mode_reason",
+	"mode_changed_at",
+	"mode_changed_by",
+	"followup_attempts",
+	"last_followup_at",
+	"followup_blocked_at",
+	"followup_blocked_reason",
+	"last_message_at",
+	"last_user_message_at",
+	"last_assistant_message_at",
+	"last_human_message_at",
+	"last_owner_intervention_at",
+	"last_ai_reactivated_at",
+	"updated_at",
+]);
+
+async function withTransaction<T>(
+	pool: PostgresPool,
+	work: (client: PostgresQueryable) => Promise<T>,
+): Promise<T> {
+	if (!pool.connect) return work(pool);
+	const client = await pool.connect();
+	try {
+		await client.query("BEGIN");
+		const result = await work(client);
+		await client.query("COMMIT");
+		return result;
+	} catch (error) {
+		await client.query("ROLLBACK");
+		throw error;
+	} finally {
+		client.release();
+	}
+}
+
+async function insertConversationEvent(
+	queryable: PostgresQueryable,
+	input: {
+		conversation_id: number;
+		event_type: ConversationEventType;
+		actor_role: EventActorRole;
+		reason?: string | null;
+		metadata?: Record<string, unknown>;
+		created_at?: Date;
+	},
+): Promise<ConversationEventRow> {
+	const result = await queryable.query<ConversationEventRow>(
+		`INSERT INTO conversation_events (
+		   conversation_id, event_type, actor_role, reason, metadata, created_at
+		 ) VALUES ($1, $2, $3, $4, $5, $6)
+		 RETURNING *`,
+		[
+			input.conversation_id,
+			input.event_type,
+			input.actor_role,
+			input.reason ?? null,
+			input.metadata ?? {},
+			input.created_at ?? nowDate(),
+		],
+	);
+	return result.rows[0];
+}
+
+export function createPostgresRepository(pool: PostgresPool) {
+	const repo = {
+		async getSettings(): Promise<Record<string, unknown>> {
+			const result = await pool.query<{ key: string; value: unknown }>(
+				"SELECT key, value FROM settings ORDER BY key ASC",
+			);
+			return {
+				...DEFAULT_SETTINGS,
+				...Object.fromEntries(result.rows.map((row) => [row.key, row.value])),
+			};
+		},
+
+		async getOrCreateConversation(input: {
+			phone: string;
+			jid?: string | null;
+			name?: string | null;
+		}): Promise<ConversationRow> {
+			const existing = await pool.query<ConversationRow>(
+				`SELECT * FROM conversations
+				 WHERE phone = $1 OR jid = $2
+				 ORDER BY id ASC
+				 LIMIT 1`,
+				[input.phone, input.jid ?? null],
+			);
+			if (existing.rows[0]) return existing.rows[0];
+
+			const created = await pool.query<ConversationRow>(
+				`INSERT INTO conversations (phone, jid, name)
+				 VALUES ($1, $2, $3)
+				 RETURNING *`,
+				[input.phone, input.jid ?? null, input.name ?? null],
+			);
+			return created.rows[0];
+		},
+
+		async getConversationById(id: number): Promise<ConversationRow | null> {
+			const result = await pool.query<ConversationRow>(
+				"SELECT * FROM conversations WHERE id = $1 LIMIT 1",
+				[id],
+			);
+			return result.rows[0] ?? null;
+		},
+
+		async updateConversation(
+			id: number,
+			patch: Partial<ConversationRow>,
+		): Promise<ConversationRow> {
+			const entries = Object.entries(patch).filter(
+				([key, value]) => key !== "id" && value !== undefined,
+			);
+			for (const [key] of entries) {
+				if (!UPDATE_CONVERSATION_COLUMNS.has(key))
+					throw new Error(`unsupported_conversation_patch_column:${key}`);
+			}
+			const updatedAt = patch.updated_at ?? nowDate();
+			const assignments = entries.map(
+				([key], index) => `${key} = $${index + 2}`,
+			);
+			const values = entries.map(([, value]) => value);
+			if (!entries.some(([key]) => key === "updated_at")) {
+				assignments.push(`updated_at = $${values.length + 2}`);
+				values.push(updatedAt);
+			}
+			const result = await pool.query<ConversationRow>(
+				`UPDATE conversations
+				 SET ${assignments.join(", ")}
+				 WHERE id = $1
+				 RETURNING *`,
+				[id, ...values],
+			);
+			if (!result.rows[0]) throw new Error(`conversation_not_found:${id}`);
+			return result.rows[0];
+		},
+
+		async insertMessageAndTouchConversation(
+			input: InsertMessageInput,
+		): Promise<MessageRow> {
+			return withTransaction(pool, async (client) => {
+				const createdAt = input.created_at ?? nowDate();
+
+				// Si el mensaje es saliente (outbound / from_me) y tiene un ID de WhatsApp real
+				// intentamos buscar y asociar un registro local que se haya creado previamente sin ID.
+				if (input.direction === "outbound" && input.whatsapp_message_id) {
+					// Buscamos un mensaje reciente (últimos 5 minutos) con el mismo contenido y sin ID de WhatsApp
+					const existingRes = await client.query<MessageRow>(
+						`SELECT * FROM messages
+						 WHERE conversation_id = $1
+						   AND direction = 'outbound'
+						   AND whatsapp_message_id IS NULL
+						   AND content = $2
+						   AND created_at >= $3
+						 ORDER BY created_at DESC
+						 LIMIT 1`,
+						[
+							input.conversation_id,
+							input.content,
+							new Date(createdAt.getTime() - 5 * 60 * 1000),
+						]
+					);
+
+					if (existingRes.rows.length > 0) {
+						const existingMsg = existingRes.rows[0];
+						// Actualizamos el registro existente con el ID real de WhatsApp
+						const updatedMsgRes = await client.query<MessageRow>(
+							`UPDATE messages
+							 SET whatsapp_message_id = $1,
+							     raw_timestamp = $2,
+							     metadata = metadata || $3::jsonb
+							 WHERE id = $4
+							 RETURNING *`,
+							[
+								input.whatsapp_message_id,
+								input.raw_timestamp ?? createdAt,
+								JSON.stringify(input.metadata ?? {}),
+								existingMsg.id,
+							]
+						);
+						
+						// También actualizamos la conversación para reflejar la última intervención
+						let touchSql = `UPDATE conversations
+						 SET last_message_at = $2, updated_at = $2`;
+						if (existingMsg.role === "user") {
+							touchSql += `,
+						 last_user_message_at = $2,
+						 followup_attempts = 0,
+						 followup_blocked_at = NULL,
+						 followup_blocked_reason = NULL`;
+						} else if (existingMsg.role === "assistant") {
+							touchSql += ", last_assistant_message_at = $2";
+						} else {
+							touchSql += ", last_human_message_at = $2";
+							if (existingMsg.from_me || existingMsg.source === "whatsapp")
+								touchSql += ", last_owner_intervention_at = $2";
+						}
+						touchSql += " WHERE id = $1 RETURNING *";
+						await client.query(touchSql, [
+							input.conversation_id,
+							createdAt,
+						]);
+
+						return updatedMsgRes.rows[0];
+					}
+				}
+
+				// Si no se asoció a un registro existente, hacemos la inserción normal:
+				const message = await client.query<MessageRow>(
+					`INSERT INTO messages (
+				   conversation_id, whatsapp_message_id, direction, role, content,
+				   media_type, source, from_me, raw_timestamp, created_at, metadata
+				 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+				 RETURNING *`,
+					[
+						input.conversation_id,
+						valueOrNull(input.whatsapp_message_id),
+						input.direction,
+						input.role,
+						input.content,
+						input.media_type ?? "text",
+						input.source,
+						input.from_me ?? false,
+						input.raw_timestamp ?? null,
+						createdAt,
+						input.metadata ?? {},
+					],
+				);
+
+				let touchSql = `UPDATE conversations
+				 SET last_message_at = $2, updated_at = $2`;
+				if (input.role === "user") {
+					touchSql += `,
+				 last_user_message_at = $2,
+				 followup_attempts = 0,
+				 followup_blocked_at = NULL,
+				 followup_blocked_reason = NULL`;
+				} else if (input.role === "assistant") {
+					touchSql += ", last_assistant_message_at = $2";
+				} else {
+					touchSql += ", last_human_message_at = $2";
+					if (input.from_me || input.source === "whatsapp")
+						touchSql += ", last_owner_intervention_at = $2";
+				}
+				touchSql += " WHERE id = $1 RETURNING *";
+				const touched = await client.query<ConversationRow>(touchSql, [
+					input.conversation_id,
+					createdAt,
+				]);
+				if (!touched.rows[0])
+					throw new Error(`conversation_not_found:${input.conversation_id}`);
+				return message.rows[0];
+			});
+		},
+
+		async setMode(
+			id: number,
+			mode: ConversationMode,
+			input: {
+				reason: string;
+				changedBy: ModeChangedBy;
+				changedAt?: Date;
+				eventType?: ConversationEventType;
+				metadata?: Record<string, unknown>;
+			},
+		): Promise<ConversationEventRow | null> {
+			return withTransaction(pool, async (client) => {
+				const changedAt = input.changedAt ?? nowDate();
+				const lastAiReactivatedAt =
+					mode === "AI" && input.reason === "owner_reply_after_3_days"
+						? changedAt
+						: null;
+				const updated = await client.query<ConversationRow>(
+					`UPDATE conversations
+				 SET mode = $2,
+				     mode_reason = $3,
+				     mode_changed_by = $4,
+				     mode_changed_at = $5,
+				     updated_at = $5,
+				     last_ai_reactivated_at = COALESCE($6, last_ai_reactivated_at)
+				 WHERE id = $1
+				 RETURNING *`,
+					[
+						id,
+						mode,
+						input.reason,
+						input.changedBy,
+						changedAt,
+						lastAiReactivatedAt,
+					],
+				);
+				if (!updated.rows[0]) throw new Error(`conversation_not_found:${id}`);
+				return input.eventType
+					? insertConversationEvent(client, {
+							conversation_id: id,
+							event_type: input.eventType,
+							actor_role: actorFor(input.changedBy),
+							reason: input.reason,
+							metadata: input.metadata ?? {},
+							created_at: changedAt,
+						})
+					: null;
+			});
+		},
+
+		async recordConversationEvent(input: {
+			conversation_id: number;
+			event_type: ConversationEventType;
+			actor_role: EventActorRole;
+			reason?: string | null;
+			metadata?: Record<string, unknown>;
+			created_at?: Date;
+		}): Promise<ConversationEventRow> {
+			return insertConversationEvent(pool, input);
+		},
+
+		async getRecentMessages(
+			conversationId: number,
+			limit: number,
+		): Promise<MessageRow[]> {
+			const result = await pool.query<MessageRow>(
+				`SELECT * FROM (
+					SELECT * FROM messages
+					WHERE conversation_id = $1
+					ORDER BY created_at DESC
+					LIMIT $2
+				) subquery
+				ORDER BY created_at ASC`,
+				[conversationId, limit],
+			);
+			return result.rows;
+		},
+
+		async getPendingFollowUps(
+			input: FollowUpQueryInput,
+		): Promise<ConversationRow[]> {
+			const followUpCutoff = new Date(
+				input.now.getTime() - input.minHoursAfterAssistant * 3_600_000,
+			);
+			const values: unknown[] = [
+				followUpCutoff,
+				input.maxAttempts,
+			];
+			let windowPredicate = "TRUE";
+			if (input.blockOutside24h) {
+				const freeformCutoff = new Date(
+					input.now.getTime() - input.freeformWindowHours * 3_600_000,
+				);
+				values.push(freeformCutoff);
+				windowPredicate = `c.last_user_message_at IS NOT NULL
+				 AND c.last_user_message_at >= $3`;
+			}
+			const result = await pool.query<ConversationRow>(
+				`SELECT c.*
+				 FROM conversations c
+				 JOIN LATERAL (
+				   SELECT m.role, m.created_at
+				   FROM messages m
+				   WHERE m.conversation_id = c.id
+				   ORDER BY m.created_at DESC
+				   LIMIT 1
+				 ) latest ON TRUE
+				 WHERE c.mode = 'AI'
+				   AND c.followup_attempts < $2
+				   AND latest.role = 'assistant'
+				   AND latest.created_at <= $1
+				   AND NOT EXISTS (
+				     SELECT 1 FROM messages newer_user
+				     WHERE newer_user.conversation_id = c.id
+				       AND newer_user.role = 'user'
+				       AND newer_user.created_at > latest.created_at
+				   )
+				   AND ${windowPredicate}
+				 ORDER BY latest.created_at ASC`,
+				values,
+			);
+			return result.rows;
+		},
+
+		async incrementFollowUpAttempt(
+			conversationId: number,
+			at = nowDate(),
+		): Promise<ConversationRow> {
+			const result = await pool.query<ConversationRow>(
+				`UPDATE conversations
+				 SET followup_attempts = followup_attempts + 1,
+				     last_followup_at = $2,
+				     updated_at = $2
+				 WHERE id = $1
+				 RETURNING *`,
+				[conversationId, at],
+			);
+			if (!result.rows[0])
+				throw new Error(`conversation_not_found:${conversationId}`);
+			return result.rows[0];
+		},
+
+		async markFollowUpBlocked(
+			conversationId: number,
+			reason: string,
+			blockedAt = nowDate(),
+		): Promise<ConversationEventRow> {
+			const updated = await pool.query<ConversationRow>(
+				`UPDATE conversations
+				 SET followup_blocked_at = $2,
+				     followup_blocked_reason = $3,
+				     updated_at = $2
+				 WHERE id = $1
+				 RETURNING *`,
+				[conversationId, blockedAt, reason],
+			);
+			if (!updated.rows[0])
+				throw new Error(`conversation_not_found:${conversationId}`);
+			return repo.recordConversationEvent({
+				conversation_id: conversationId,
+				event_type: "followup_blocked_24h",
+				actor_role: "system",
+				reason,
+				metadata: { boundary: "whatsapp_freeform_window" },
+				created_at: blockedAt,
+			});
+		},
+	};
+	return repo;
+}
