@@ -33,9 +33,9 @@ export default function ConversationList({
 	onSelectConversation,
 }: ConversationListProps) {
 	return (
-		<div className="flex flex-col h-full bg-surface-container/20">
+		<div className="flex flex-col h-full bg-surface">
 			{/* Encabezado de Lista */}
-			<div className="p-4 border-b border-outline-variant/10 flex items-center justify-between bg-surface-container-low/20 shrink-0">
+			<div className="p-4 flex items-center justify-between shrink-0">
 				<h2 className="font-display text-sm font-bold text-on-surface uppercase tracking-wider">Chats Activos</h2>
 				<span className="bg-primary/10 border border-primary/20 text-primary text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
 					{conversations.length}
@@ -43,7 +43,7 @@ export default function ConversationList({
 			</div>
 			
 			{/* Lista de Hilos */}
-			<div className="flex-1 overflow-y-auto divide-y divide-outline-variant/5">
+			<div className="flex-1 overflow-y-auto p-2 space-y-1">
 				{conversations.length === 0 ? (
 					<div className="flex flex-col items-center justify-center p-8 text-center text-on-surface-variant/60">
 						<span className="text-3xl mb-3">💬</span>
@@ -59,10 +59,10 @@ export default function ConversationList({
 							<button
 								key={convo.id}
 								onClick={() => onSelectConversation(convo.id)}
-								className={`w-full text-left p-4 flex flex-col gap-1 transition-all duration-200 border-l-4 ${
+								className={`w-full text-left p-4 flex flex-col gap-1 transition-all duration-200 rounded-xl ${
 									isSelected
-										? "bg-primary/5 border-l-primary glow-active"
-										: "hover:bg-surface-bright/20 border-l-transparent"
+										? "bg-primary/10 border border-primary"
+										: "hover:bg-surface-bright/20 border border-transparent"
 								}`}
 							>
 								{/* Fila superior: Nombre e indicador de tiempo */}

@@ -115,13 +115,16 @@ export default function ConversationPanel({
 	const displayName = conversation.name?.trim() || `+${conversation.phone}`;
 
 	return (
-		<div className="flex flex-col h-full bg-transparent">
+		<div className="flex flex-col h-full bg-background rounded-r-3xl overflow-hidden">
 			
 			{/* Cabecera del Panel de Conversación */}
-			<div className="p-4 bg-surface/80 border-b border-outline-variant/10 flex items-center justify-between shrink-0">
+			<div className="p-4 bg-background border-b border-outline-variant flex items-center justify-between shrink-0">
 				<div className="flex flex-col">
 					<span className="font-display text-sm font-bold text-on-surface">{displayName}</span>
-					<span className="text-[9px] font-mono text-on-surface-variant/60 tracking-wider mt-0.5">JID: {conversation.phone}@s.whatsapp.net</span>
+					<span className="flex items-center gap-1.5 text-[10px] font-mono text-on-surface-variant/80 tracking-wider mt-0.5">
+						<span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+						{conversation.phone}@s.whatsapp.net
+					</span>
 				</div>
 				
 				<div className="flex items-center gap-4">
@@ -134,7 +137,7 @@ export default function ConversationPanel({
 					<button
 						onClick={handleDelete}
 						disabled={deleting}
-						className="px-2.5 py-1 text-error/80 hover:text-error hover:bg-error/10 border border-transparent hover:border-error/20 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-200 disabled:opacity-50 flex items-center gap-1.5"
+						className="px-3 py-1.5 text-error hover:bg-error/10 border border-error rounded-full text-[10px] font-bold uppercase tracking-wider transition-all duration-200 disabled:opacity-50 flex items-center gap-1.5"
 						title="Borrar conversación completa de la DB"
 					>
 						<TrashIcon size={12} /> Borrar
@@ -143,7 +146,7 @@ export default function ConversationPanel({
 			</div>
 
 			{/* Contenedor de Mensajes con Scroll */}
-			<div ref={chatContainerRef} className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 min-h-0">
+			<div ref={chatContainerRef} className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 min-h-0 bg-background/50">
 				{messages.length === 0 ? (
 					<div className="flex-1 flex flex-col items-center justify-center text-on-surface-variant/60 text-xs gap-2">
 						<MessagesIcon className="text-on-surface-variant/30 animate-pulse mb-1" size={32} />
@@ -156,11 +159,11 @@ export default function ConversationPanel({
 			</div>
 
 			{/* Composer / Input Inferior */}
-			<div className="p-4 bg-surface/80 border-t border-outline-variant/10 shrink-0">
+			<div className="p-4 bg-background border-t border-outline-variant shrink-0">
 				{isAi ? (
-					<div className="flex items-center justify-center gap-2.5 p-3 bg-primary/5 border border-primary/20 rounded-xl text-primary text-xs font-semibold animate-pulse glow-active">
-						<RobotIcon size={14} />
-						<span>El bot responde automáticamente. Cambiá a modo Humano si querés intervenir manualmente.</span>
+					<div className="flex items-center justify-center gap-2.5 p-3 border border-outline-variant rounded-full text-on-surface-variant text-[11px] font-medium">
+						<RobotIcon className="text-primary" size={14} />
+						<span>El bot responde automáticamente. Cambia a modo <span className="text-primary cursor-pointer hover:underline" onClick={() => onModeChanged("HUMAN")}>Humano</span> si querés intervenir manualmente.</span>
 					</div>
 				) : (
 					<form onSubmit={handleSend} className="flex gap-2.5 w-full">
@@ -170,19 +173,14 @@ export default function ConversationPanel({
 							onChange={(e) => setText(e.target.value)}
 							placeholder="Escribí un mensaje en modo Humano..."
 							disabled={sending}
-							className="flex-1 px-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/20 transition-all duration-200 disabled:opacity-50 text-on-surface placeholder-on-surface-variant/50"
+							className="flex-1 px-4 py-2.5 bg-surface border border-outline-variant rounded-full text-xs focus:outline-none focus:border-primary/50 transition-all duration-200 disabled:opacity-50 text-on-surface placeholder-on-surface-variant/50"
 						/>
 						<button
 							type="submit"
 							disabled={sending || !text.trim()}
-							className="px-4 py-2 bg-secondary text-on-secondary border border-secondary-container hover:bg-secondary-container rounded-xl font-display text-[10px] font-bold uppercase tracking-wider transition-all duration-200 active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
+							className="w-10 h-10 flex items-center justify-center bg-transparent text-primary hover:bg-surface rounded-full transition-all duration-200 active:scale-95 disabled:opacity-50"
 						>
-							{sending ? "Enviando..." : (
-								<>
-									<span>Enviar</span>
-									<ArrowRightIcon size={12} />
-								</>
-							)}
+							{sending ? "..." : <ArrowRightIcon size={18} />}
 						</button>
 					</form>
 				)}

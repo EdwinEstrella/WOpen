@@ -97,7 +97,7 @@ export default function Home() {
 								onClick={() => setActiveTab("dashboard")}
 								className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
 									activeTab === "dashboard"
-										? "text-primary border-r-2 border-primary bg-primary/5 glow-active scale-95"
+										? "text-primary border border-primary bg-primary/10 rounded-xl"
 										: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
 								}`}
 							>
@@ -110,7 +110,7 @@ export default function Home() {
 								onClick={() => setActiveTab("chats")}
 								className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
 									activeTab === "chats"
-										? "text-primary border-r-2 border-primary bg-primary/5 glow-active scale-95"
+										? "text-primary border border-primary bg-primary/10 rounded-xl"
 										: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
 								}`}
 							>
@@ -123,7 +123,7 @@ export default function Home() {
 								onClick={() => setActiveTab("prompts")}
 								className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
 									activeTab === "prompts"
-										? "text-primary border-r-2 border-primary bg-primary/5 glow-active scale-95"
+										? "text-primary border border-primary bg-primary/10 rounded-xl"
 										: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
 								}`}
 							>
@@ -136,7 +136,7 @@ export default function Home() {
 								onClick={() => setActiveTab("automations")}
 								className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
 									activeTab === "automations"
-										? "text-primary border-r-2 border-primary bg-primary/5 glow-active scale-95"
+										? "text-primary border border-primary bg-primary/10 rounded-xl"
 										: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
 								}`}
 							>
@@ -149,7 +149,7 @@ export default function Home() {
 								onClick={() => setActiveTab("contacts")}
 								className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
 									activeTab === "contacts"
-										? "text-primary border-r-2 border-primary bg-primary/5 glow-active scale-95"
+										? "text-primary border border-primary bg-primary/10 rounded-xl"
 										: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
 								}`}
 							>
@@ -162,7 +162,7 @@ export default function Home() {
 								onClick={() => setActiveTab("settings")}
 								className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
 									activeTab === "settings"
-										? "text-primary border-r-2 border-primary bg-primary/5 glow-active scale-95"
+										? "text-primary border border-primary bg-primary/10 rounded-xl"
 										: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
 								}`}
 							>
@@ -177,7 +177,7 @@ export default function Home() {
 								<span className="text-[10px] uppercase font-bold tracking-widest text-on-surface-variant/80">
 									Sistema
 								</span>
-								<div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-primary/10 border border-primary/20">
+								<div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-transparent border border-outline-variant">
 									<span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
 									<span className="text-[9px] text-primary font-bold uppercase tracking-wider">
 										Online
@@ -191,7 +191,7 @@ export default function Home() {
 					</nav>
 
 					{/* Contenedor Principal de Contenido (pl-[280px] para respetar el Sidebar Fijo) */}
-					<div className="pl-[280px] flex-1 h-screen w-full flex flex-col relative overflow-hidden bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/18 via-surface to-background before:absolute before:inset-0 before:bg-[linear-gradient(135deg,rgba(78,222,163,0.10),transparent_35%,rgba(255,185,95,0.10))] before:pointer-events-none">
+					<div className="pl-[280px] flex-1 h-screen w-full flex flex-col relative overflow-hidden bg-background">
 						{/* Encabezado Superior */}
 						<DashboardHeader phone={phone} onDisconnect={onDisconnect} />
 
@@ -200,7 +200,7 @@ export default function Home() {
 							{activeTab === "dashboard" && <DashboardOverview />}
 
 							{activeTab === "chats" && (
-								<div className="flex-1 glass-panel rounded-3xl overflow-hidden flex min-h-[500px] shadow-2xl">
+								<div className="flex-1 glass-panel rounded-2xl overflow-hidden flex min-h-[500px] shadow-2xl">
 									{/* Columna Izquierda: Lista de Chats */}
 									<div className="w-80 flex-shrink-0 border-r border-outline-variant/10">
 										<ConversationList

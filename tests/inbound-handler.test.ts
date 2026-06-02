@@ -141,7 +141,7 @@ describe("owner-aware inbound handler filters", () => {
 		);
 
 		const convo = repo.getOrCreateConversation({ phone: "18496294358" });
-		assert.equal(convo.jid, "18496294358@s.whatsapp.net");
+		assert.equal(convo.jid, "171855029772514@lid");
 		assert.deepEqual(sentJids, [
 			"18496294358@s.whatsapp.net",
 			"18496294358@s.whatsapp.net",

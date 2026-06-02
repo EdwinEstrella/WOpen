@@ -202,7 +202,13 @@ export function createInMemoryRepository() {
 				(row) =>
 					row.phone === input.phone || (input.jid && row.jid === input.jid),
 			);
-			if (existing) return existing;
+			if (existing) {
+				if (input.jid && existing.jid !== input.jid) {
+					existing.jid = input.jid;
+					existing.updated_at = nowDate();
+				}
+				return existing;
+			}
 			const created = nowDate();
 			const row: ConversationRow = {
 				id: nextConversationId++,

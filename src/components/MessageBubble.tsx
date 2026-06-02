@@ -25,38 +25,35 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 	return (
 		<div className={`flex w-full ${isUser ? "justify-start" : "justify-end"} mb-4`}>
 			<div
-				className={`max-w-[75%] p-4 rounded-2xl border transition-all duration-300 shadow-lg ${
+				className={`max-w-[75%] p-4 rounded-2xl border transition-all duration-300 ${
 					isUser
-						? "bg-surface-container-low/70 border-outline-variant/20 text-on-surface rounded-bl-none"
+						? "bg-transparent border-outline-variant text-on-surface rounded-bl-none"
 						: isAssistant
-							? "bg-primary/10 border-primary/30 text-on-surface rounded-br-none glow-active"
-							: "bg-secondary/10 border-secondary/30 text-on-surface rounded-br-none"
+							? "bg-primary/10 border-primary/20 text-on-surface rounded-br-none"
+							: "bg-secondary/10 border-secondary/20 text-on-surface rounded-br-none"
 				}`}
 			>
 				{/* Encabezado descriptivo de quién envió el mensaje */}
-				<div className="flex items-center justify-between gap-6 mb-2 border-b border-outline-variant/5 pb-1 shrink-0">
-					<span className={`text-[9px] font-extrabold uppercase tracking-widest flex items-center gap-1.5 ${
+				<div className="flex items-center justify-between gap-6 mb-2 pb-1 shrink-0">
+					<span className={`text-[9px] font-bold uppercase tracking-widest flex items-center gap-1.5 ${
 						isUser 
-							? "text-on-surface-variant/80" 
+							? "text-primary" 
 							: isAssistant 
 							? "text-primary" 
 							: "text-secondary"
 					}`}>
 						{isUser ? (
-							<>
-								<UserIcon size={10} /> Cliente
-							</>
+							<>CLIENTE</>
 						) : isAssistant ? (
-							<>
-								<RobotIcon size={10} /> IA
-							</>
+							<><RobotIcon size={10} /> IA</>
 						) : (
-							<>
-								<UserIcon size={10} /> Agente
-							</>
+							<><UserIcon size={10} /> Agente</>
 						)}
 					</span>
-					<span className="text-[9px] font-mono text-on-surface-variant/50">{timeStr}</span>
+					<span className="text-[9px] font-mono text-on-surface-variant/50 flex items-center gap-1">
+						{timeStr}
+						{!isUser && <span className="text-primary tracking-tighter text-[10px]">✓✓</span>}
+					</span>
 				</div>
 
 				{/* Soporte para tipos de medios (Multimedia) */}
@@ -74,7 +71,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 				)}
 
 				{/* Contenido del mensaje */}
-				<p className="text-xs leading-relaxed whitespace-pre-wrap break-words m-0 text-on-surface/90 font-medium">{content}</p>
+				<p className="text-xs leading-relaxed whitespace-pre-wrap break-words m-0 text-on-surface font-medium">{content}</p>
 			</div>
 		</div>
 	);

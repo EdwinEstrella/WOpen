@@ -37,14 +37,14 @@ export default function ModeToggle({
 	};
 
 	return (
-		<div className="flex items-center gap-1 bg-surface-container border border-outline-variant/20 p-1 rounded-xl shadow-inner shrink-0">
+		<div className="flex items-center gap-2 shrink-0">
 			<button
 				onClick={() => handleToggle("AI")}
 				disabled={loading}
-				className={`px-3 py-1.5 rounded-lg font-display text-[9px] font-bold uppercase tracking-wider transition-all duration-200 ${
+				className={`px-4 py-1.5 rounded-full font-display text-[10px] font-bold uppercase tracking-wider transition-all duration-200 flex items-center gap-1.5 ${
 					currentMode === "AI"
-						? "bg-primary text-on-primary shadow-md scale-105 glow-active"
-						: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
+						? "bg-primary text-background"
+						: "bg-transparent border border-outline-variant text-on-surface hover:bg-surface"
 				} disabled:opacity-50`}
 			>
 				🤖 MODO IA
@@ -52,10 +52,10 @@ export default function ModeToggle({
 			<button
 				onClick={() => handleToggle("HUMAN")}
 				disabled={loading}
-				className={`px-3 py-1.5 rounded-lg font-display text-[9px] font-bold uppercase tracking-wider transition-all duration-200 ${
+				className={`px-4 py-1.5 rounded-full font-display text-[10px] font-bold uppercase tracking-wider transition-all duration-200 flex items-center gap-1.5 ${
 					currentMode === "HUMAN"
-						? "bg-secondary text-on-secondary shadow-md scale-105"
-						: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
+						? "bg-secondary text-background"
+						: "bg-transparent border border-outline-variant text-on-surface hover:bg-surface"
 				} disabled:opacity-50`}
 			>
 				👤 HUMANO

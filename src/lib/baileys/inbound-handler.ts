@@ -251,7 +251,7 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 		const phone = phoneFromJid(chatJid);
 		const beforeConversation = await deps.repo.getOrCreateConversation({
 			phone,
-			jid: chatJid,
+			jid: message.key.remoteJid,
 			name: message.pushName ?? null,
 		});
 		const rawSettings = await deps.repo.getSettings();

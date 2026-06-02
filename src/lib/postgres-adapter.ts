@@ -132,7 +132,17 @@ export function createPostgresRepository(pool: PostgresPool) {
 				 LIMIT 1`,
 				[input.phone, input.jid ?? null],
 			);
-			if (existing.rows[0]) return existing.rows[0];
+			if (existing.rows[0]) {
+				const row = existing.rows[0];
+				if (input.jid && row.jid !== input.jid) {
+					const updated = await pool.query<ConversationRow>(
+						`UPDATE conversations SET jid = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+						[input.jid, row.id],
+					);
+					return updated.rows[0];
+				}
+				return row;
+			}
 
 			const created = await pool.query<ConversationRow>(
 				`INSERT INTO conversations (phone, jid, name)
