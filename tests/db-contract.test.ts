@@ -29,9 +29,9 @@ describe("database schema contract", () => {
 			"CREATE TABLE IF NOT EXISTS settings",
 			"CREATE TABLE IF NOT EXISTS conversation_events",
 			"CREATE INDEX IF NOT EXISTS idx_conversation_events_conv_created",
-			"('bot_off_keyword', '\"bot off\"'::jsonb)",
 			"('bot_on_keyword', '\"ok.\"'::jsonb)",
-			"('owner_reactivation_days', '3'::jsonb)",
+			"('followup_interval_hours', '12'::jsonb)",
+			"('followup_min_hours_after_assistant', '12'::jsonb)",
 			"('followup_max_attempts', '2'::jsonb)",
 			"('whatsapp_freeform_window_hours', '24'::jsonb)",
 			"('block_outside_24h_followups', 'true'::jsonb)",
@@ -44,9 +44,9 @@ describe("database schema contract", () => {
 	});
 
 	it("exposes settings defaults required by owner controls and follow-ups", () => {
-		assert.equal(DEFAULT_SETTINGS.bot_off_keyword, "bot off");
 		assert.equal(DEFAULT_SETTINGS.bot_on_keyword, "ok.");
-		assert.equal(DEFAULT_SETTINGS.owner_reactivation_days, 3);
+		assert.equal(DEFAULT_SETTINGS.followup_interval_hours, 12);
+		assert.equal(DEFAULT_SETTINGS.followup_min_hours_after_assistant, 12);
 		assert.equal(DEFAULT_SETTINGS.followup_max_attempts, 2);
 		assert.equal(DEFAULT_SETTINGS.whatsapp_freeform_window_hours, 24);
 		assert.equal(DEFAULT_SETTINGS.block_outside_24h_followups, true);
@@ -212,7 +212,7 @@ describe("in-memory repository contract", () => {
 			repo
 				.getPendingFollowUps({
 					now,
-					minHoursAfterAssistant: 24,
+					minHoursAfterAssistant: 12,
 					maxAttempts: 2,
 					freeformWindowHours: 24,
 					blockOutside24h: true,
@@ -224,7 +224,7 @@ describe("in-memory repository contract", () => {
 			repo
 				.getPendingFollowUps({
 					now,
-					minHoursAfterAssistant: 24,
+					minHoursAfterAssistant: 12,
 					maxAttempts: 2,
 					freeformWindowHours: 24,
 					blockOutside24h: false,

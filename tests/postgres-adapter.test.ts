@@ -105,7 +105,7 @@ describe("postgres adapter", () => {
 		const pg = new FakePg();
 		pg.respondWith(() => ({
 			rows: [
-				{ key: "bot_off_keyword", value: "pausa" },
+				{ key: "bot_on_keyword", value: "dale" },
 				{ key: "followup_max_attempts", value: 4 },
 			],
 		}));
@@ -113,9 +113,9 @@ describe("postgres adapter", () => {
 
 		const settings = await repo.getSettings();
 
-		assert.equal(settings.bot_off_keyword, "pausa");
+		assert.equal(settings.bot_on_keyword, "dale");
 		assert.equal(settings.followup_max_attempts, 4);
-		assert.equal(settings.bot_on_keyword, "ok.");
+		assert.equal(settings.followup_interval_hours, 12);
 		assert.match(pg.calls[0].text, /SELECT key, value FROM settings/);
 	});
 
@@ -306,7 +306,7 @@ describe("postgres adapter", () => {
 			assert.deepEqual(values, [
 				7,
 				"AI",
-				"owner_reply_after_3_days",
+				"owner_keyword_on",
 				"owner",
 				changedAt,
 				changedAt,
@@ -319,9 +319,9 @@ describe("postgres adapter", () => {
 			assert.match(text, /INSERT INTO conversation_events/);
 			assert.deepEqual(values, [
 				7,
-				"auto_reenabled_after_3_days",
+				"bot_enabled",
 				"human",
-				"owner_reply_after_3_days",
+				"owner_keyword_on",
 				{ ok: true },
 				changedAt,
 			]);
@@ -330,9 +330,9 @@ describe("postgres adapter", () => {
 					{
 						id: 3,
 						conversation_id: 7,
-						event_type: "auto_reenabled_after_3_days",
+						event_type: "bot_enabled",
 						actor_role: "human",
-						reason: "owner_reply_after_3_days",
+						reason: "owner_keyword_on",
 						metadata: { ok: true },
 						created_at: changedAt,
 					},
@@ -342,14 +342,14 @@ describe("postgres adapter", () => {
 		const repo = createPostgresRepository(pg);
 
 		const event = await repo.setMode(7, "AI", {
-			reason: "owner_reply_after_3_days",
+			reason: "owner_keyword_on",
 			changedBy: "owner",
 			changedAt,
-			eventType: "auto_reenabled_after_3_days",
+			eventType: "bot_enabled",
 			metadata: { ok: true },
 		});
 
-		assert.equal(event?.event_type, "auto_reenabled_after_3_days");
+		assert.equal(event?.event_type, "bot_enabled");
 	});
 
 	it("rolls back mode updates when audit event insert fails", async () => {
@@ -425,11 +425,10 @@ describe("postgres adapter", () => {
 			assert.match(text, /c\.followup_attempts < \$2/);
 			assert.match(text, /latest\.role = 'assistant'/);
 			assert.match(text, /NOT EXISTS[\s\S]+newer_user/);
-			assert.match(text, /c\.last_user_message_at >= \$4/);
+			assert.match(text, /c\.last_user_message_at >= \$3/);
 			assert.deepEqual(values, [
-				now,
+				new Date("2026-01-03T00:00:00.000Z"),
 				2,
-				24,
 				new Date("2026-01-03T00:00:00.000Z"),
 			]);
 			return { rows: [conversation()] };

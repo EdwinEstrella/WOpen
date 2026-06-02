@@ -205,7 +205,7 @@ export function createPostgresRepository(pool: PostgresPool) {
 							input.conversation_id,
 							input.content,
 							new Date(createdAt.getTime() - 5 * 60 * 1000),
-						]
+						],
 					);
 
 					if (existingRes.rows.length > 0) {
@@ -223,9 +223,9 @@ export function createPostgresRepository(pool: PostgresPool) {
 								input.raw_timestamp ?? createdAt,
 								JSON.stringify(input.metadata ?? {}),
 								existingMsg.id,
-							]
+							],
 						);
-						
+
 						// También actualizamos la conversación para reflejar la última intervención
 						let touchSql = `UPDATE conversations
 						 SET last_message_at = $2, updated_at = $2`;
@@ -243,10 +243,7 @@ export function createPostgresRepository(pool: PostgresPool) {
 								touchSql += ", last_owner_intervention_at = $2";
 						}
 						touchSql += " WHERE id = $1 RETURNING *";
-						await client.query(touchSql, [
-							input.conversation_id,
-							createdAt,
-						]);
+						await client.query(touchSql, [input.conversation_id, createdAt]);
 
 						return updatedMsgRes.rows[0];
 					}
@@ -314,7 +311,7 @@ export function createPostgresRepository(pool: PostgresPool) {
 			return withTransaction(pool, async (client) => {
 				const changedAt = input.changedAt ?? nowDate();
 				const lastAiReactivatedAt =
-					mode === "AI" && input.reason === "owner_reply_after_3_days"
+					mode === "AI" && input.reason === "owner_keyword_on"
 						? changedAt
 						: null;
 				const updated = await client.query<ConversationRow>(
@@ -384,10 +381,7 @@ export function createPostgresRepository(pool: PostgresPool) {
 			const followUpCutoff = new Date(
 				input.now.getTime() - input.minHoursAfterAssistant * 3_600_000,
 			);
-			const values: unknown[] = [
-				followUpCutoff,
-				input.maxAttempts,
-			];
+			const values: unknown[] = [followUpCutoff, input.maxAttempts];
 			let windowPredicate = "TRUE";
 			if (input.blockOutside24h) {
 				const freeformCutoff = new Date(

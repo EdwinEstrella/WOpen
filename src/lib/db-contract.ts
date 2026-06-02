@@ -15,7 +15,6 @@ export type ModeChangedBy = "system" | "owner" | "dashboard" | "assistant";
 export type ConversationEventType =
 	| "bot_disabled"
 	| "bot_enabled"
-	| "auto_reenabled_after_3_days"
 	| "handoff_to_human"
 	| "followup_sent"
 	| "followup_skipped"
@@ -25,17 +24,15 @@ export type ConversationEventType =
 export type EventActorRole = MessageRole | "system";
 
 export const DEFAULT_SETTINGS = {
-	bot_off_keyword: "bot off",
 	bot_on_keyword: "ok.",
 	keyword_match_mode: "exact",
 	keyword_case_sensitive: false,
-	owner_reactivation_days: 3,
 	debounce_ms: 12_000,
 	processing_lock_ttl_ms: 90_000,
 	dedupe_ttl_seconds: 86_400,
 	conversation_queue_ttl_seconds: 300,
-	followup_interval_hours: 6,
-	followup_min_hours_after_assistant: 24,
+	followup_interval_hours: 12,
+	followup_min_hours_after_assistant: 12,
 	followup_max_attempts: 2,
 	whatsapp_freeform_window_hours: 24,
 	block_outside_24h_followups: true,
@@ -66,10 +63,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_whatsapp_id ON messages(whatsapp_
 CREATE INDEX IF NOT EXISTS idx_messages_conv_created ON messages(conversation_id, created_at);
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value JSONB NOT NULL, updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW());
 INSERT INTO settings (key, value) VALUES
-  ('bot_off_keyword', '"bot off"'::jsonb), ('bot_on_keyword', '"ok."'::jsonb), ('keyword_match_mode', '"exact"'::jsonb),
-  ('keyword_case_sensitive', 'false'::jsonb), ('owner_reactivation_days', '3'::jsonb), ('debounce_ms', '30000'::jsonb),
+  ('bot_on_keyword', '"ok."'::jsonb), ('keyword_match_mode', '"exact"'::jsonb),
+  ('keyword_case_sensitive', 'false'::jsonb), ('debounce_ms', '30000'::jsonb),
   ('processing_lock_ttl_ms', '90000'::jsonb), ('dedupe_ttl_seconds', '86400'::jsonb), ('conversation_queue_ttl_seconds', '300'::jsonb),
-  ('followup_interval_hours', '6'::jsonb), ('followup_min_hours_after_assistant', '24'::jsonb), ('followup_max_attempts', '2'::jsonb),
+  ('followup_interval_hours', '12'::jsonb), ('followup_min_hours_after_assistant', '12'::jsonb), ('followup_max_attempts', '2'::jsonb),
   ('whatsapp_freeform_window_hours', '24'::jsonb), ('block_outside_24h_followups', 'true'::jsonb)
 ON CONFLICT (key) DO NOTHING;
 CREATE TABLE IF NOT EXISTS conversation_events (
@@ -308,7 +305,7 @@ export function createInMemoryRepository() {
 				mode_changed_by: input.changedBy,
 				mode_changed_at: changedAt,
 				last_ai_reactivated_at:
-					mode === "AI" && input.reason === "owner_reply_after_3_days"
+					mode === "AI" && input.reason === "owner_keyword_on"
 						? changedAt
 						: (previous?.last_ai_reactivated_at ?? null),
 				updated_at: changedAt,

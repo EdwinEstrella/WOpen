@@ -2,7 +2,6 @@ import {
 	decideOwnerKeywordAction,
 	parseNormalReply,
 	planHandoffActions,
-	shouldReactivateAfterOwnerReply,
 	type AutomationSettings,
 	type ConversationMode,
 	type MessageRole,
@@ -56,9 +55,7 @@ type TurnState = {
 		conversationId: number,
 		input: { fireAtMs: number; ttlMs: number },
 	): MaybePromise<void>;
-	getDebounceMarker(
-		conversationId: number,
-	): MaybePromise<number | null>;
+	getDebounceMarker(conversationId: number): MaybePromise<number | null>;
 	acquireProcessingLock(
 		conversationId: number,
 		token: string,
@@ -131,8 +128,13 @@ export interface InboundHandlerDeps {
 		lastMessage: string;
 	}) => Promise<void>;
 	generateToken: () => string;
-	readMessages: (keys: { remoteJid: string; id: string; fromMe: boolean }[]) => Promise<void>;
-	sendPresenceUpdate: (presence: "composing" | "paused" | "recording" | "available", jid: string) => Promise<void>;
+	readMessages: (
+		keys: { remoteJid: string; id: string; fromMe: boolean }[],
+	) => Promise<void>;
+	sendPresenceUpdate: (
+		presence: "composing" | "paused" | "recording" | "available",
+		jid: string,
+	) => Promise<void>;
 }
 
 export interface MessageProcessResult {
@@ -141,7 +143,6 @@ export interface MessageProcessResult {
 		| "duplicate"
 		| "owner_disabled"
 		| "owner_enabled"
-		| "owner_reactivated"
 		| "owner_stored"
 		| "human_mode_stored"
 		| "ai_replied"
@@ -164,7 +165,7 @@ function isValidOneToOneNotify(
 	return (
 		upsert.type === "notify" &&
 		!!jid &&
-		!jid.endsWith("@g.us") &&
+		!jid.endsWith("g.us") &&
 		!jid.endsWith("@broadcast") &&
 		(jid.endsWith("@s.whatsapp.net") || jid.endsWith("@lid"))
 	);
@@ -175,12 +176,18 @@ function phoneFromJid(jid: string, messageKey?: { senderPn?: string }): string {
 	return raw.split("@")[0] ?? raw;
 }
 
-function detectMediaTypeAndContent(message: WhatsAppMessage): { mediaType: MediaType; content: string } {
+function detectMediaTypeAndContent(message: WhatsAppMessage): {
+	mediaType: MediaType;
+	content: string;
+} {
 	if (message.message?.conversation) {
 		return { mediaType: "text", content: message.message.conversation };
 	}
 	if (message.message?.extendedTextMessage?.text) {
-		return { mediaType: "text", content: message.message.extendedTextMessage.text };
+		return {
+			mediaType: "text",
+			content: message.message.extendedTextMessage.text,
+		};
 	}
 	if (message.message?.audioMessage) {
 		return { mediaType: "audio", content: "[Audio: Nota de voz]" };
@@ -201,29 +208,17 @@ function timestampFrom(message: WhatsAppMessage, fallback: Date): Date {
 
 function settingsFrom(raw: Record<string, unknown>): AutomationSettings {
 	return {
-		botOffKeyword: String(raw.bot_off_keyword ?? "bot off"),
 		botOnKeyword: String(raw.bot_on_keyword ?? "ok."),
 		keywordCaseSensitive: raw.keyword_case_sensitive === true,
-		ownerReactivationDays: Number(raw.owner_reactivation_days ?? 3),
 		followupMaxAttempts: Number(raw.followup_max_attempts ?? 2),
 		followupMinHoursAfterAssistant: Number(
-			raw.followup_min_hours_after_assistant ?? 24,
+			raw.followup_min_hours_after_assistant ?? 12,
 		),
 		whatsappFreeformWindowHours: Number(
 			raw.whatsapp_freeform_window_hours ?? 24,
 		),
 		blockOutside24hFollowups: raw.block_outside_24h_followups !== false,
 	};
-}
-
-function latestOwnerBaseAt(conversation: ConversationRow | null): Date | null {
-	const dates = [
-		conversation?.last_owner_intervention_at,
-		conversation?.last_human_message_at,
-		conversation?.mode_changed_at,
-	].filter((value): value is Date => value instanceof Date);
-	if (dates.length === 0) return null;
-	return dates.reduce((latest, value) => (value > latest ? value : latest));
 }
 
 export function createInboundHandler(deps: InboundHandlerDeps) {
@@ -252,7 +247,6 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 			jid: remoteJid,
 			name: message.pushName ?? null,
 		});
-		const reactivationBaseAt = latestOwnerBaseAt(beforeConversation);
 		const rawSettings = await deps.repo.getSettings();
 		const settings = settingsFrom(rawSettings);
 		const debounceMs = Number(rawSettings.debounce_ms ?? 30000);
@@ -265,7 +259,9 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 		}
 
 		if (mediaType === "audio" || mediaType === "image") {
-			console.log(`[bot] Descargando y procesando archivo adjunto de tipo: ${mediaType}`);
+			console.log(
+				`[bot] Descargando y procesando archivo adjunto de tipo: ${mediaType}`,
+			);
 		}
 
 		const token = deps.generateToken();
@@ -290,34 +286,7 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 			});
 
 			if (role === "human") {
-				// Apagado automático por intervención directa del dueño desde la app oficial de WhatsApp
-				if (beforeConversation.mode === "AI") {
-					await deps.repo.setMode(beforeConversation.id, "HUMAN", {
-						reason: "owner_intervention_whatsapp",
-						changedBy: "owner",
-						changedAt: now,
-						eventType: "bot_disabled",
-						metadata: { content: text },
-					});
-					return done({
-						status: "owner_disabled",
-						conversationId: beforeConversation.id,
-					});
-				}
-
 				const action = decideOwnerKeywordAction({ text, fromMe, settings });
-				if (action === "disable_bot") {
-					await deps.repo.setMode(beforeConversation.id, "HUMAN", {
-						reason: "owner_keyword_off",
-						changedBy: "owner",
-						changedAt: now,
-						eventType: "bot_disabled",
-					});
-					return done({
-						status: "owner_disabled",
-						conversationId: beforeConversation.id,
-					});
-				}
 				if (action === "enable_bot") {
 					await deps.repo.setMode(beforeConversation.id, "AI", {
 						reason: "owner_keyword_on",
@@ -330,29 +299,19 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 						conversationId: beforeConversation.id,
 					});
 				}
-				if (
-					shouldReactivateAfterOwnerReply({
-						mode: beforeConversation.mode,
-						fromMe,
-						now,
-						baseAt: reactivationBaseAt,
-						settings,
-					})
-				) {
-					await deps.repo.setMode(beforeConversation.id, "AI", {
-						reason: "owner_reply_after_3_days",
-						changedBy: "system",
-						changedAt: now,
-						eventType: "auto_reenabled_after_3_days",
-						metadata: { baseAt: reactivationBaseAt?.toISOString() },
-					});
-					return done({
-						status: "owner_reactivated",
-						conversationId: beforeConversation.id,
-					});
-				}
+
+				await deps.repo.setMode(beforeConversation.id, "HUMAN", {
+					reason: "owner_intervention_whatsapp",
+					changedBy: "owner",
+					changedAt: now,
+					eventType: "bot_disabled",
+					metadata: { content: text },
+				});
 				return done({
-					status: "owner_stored",
+					status:
+						beforeConversation.mode === "AI"
+							? "owner_disabled"
+							: "owner_stored",
 					conversationId: beforeConversation.id,
 				});
 			}
@@ -387,8 +346,10 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 			await new Promise((resolve) => setTimeout(resolve, debounceMs));
 
 			// Verificamos si somos la última ejecución (sliding window debounce)
-			const activeMarker = await deps.turnState.getDebounceMarker(beforeConversation.id);
-			if (activeMarker && Date.now() + 500 < activeMarker) {
+			const activeMarker = await deps.turnState.getDebounceMarker(
+				beforeConversation.id,
+			);
+			if (activeMarker && now.getTime() + 500 < activeMarker) {
 				// Si el marcador activo de Redis es posterior a nuestro despertar (con margen de gracia),
 				// significa que llegó un mensaje más nuevo que reinició el contador.
 				// Por ende, salimos silenciosamente y dejamos que el handler de ese nuevo mensaje lo procese.
@@ -453,13 +414,15 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 				if (msg.content === "[Audio: Nota de voz]") {
 					return {
 						...msg,
-						content: "[Audio: Nota de voz] (Nota de sistema: El usuario te envió una nota de voz/audio. Respondé de forma amable explicándole que por el momento no podés escuchar audios, y pedile por favor que te escriba su consulta por texto para que lo puedas ayudar.)",
+						content:
+							"[Audio: Nota de voz] (Nota de sistema: El usuario te envió una nota de voz/audio. Respondé de forma amable explicándole que por el momento no podés escuchar audios, y pedile por favor que te escriba su consulta por texto para que lo puedas ayudar.)",
 					};
 				}
 				if (msg.content === "[Imagen]") {
 					return {
 						...msg,
-						content: "[Imagen] (Nota de sistema: El usuario te envió una imagen. Respondé de forma amable explicándole que por el momento no podés ver imágenes, y pedile por favor que te la describa por texto para que lo puedas ayudar.)",
+						content:
+							"[Imagen] (Nota de sistema: El usuario te envió una imagen. Respondé de forma amable explicándole que por el momento no podés ver imágenes, y pedile por favor que te la describa por texto para que lo puedas ayudar.)",
 					};
 				}
 				return msg;

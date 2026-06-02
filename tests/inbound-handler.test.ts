@@ -49,7 +49,10 @@ function makeDeps() {
 		'{"response":{"part_1":"Hola","part_2":"¿En qué te ayudo?","part_3":""},"handoff":{"required":false,"reason":""}}';
 	const deps: InboundHandlerDeps = {
 		now: () => at("2026-06-04T12:00:00Z"),
-		repo,
+		repo: {
+			...repo,
+			getSettings: () => ({ ...repo.getSettings(), debounce_ms: 0 }),
+		},
 		turnState,
 		getRecentHistory: async (conversationId) => {
 			calls.push(`history:${conversationId}`);
@@ -72,6 +75,8 @@ function makeDeps() {
 			telegram.push(payload);
 		},
 		generateToken: () => "token-a",
+		readMessages: async () => {},
+		sendPresenceUpdate: async () => {},
 	};
 	return {
 		repo,
@@ -91,6 +96,7 @@ describe("owner-aware inbound handler filters", () => {
 		for (const event of [
 			upsert({ type: "append" }),
 			upsert({ remoteJid: "123@g.us" }),
+			upsert({ remoteJid: "group.g.us" }),
 			upsert({ remoteJid: "status@broadcast" }),
 		]) {
 			const { handler, repo, calls } = makeDeps();
@@ -138,15 +144,15 @@ describe("owner-aware inbound handler owner controls", () => {
 		);
 	});
 
-	it("owner off keyword changes mode to HUMAN and does not call DeepSeek", async () => {
+	it("owner non-activation message sets or refreshes HUMAN and does not call DeepSeek", async () => {
 		const { handler, repo, calls } = makeDeps();
 		await handler.handleUpsert(
-			upsert({ id: "m-owner-off", fromMe: true, text: " BOT OFF " }),
+			upsert({ id: "m-owner-intervention", fromMe: true, text: "Me encargo" }),
 		);
 
 		const convo = repo.getOrCreateConversation({ phone: "549111" });
 		assert.equal(convo.mode, "HUMAN");
-		assert.equal(convo.mode_reason, "owner_keyword_off");
+		assert.equal(convo.mode_reason, "owner_intervention_whatsapp");
 		assert.equal(
 			convo.last_human_message_at?.toISOString(),
 			"2026-06-04T12:00:00.000Z",
@@ -187,7 +193,7 @@ describe("owner-aware inbound handler owner controls", () => {
 		);
 	});
 
-	it("owner reply after 3 days reactivates AI according to existing rule", async () => {
+	it("owner non-activation message in HUMAN keeps HUMAN instead of timed reactivation", async () => {
 		const { handler, repo } = makeDeps();
 		const convo = repo.getOrCreateConversation({
 			phone: "549111",
@@ -199,17 +205,21 @@ describe("owner-aware inbound handler owner controls", () => {
 		});
 
 		await handler.handleUpsert(
-			upsert({ id: "m-owner-3d", fromMe: true, text: "Ya respondí" }),
+			upsert({
+				id: "m-owner-human-refresh",
+				fromMe: true,
+				text: "Ya respondí",
+			}),
 		);
 
-		assert.equal(repo.getConversationById(convo.id)?.mode, "AI");
+		assert.equal(repo.getConversationById(convo.id)?.mode, "HUMAN");
 		assert.equal(
 			repo.getConversationById(convo.id)?.mode_reason,
-			"owner_reply_after_3_days",
+			"owner_intervention_whatsapp",
 		);
 		assert.equal(
-			repo.getConversationById(convo.id)?.last_ai_reactivated_at?.toISOString(),
-			"2026-06-04T12:00:00.000Z",
+			repo.getConversationById(convo.id)?.last_ai_reactivated_at,
+			null,
 		);
 	});
 });
@@ -226,7 +236,7 @@ describe("owner-aware inbound handler AI/HUMAN customer paths", () => {
 			setMode: async (id, mode, input) => base.repo.setMode(id, mode, input),
 			recordConversationEvent: async (input) =>
 				base.repo.recordConversationEvent(input),
-			getSettings: async () => base.repo.getSettings(),
+			getSettings: async () => ({ ...base.repo.getSettings(), debounce_ms: 0 }),
 		};
 		const asyncTurnState: InboundHandlerDeps["turnState"] = {
 			acceptDedupeMessage: async (messageId, options) =>
@@ -259,6 +269,8 @@ describe("owner-aware inbound handler AI/HUMAN customer paths", () => {
 			},
 			notifyTelegramHumanNeeded: async () => {},
 			generateToken: () => "token-a",
+			readMessages: async () => {},
+			sendPresenceUpdate: async () => {},
 		});
 
 		await handler.handleUpsert(

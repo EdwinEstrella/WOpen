@@ -150,7 +150,7 @@ describe("follow-up scheduler orchestration", () => {
 		]);
 		assert.deepEqual(candidateQueries[0], {
 			now: at("2026-06-04T12:00:00Z"),
-			minHoursAfterAssistant: 24,
+			minHoursAfterAssistant: 12,
 			maxAttempts: 2,
 			freeformWindowHours: 24,
 			blockOutside24h: true,
