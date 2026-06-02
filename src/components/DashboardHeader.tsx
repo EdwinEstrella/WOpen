@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { SearchIcon, UserIcon, BellIcon } from "./Icons.tsx";
 
 interface DashboardHeaderProps {
 	phone: string | null;
@@ -49,7 +50,7 @@ export default function DashboardHeader({
 				
 				{/* Search Bar de adorno premium */}
 				<div className="relative hidden md:block">
-					<span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-on-surface-variant/70">🔍</span>
+					<SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60" size={14} />
 					<input
 						type="text"
 						placeholder="Buscar en el panel..."
@@ -89,7 +90,7 @@ export default function DashboardHeader({
 
 				{/* Avatar de adorno premium */}
 				<div className="w-8 h-8 rounded-full overflow-hidden border border-outline-variant/30 hover:border-primary/50 transition-colors cursor-pointer flex items-center justify-center bg-surface-container">
-					<span className="text-xs">👤</span>
+					<UserIcon className="text-on-surface-variant/60" size={14} />
 				</div>
 			</div>
 

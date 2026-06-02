@@ -1,4 +1,11 @@
 import React from "react";
+import {
+	PlusIcon,
+	MessagesIcon,
+	ClockIcon,
+	RobotIcon,
+	TargetIcon
+} from "./Icons.tsx";
 
 export default function AutomationsOverview() {
 	return (
@@ -13,8 +20,8 @@ export default function AutomationsOverview() {
 					<button className="px-4 py-2 rounded-lg bg-surface-container-high border border-outline-variant/30 text-xs font-semibold text-on-surface hover:bg-surface-container-highest transition-colors active:scale-95">
 						📂 Cargar Plantilla
 					</button>
-					<button className="px-4 py-2 rounded-lg bg-primary text-on-primary text-xs font-bold hover:bg-primary-container transition-colors active:scale-95 glow-active">
-						＋ Nuevo Flujo
+					<button className="px-4 py-2.5 rounded-lg bg-primary text-on-primary text-xs font-bold hover:bg-primary-container transition-colors active:scale-95 glow-active flex items-center gap-1.5">
+						<PlusIcon size={12} /> Nuevo Flujo
 					</button>
 				</div>
 			</div>
@@ -29,12 +36,12 @@ export default function AutomationsOverview() {
 					{/* Block Triggers */}
 					<div className="space-y-2">
 						<span className="text-[10px] font-bold text-primary/80 uppercase">Disparadores</span>
-						<div className="p-3 rounded-xl bg-surface-container-high/60 border border-outline-variant/20 hover:border-primary/40 cursor-grab transition-all flex items-center gap-2 group">
-							<span className="text-primary text-sm">📥</span>
+						<div className="p-3 rounded-xl bg-surface-container-high/60 border border-outline-variant/20 hover:border-primary/40 cursor-grab transition-all flex items-center gap-2.5 group">
+							<MessagesIcon className="text-primary" size={14} />
 							<span className="text-xs text-on-surface group-hover:text-primary font-medium">Mensaje Entrante</span>
 						</div>
-						<div className="p-3 rounded-xl bg-surface-container-high/60 border border-outline-variant/20 hover:border-primary/40 cursor-grab transition-all flex items-center gap-2 group">
-							<span className="text-primary text-sm">⏱️</span>
+						<div className="p-3 rounded-xl bg-surface-container-high/60 border border-outline-variant/20 hover:border-primary/40 cursor-grab transition-all flex items-center gap-2.5 group">
+							<ClockIcon className="text-primary" size={14} />
 							<span className="text-xs text-on-surface group-hover:text-primary font-medium">Intervalo de Espera</span>
 						</div>
 					</div>
@@ -42,16 +49,16 @@ export default function AutomationsOverview() {
 					{/* Block Actions */}
 					<div className="space-y-2">
 						<span className="text-[10px] font-bold text-secondary/80 uppercase">Acciones IA & WhatsApp</span>
-						<div className="p-3 rounded-xl bg-surface-container-high/60 border border-outline-variant/20 hover:border-secondary/40 cursor-grab transition-all flex items-center gap-2 group">
-							<span className="text-secondary text-sm">💬</span>
+						<div className="p-3 rounded-xl bg-surface-container-high/60 border border-outline-variant/20 hover:border-secondary/40 cursor-grab transition-all flex items-center gap-2.5 group">
+							<MessagesIcon className="text-secondary" size={14} />
 							<span className="text-xs text-on-surface group-hover:text-secondary font-medium">Enviar WhatsApp</span>
 						</div>
-						<div className="p-3 rounded-xl bg-surface-container-high/60 border border-outline-variant/20 hover:border-secondary/40 cursor-grab transition-all flex items-center gap-2 group">
-							<span className="text-secondary text-sm">🤖</span>
+						<div className="p-3 rounded-xl bg-surface-container-high/60 border border-outline-variant/20 hover:border-secondary/40 cursor-grab transition-all flex items-center gap-2.5 group">
+							<RobotIcon className="text-secondary" size={14} />
 							<span className="text-xs text-on-surface group-hover:text-secondary font-medium">Preguntar a la IA</span>
 						</div>
-						<div className="p-3 rounded-xl bg-surface-container-high/60 border border-outline-variant/20 hover:border-secondary/40 cursor-grab transition-all flex items-center gap-2 group">
-							<span className="text-secondary text-sm">🏷️</span>
+						<div className="p-3 rounded-xl bg-surface-container-high/60 border border-outline-variant/20 hover:border-secondary/40 cursor-grab transition-all flex items-center gap-2.5 group">
+							<TargetIcon className="text-secondary" size={14} />
 							<span className="text-xs text-on-surface group-hover:text-secondary font-medium">Asignar Etiqueta</span>
 						</div>
 					</div>
@@ -99,7 +106,9 @@ export default function AutomationsOverview() {
 								<span className="text-xs text-on-surface-variant font-mono">ID: node_01</span>
 							</div>
 							<div>
-								<h4 className="text-xs font-bold text-on-surface">Mensaje Entrante</h4>
+								<h4 className="text-xs font-bold text-on-surface flex items-center gap-2">
+									<MessagesIcon className="text-primary" size={12} /> Mensaje Entrante
+								</h4>
 								<p className="text-[10px] text-on-surface-variant mt-1">Cualquier interacción inicial del cliente</p>
 							</div>
 							<div className="border-t border-outline-variant/10 pt-2 flex items-center gap-1.5">
@@ -117,7 +126,9 @@ export default function AutomationsOverview() {
 								<span className="text-xs text-on-surface-variant font-mono">ID: node_02</span>
 							</div>
 							<div>
-								<h4 className="text-xs font-bold text-on-surface">Consultar Prompt Base</h4>
+								<h4 className="text-xs font-bold text-on-surface flex items-center gap-2">
+									<RobotIcon className="text-primary" size={12} /> Consultar Prompt Base
+								</h4>
 								<p className="text-[10px] text-on-surface-variant mt-1">Evalúa si es consulta de venta o reclamo</p>
 							</div>
 							<div className="border-t border-outline-variant/10 pt-2 flex items-center justify-between">
@@ -135,7 +146,9 @@ export default function AutomationsOverview() {
 								<span className="text-xs text-on-surface-variant font-mono">ID: node_03</span>
 							</div>
 							<div>
-								<h4 className="text-xs font-bold text-on-surface">Responder WhatsApp</h4>
+								<h4 className="text-xs font-bold text-on-surface flex items-center gap-2">
+									<MessagesIcon className="text-secondary" size={12} /> Responder WhatsApp
+								</h4>
 								<p className="text-[10px] text-on-surface-variant mt-1">Despacha respuesta del bot al cliente</p>
 							</div>
 							<div className="border-t border-outline-variant/10 pt-2 flex items-center justify-between">

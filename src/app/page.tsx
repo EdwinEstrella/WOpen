@@ -10,6 +10,15 @@ import SettingsPanel from "../components/SettingsPanel.tsx";
 import DashboardOverview from "../components/DashboardOverview.tsx";
 import AutomationsOverview from "../components/AutomationsOverview.tsx";
 import ContactsOverview from "../components/ContactsOverview.tsx";
+import {
+	RobotIcon,
+	DashboardIcon,
+	MessagesIcon,
+	BrainIcon,
+	ZapIcon,
+	UsersIcon,
+	SettingsIcon
+} from "../components/Icons.tsx";
 import type { ConversationListRow } from "../lib/db.ts";
 
 type Tab = "dashboard" | "chats" | "prompts" | "automations" | "contacts" | "settings";
@@ -64,7 +73,7 @@ export default function Home() {
 						{/* Header de Marca */}
 						<div className="flex items-center gap-3 mb-10 px-2 shrink-0">
 							<div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center shrink-0 border border-primary/30 glow-active">
-								<span className="text-xl text-primary">🤖</span>
+								<RobotIcon className="text-primary" size={20} />
 							</div>
 							<div>
 								<h1 className="font-display text-base font-bold text-primary leading-tight">Bot Personal</h1>
@@ -84,7 +93,7 @@ export default function Home() {
 										: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
 								}`}
 							>
-								<span className="text-sm">📊</span>
+								<DashboardIcon size={16} />
 								<span>Dashboard</span>
 							</button>
 
@@ -97,7 +106,7 @@ export default function Home() {
 										: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
 								}`}
 							>
-								<span className="text-sm">💬</span>
+								<MessagesIcon size={16} />
 								<span>Conversaciones</span>
 							</button>
 
@@ -110,7 +119,7 @@ export default function Home() {
 										: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
 								}`}
 							>
-								<span className="text-sm">✍️</span>
+								<BrainIcon size={16} />
 								<span>AI Prompts</span>
 							</button>
 
@@ -123,7 +132,7 @@ export default function Home() {
 										: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
 								}`}
 							>
-								<span className="text-sm">⚡</span>
+								<ZapIcon size={16} />
 								<span>Automatizaciones</span>
 							</button>
 
@@ -136,7 +145,7 @@ export default function Home() {
 										: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
 								}`}
 							>
-								<span className="text-sm">👥</span>
+								<UsersIcon size={16} />
 								<span>Contactos CRM</span>
 							</button>
 
@@ -149,7 +158,7 @@ export default function Home() {
 										: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
 								}`}
 							>
-								<span className="text-sm">⚙️</span>
+								<SettingsIcon size={16} />
 								<span>Ajustes</span>
 							</button>
 
@@ -202,7 +211,7 @@ export default function Home() {
 											/>
 										) : (
 											<div className="h-full flex flex-col items-center justify-center text-on-surface-variant p-8 text-center bg-surface-container-lowest/5">
-												<span className="text-4xl mb-4 animate-bounce">💬</span>
+												<MessagesIcon className="text-on-surface-variant/30 animate-pulse mb-4" size={48} />
 												<h3 className="font-display text-sm font-bold text-on-surface mb-1">Tu bandeja de entrada</h3>
 												<p className="text-xs max-w-xs text-on-surface-variant/80">
 													Seleccioná una conversación del panel izquierdo para empezar a gestionar la automatización o responder manualmente.

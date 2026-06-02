@@ -1,4 +1,14 @@
 import React from "react";
+import {
+	MessagesIcon,
+	ZapIcon,
+	UserIcon,
+	HourglassIcon,
+	RobotIcon,
+	TargetIcon,
+	TrendingUpIcon,
+	TrendingDownIcon
+} from "./Icons.tsx";
 
 export default function DashboardOverview() {
 	return (
@@ -13,13 +23,13 @@ export default function DashboardOverview() {
 						<div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10 group-hover:bg-primary/10 transition-colors"></div>
 						<div className="flex justify-between items-start mb-4">
 							<span className="font-display text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Conversaciones Activas</span>
-							<span className="text-primary text-lg">💬</span>
+							<MessagesIcon className="text-primary" size={18} />
 						</div>
 						<div>
 							<div className="font-display text-4xl font-bold text-on-surface mb-2">542</div>
 							<div className="flex items-center gap-2">
-								<span className="flex items-center text-primary bg-primary/10 px-2 py-0.5 rounded text-xs font-semibold">
-									📈 +12.5%
+								<span className="flex items-center gap-1 text-primary bg-primary/10 px-2 py-0.5 rounded text-xs font-semibold">
+									<TrendingUpIcon size={12} /> +12.5%
 								</span>
 								<span className="text-xs text-on-surface-variant">vs última hora</span>
 							</div>
@@ -41,13 +51,13 @@ export default function DashboardOverview() {
 						<div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10 group-hover:bg-primary/10 transition-colors"></div>
 						<div className="flex justify-between items-start mb-4">
 							<span className="font-display text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Resolución de IA</span>
-							<span className="text-primary text-lg">⚡</span>
+							<ZapIcon className="text-primary" size={18} />
 						</div>
 						<div>
 							<div className="font-display text-4xl font-bold text-on-surface mb-2">82%</div>
 							<div className="flex items-center gap-2">
-								<span className="flex items-center text-primary bg-primary/10 px-2 py-0.5 rounded text-xs font-semibold">
-									📈 +3.2%
+								<span className="flex items-center gap-1 text-primary bg-primary/10 px-2 py-0.5 rounded text-xs font-semibold">
+									<TrendingUpIcon size={12} /> +3.2%
 								</span>
 								<span className="text-xs text-on-surface-variant">vs semana anterior</span>
 							</div>
@@ -68,13 +78,13 @@ export default function DashboardOverview() {
 					<div className="glass-panel rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden group hover:border-secondary/40 transition-all duration-300">
 						<div className="flex justify-between items-start mb-4">
 							<span className="font-display text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Soporte Humano</span>
-							<span className="text-secondary text-lg">👤</span>
+							<UserIcon className="text-secondary" size={18} />
 						</div>
 						<div>
 							<div className="font-display text-4xl font-bold text-on-surface mb-2">124</div>
 							<div className="flex items-center gap-2">
-								<span className="flex items-center text-secondary bg-secondary/10 px-2 py-0.5 rounded text-xs font-semibold">
-									📉 -5.1%
+								<span className="flex items-center gap-1 text-secondary bg-secondary/10 px-2 py-0.5 rounded text-xs font-semibold">
+									<TrendingDownIcon size={12} /> -5.1%
 								</span>
 								<span className="text-xs text-on-surface-variant">vs semana anterior</span>
 							</div>
@@ -95,13 +105,13 @@ export default function DashboardOverview() {
 					<div className="glass-panel rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden group hover:border-error/40 transition-all duration-300">
 						<div className="flex justify-between items-start mb-4">
 							<span className="font-display text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Respuestas Pendientes</span>
-							<span className="text-error text-lg">⏳</span>
+							<HourglassIcon className="text-error" size={18} />
 						</div>
 						<div>
 							<div className="font-display text-4xl font-bold text-on-surface mb-2">18</div>
 							<div className="flex items-center gap-2">
-								<span className="flex items-center text-error bg-error/10 px-2 py-0.5 rounded text-xs font-semibold">
-									⚠️ Requiere Acción
+								<span className="flex items-center gap-1 text-error bg-error/10 px-2.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider">
+									<HourglassIcon size={10} /> Requiere Acción
 								</span>
 							</div>
 						</div>
@@ -132,7 +142,7 @@ export default function DashboardOverview() {
 							<div className="flex gap-4 relative">
 								<div className="absolute left-[15px] top-8 bottom-[-24px] w-px bg-outline-variant/20"></div>
 								<div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 z-10 glow-active">
-									<span className="text-xs text-primary">🤖</span>
+									<RobotIcon className="text-primary" size={14} />
 								</div>
 								<div>
 									<div className="text-xs text-on-surface font-semibold mb-1">IA respondió a cliente</div>
@@ -144,7 +154,7 @@ export default function DashboardOverview() {
 							<div className="flex gap-4 relative">
 								<div className="absolute left-[15px] top-8 bottom-[-24px] w-px bg-outline-variant/20"></div>
 								<div className="w-8 h-8 rounded-full bg-secondary/10 border border-secondary/20 flex items-center justify-center shrink-0 z-10">
-									<span className="text-xs text-secondary">👤</span>
+									<UserIcon className="text-secondary" size={14} />
 								</div>
 								<div>
 									<div className="text-xs text-on-surface font-semibold mb-1">Agente intervino chat</div>
@@ -155,7 +165,7 @@ export default function DashboardOverview() {
 							{/* Item 3 */}
 							<div className="flex gap-4 relative">
 								<div className="w-8 h-8 rounded-full bg-tertiary-container/10 border border-tertiary-container/20 flex items-center justify-center shrink-0 z-10">
-									<span className="text-xs text-tertiary-container">🎯</span>
+									<TargetIcon className="text-tertiary-container" size={14} />
 								</div>
 								<div>
 									<div className="text-xs text-on-surface font-semibold mb-1">Nuevo Lead Calificado</div>
@@ -183,7 +193,9 @@ export default function DashboardOverview() {
 						</div>
 						<div className="p-6 flex-1 flex flex-col justify-center min-h-[280px]">
 							<div className="flex flex-col items-center justify-center text-center text-on-surface-variant space-y-3">
-								<span className="text-4xl">📈</span>
+								<div className="w-12 h-12 bg-primary/10 rounded-2xl border border-primary/20 flex items-center justify-center glow-active">
+									<TrendingUpIcon className="text-primary" size={24} />
+								</div>
 								<h3 className="text-sm font-bold text-on-surface">Panel de Analíticas Activo</h3>
 								<p className="text-xs max-w-sm">
 									La precisión de respuesta del bot se mantiene en <strong className="text-primary font-semibold">96.4%</strong> esta semana con un total de 1,421 mensajes autogestionados de manera estable.

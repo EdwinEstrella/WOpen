@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { PlusIcon, RobotIcon, UserIcon } from "./Icons.tsx";
 
 interface Contact {
 	id: number;
@@ -50,8 +51,8 @@ export default function ContactsOverview() {
 					<p className="text-xs text-on-surface-variant mt-1">Administrá y categorizá los contactos y la intervención de IA por chat</p>
 				</div>
 				<div>
-					<button className="px-4 py-2 rounded-lg bg-primary text-on-primary text-xs font-bold hover:bg-primary-container transition-colors active:scale-95 glow-active">
-						＋ Agregar Contacto
+					<button className="px-4 py-2 rounded-lg bg-primary text-on-primary text-xs font-bold hover:bg-primary-container transition-colors active:scale-95 glow-active flex items-center gap-1.5">
+						<PlusIcon size={12} /> Agregar Contacto
 					</button>
 				</div>
 			</div>
@@ -115,12 +116,20 @@ export default function ContactsOverview() {
 										</span>
 									</td>
 									<td className="px-6 py-4">
-										<span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+										<span className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase flex items-center gap-1.5 w-fit ${
 											contact.mode === "AI"
 												? "bg-primary/10 border border-primary/20 text-primary"
 												: "bg-secondary/10 border border-secondary/20 text-secondary"
 										}`}>
-											🤖 {contact.mode}
+											{contact.mode === "AI" ? (
+												<>
+													<RobotIcon size={12} /> AI
+												</>
+											) : (
+												<>
+													<UserIcon size={12} /> HUM
+												</>
+											)}
 										</span>
 									</td>
 									<td className="px-6 py-4 flex gap-1 flex-wrap">

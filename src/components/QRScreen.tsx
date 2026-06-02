@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { PhoneIcon } from "./Icons.tsx";
 
 interface QRScreenProps {
 	status: "disconnected" | "qr" | "connecting" | "connected";
@@ -34,7 +35,7 @@ export default function QRScreen({ status, qrPng, updatedAt }: QRScreenProps) {
 		<div className="glass-panel rounded-3xl p-8 max-w-md w-full mx-auto text-center shadow-2xl relative border-outline-variant/20 bg-surface/80 backdrop-blur-xl">
 			
 			<div className="mb-6 w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto shrink-0 glow-active">
-				<span className="text-3xl">📱</span>
+				<PhoneIcon className="text-primary" size={24} />
 			</div>
 			
 			<h2 className="font-display text-base font-bold text-on-surface mb-2">Vincular Dispositivo WhatsApp</h2>

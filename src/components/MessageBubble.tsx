@@ -1,5 +1,6 @@
 "use client";
 
+import { UserIcon, RobotIcon, ImageIcon, MicIcon } from "./Icons.tsx";
 import type { MessageRow } from "../lib/db-contract.ts";
 
 interface MessageBubbleProps {
@@ -34,27 +35,41 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 			>
 				{/* Encabezado descriptivo de quién envió el mensaje */}
 				<div className="flex items-center justify-between gap-6 mb-2 border-b border-outline-variant/5 pb-1 shrink-0">
-					<span className={`text-[9px] font-extrabold uppercase tracking-widest ${
+					<span className={`text-[9px] font-extrabold uppercase tracking-widest flex items-center gap-1.5 ${
 						isUser 
 							? "text-on-surface-variant/80" 
 							: isAssistant 
 							? "text-primary" 
 							: "text-secondary"
 					}`}>
-						{isUser ? "👤 Cliente" : isAssistant ? "🤖 IA" : "👨‍💼 Agente"}
+						{isUser ? (
+							<>
+								<UserIcon size={10} /> Cliente
+							</>
+						) : isAssistant ? (
+							<>
+								<RobotIcon size={10} /> IA
+							</>
+						) : (
+							<>
+								<UserIcon size={10} /> Agente
+							</>
+						)}
 					</span>
 					<span className="text-[9px] font-mono text-on-surface-variant/50">{timeStr}</span>
 				</div>
 
 				{/* Soporte para tipos de medios (Multimedia) */}
 				{media_type === "image" && (
-					<div className="flex items-center gap-2 mb-2 p-2 bg-background/50 rounded-lg border border-outline-variant/10 text-xs text-on-surface-variant/90">
-						📷 <i>Imagen recibida (Procesada por IA Multimodal)</i>
+					<div className="flex items-center gap-2 mb-2 p-2 bg-background/50 rounded-lg border border-outline-variant/10 text-[10px] text-on-surface-variant/90 font-medium">
+						<ImageIcon className="text-primary" size={12} />
+						<span>Imagen recibida (Procesada por IA Multimodal)</span>
 					</div>
 				)}
 				{media_type === "audio" && (
-					<div className="flex items-center gap-2 mb-2 p-2 bg-background/50 rounded-lg border border-outline-variant/10 text-xs text-on-surface-variant/90">
-						🎙️ <i>Nota de voz recibida (Transcribiendo...)</i>
+					<div className="flex items-center gap-2 mb-2 p-2 bg-background/50 rounded-lg border border-outline-variant/10 text-[10px] text-on-surface-variant/90 font-medium">
+						<MicIcon className="text-primary" size={12} />
+						<span>Nota de voz recibida (Transcribiendo...)</span>
 					</div>
 				)}
 

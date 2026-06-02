@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { PlusIcon, EditIcon, TrashIcon, RobotIcon } from "./Icons.tsx";
 import type { SystemPromptRow } from "../lib/db.ts";
 
 export default function PromptsManager() {
@@ -122,9 +123,9 @@ export default function PromptsManager() {
 							setContent("");
 							setFormVisible(true);
 						}}
-						className="px-4 py-2 bg-primary text-on-primary rounded-xl font-display text-[10px] font-bold uppercase tracking-wider transition-all duration-200 active:scale-95 glow-active"
+						className="px-4 py-2 bg-primary text-on-primary rounded-xl font-display text-[10px] font-bold uppercase tracking-wider transition-all duration-200 active:scale-95 glow-active flex items-center gap-1.5"
 					>
-						＋ Nuevo Prompt
+						<PlusIcon size={12} /> Nuevo Prompt
 					</button>
 				)}
 			</div>
@@ -135,7 +136,17 @@ export default function PromptsManager() {
 				{/* Formulario de Alta / Modificación */}
 				{formVisible && (
 					<form onSubmit={handleSubmit} className="bg-surface/80 border border-outline-variant/20 p-6 rounded-2xl animate-fade-in space-y-4">
-						<h3 className="text-xs font-bold text-on-surface uppercase tracking-wider">{editId ? "✍️ Editar Prompt" : "✨ Crear Nuevo Prompt"}</h3>
+						<h3 className="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5">
+							{editId ? (
+								<>
+									<EditIcon size={14} className="text-primary" /> Editar Prompt
+								</>
+							) : (
+								<>
+									<PlusIcon size={14} className="text-primary" /> Crear Nuevo Prompt
+								</>
+							)}
+						</h3>
 						<div className="flex flex-col gap-4">
 							<div className="flex flex-col gap-1.5">
 								<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Título Descriptivo</label>
@@ -198,8 +209,8 @@ export default function PromptsManager() {
 									<div className="flex items-center gap-3">
 										<h4 className="text-xs font-bold text-on-surface">{prompt.title}</h4>
 										{prompt.is_active && (
-											<span className="bg-primary/10 text-primary border border-primary/20 text-[8px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
-												Activo
+											<span className="bg-primary/10 text-primary border border-primary/20 text-[8px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1.5 animate-pulse">
+												<RobotIcon size={8} /> Activo
 											</span>
 										)}
 									</div>
@@ -209,27 +220,27 @@ export default function PromptsManager() {
 										{!prompt.is_active && (
 											<button
 												onClick={() => handleSetActive(prompt.id)}
-												className="px-3 py-1.5 border border-primary text-primary hover:bg-primary/10 rounded-xl font-display text-[9px] font-extrabold uppercase tracking-wider transition-all duration-200"
+												className="px-3 py-1.5 border border-primary text-primary hover:bg-primary/10 rounded-xl font-display text-[9px] font-extrabold uppercase tracking-wider transition-all duration-200 flex items-center gap-1"
 											>
-												⚡ Activar
+												<span>Activar</span>
 											</button>
 										)}
 
 										<button
 											onClick={() => startEdit(prompt)}
-											className="p-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-bright rounded-lg text-xs transition-colors"
+											className="p-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-bright rounded-lg text-xs transition-colors flex items-center justify-center"
 											title="Editar prompt"
 										>
-											✏️
+											<EditIcon size={12} />
 										</button>
 
 										{!prompt.is_active && (
 											<button
 												onClick={() => handleDelete(prompt.id)}
-												className="p-1.5 text-error/80 hover:text-error hover:bg-error/15 rounded-lg text-xs transition-colors"
+												className="p-1.5 text-error/80 hover:text-error hover:bg-error/15 rounded-lg text-xs transition-colors flex items-center justify-center"
 												title="Eliminar prompt"
 											>
-												🗑️
+												<TrashIcon size={12} />
 											</button>
 										)}
 									</div>

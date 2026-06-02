@@ -1,6 +1,7 @@
 "use client";
 
 import type { ConversationListRow } from "../lib/db.ts";
+import { RobotIcon, UserIcon } from "./Icons.tsx";
 
 interface ConversationListProps {
 	conversations: ConversationListRow[];
@@ -81,13 +82,21 @@ export default function ConversationList({
 									</p>
 									
 									<span
-										className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded-md tracking-widest uppercase shrink-0 ${
+										className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded-md tracking-widest uppercase shrink-0 flex items-center gap-1 ${
 											convo.mode === "AI"
 												? "bg-primary/10 text-primary border border-primary/20"
 												: "bg-secondary/10 text-secondary border border-secondary/20"
 										}`}
 									>
-										{convo.mode === "AI" ? "🤖 IA" : "👤 HUM"}
+										{convo.mode === "AI" ? (
+											<>
+												<RobotIcon size={8} /> IA
+											</>
+										) : (
+											<>
+												<UserIcon size={8} /> HUM
+											</>
+										)}
 									</span>
 								</div>
 							</button>

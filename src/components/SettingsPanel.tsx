@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { KeyIcon, RepeatIcon, MailIcon, BellIcon } from "./Icons.tsx";
 
 export default function SettingsPanel() {
 	const [settings, setSettings] = useState<Record<string, any>>({});
@@ -78,7 +79,9 @@ export default function SettingsPanel() {
 				
 				{/* Grupo 1: Palabras Clave */}
 				<div className="bg-surface/80 border border-outline-variant/20 p-5 rounded-2xl space-y-4">
-					<h3 className="text-xs font-bold text-on-surface uppercase tracking-wider">🔑 Palabras Clave (Control del Dueño)</h3>
+					<h3 className="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-2">
+						<KeyIcon className="text-primary" size={14} /> Palabras Clave (Control del Dueño)
+					</h3>
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 						<div className="flex flex-col gap-1.5">
 							<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Apagar Bot (Keyword)</label>
@@ -133,7 +136,9 @@ export default function SettingsPanel() {
 
 				{/* Grupo 2: Reactivación Automática */}
 				<div className="bg-surface/80 border border-outline-variant/20 p-5 rounded-2xl space-y-4">
-					<h3 className="text-xs font-bold text-on-surface uppercase tracking-wider">🔄 Reactivación Automática</h3>
+					<h3 className="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-2">
+						<RepeatIcon className="text-primary" size={14} /> Reactivación Automática
+					</h3>
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 						<div className="flex flex-col gap-1.5">
 							<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Días para reactivación por respuesta</label>
@@ -155,7 +160,9 @@ export default function SettingsPanel() {
 
 				{/* Grupo 3: Seguimientos Automáticos */}
 				<div className="bg-surface/80 border border-outline-variant/20 p-5 rounded-2xl space-y-4">
-					<h3 className="text-xs font-bold text-on-surface uppercase tracking-wider">✉️ Seguimientos Automáticos (Follow-Ups)</h3>
+					<h3 className="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-2">
+						<MailIcon className="text-primary" size={14} /> Seguimientos Automáticos (Follow-Ups)
+					</h3>
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 						<div className="flex flex-col gap-1.5">
 							<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Intervalo de evaluación (horas)</label>
@@ -223,11 +230,14 @@ export default function SettingsPanel() {
 
 				{/* Grupo 4: Telegram */}
 				<div className="bg-surface/80 border border-outline-variant/20 p-5 rounded-2xl space-y-3">
-					<h3 className="text-xs font-bold text-on-surface uppercase tracking-wider">📢 Canal de Alertas (Telegram)</h3>
+					<h3 className="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-2">
+						<BellIcon className="text-primary" size={14} /> Canal de Alertas (Telegram)
+					</h3>
 					<p className="text-[9px] text-on-surface-variant/80">Las credenciales se administran de manera segura desde las variables de entorno de tu servidor (.env.local)</p>
 					
-					<div className="flex items-center gap-2 bg-primary/10 border border-primary/20 text-primary text-xs p-3 rounded-xl">
-						🔔 <b>Estado de Alertas:</b> Integración de notificaciones de Telegram activa en el backend.
+					<div className="flex items-center gap-2.5 bg-primary/10 border border-primary/20 text-primary text-xs p-3 rounded-xl">
+						<BellIcon size={14} className="animate-bounce" />
+						<span><b>Estado de Alertas:</b> Integración de notificaciones de Telegram activa en el backend.</span>
 					</div>
 				</div>
 
