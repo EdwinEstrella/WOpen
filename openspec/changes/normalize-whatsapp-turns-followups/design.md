@@ -15,15 +15,15 @@ Later phases should update `promt.md` exactly in these areas:
 1. Replace the current inbound step that says to filter `msg.key.fromMe === true` with owner-aware handling:
    - do not ignore all `fromMe` messages;
    - persist owner messages as `role='human'`;
-   - only owner-originated messages may run administrative bot on/off keywords.
-2. Replace the current customer keyword shutdown rule with owner-only administrative keywords:
-   - customers saying `humano`, `asesor`, `ok.`, or configured administrative keywords must not administratively toggle bot mode;
+   - only owner-originated messages may reactivate the bot by matching `bot_on_keyword`; all other owner WhatsApp messages place/refresh the chat in `HUMAN` mode.
+2. Replace the current customer keyword shutdown rule with owner-only intervention handling:
+   - customers saying `humano`, `asesor`, `ok.`, or administrative-looking text must not administratively toggle bot mode;
    - customer intent to request a human remains a separate AI/business handoff decision.
 3. Expand the database DDL for `conversations`, `messages`, and new `settings` and optional `conversation_events` tables as defined below.
 4. Add Redis key conventions and TTLs as defined below.
 5. Rewrite the inbound handler section as the lifecycle algorithm in this design: persist -> history -> mode/keyword checks -> reply -> finalize turn.
-6. Add the 3-day owner-reply reactivation rule and required timestamps.
-7. Replace the follow-up section with the scheduler behavior below, matching `seguimiento.json` parity while preventing collisions with active inbound turns.
+6. Add owner intervention timestamp refresh and owner activation by `bot_on_keyword`, with required timestamps.
+7. Replace the follow-up section with the 12-hour scheduler behavior below, matching `seguimiento.json` parity while preventing collisions with active inbound turns.
 8. Add the WhatsApp 24-hour boundary rule for automatic free-form follow-ups.
 9. Add DeepSeek JSON contracts and safe fallbacks for normal replies and follow-ups.
 
@@ -65,7 +65,7 @@ Notes:
 - `phone` remains the stable display/contact key.
 - `jid` stores the Baileys remote JID when available.
 - `mode` is durable and must not be stored in Redis.
-- `last_owner_intervention_at` is the timestamp used for the 3-day reactivation threshold unless a more recent `last_human_message_at` exists; use the greatest non-null of both.
+- `last_owner_intervention_at` is refreshed by every owner WhatsApp message that does not match `bot_on_keyword`; use it to explain why the bot remains in `HUMAN` mode.
 - `last_user_message_at` defines the WhatsApp 24-hour free-form boundary for follow-ups.
 
 ### `messages`
@@ -118,24 +118,22 @@ Required keys and default values:
 
 ```json
 {
-  "bot_off_keyword": "bot off",
   "bot_on_keyword": "ok.",
   "keyword_match_mode": "exact",
   "keyword_case_sensitive": false,
-  "owner_reactivation_days": 3,
   "debounce_ms": 12000,
   "processing_lock_ttl_ms": 90000,
   "dedupe_ttl_seconds": 86400,
   "conversation_queue_ttl_seconds": 300,
-  "followup_interval_hours": 6,
-  "followup_min_hours_after_assistant": 24,
+  "followup_interval_hours": 12,
+  "followup_due_interval_hours": 12,
   "followup_max_attempts": 2,
   "whatsapp_freeform_window_hours": 24,
   "block_outside_24h_followups": true
 }
 ```
 
-`bot_off_keyword` and `bot_on_keyword` are owner-only administrative commands. Customer messages matching these strings are normal user content.
+`bot_on_keyword` is the only owner activation command. No setting or UI should exist for a separate deactivation word; any other owner WhatsApp message refreshes human/off state. Customer messages matching `ok.` or administrative-looking text are normal user content.
 
 ### Optional `conversation_events`
 
@@ -156,7 +154,7 @@ CREATE INDEX IF NOT EXISTS idx_conversation_events_conv_created
   ON conversation_events(conversation_id, created_at);
 ```
 
-Recommended event types: `bot_disabled`, `bot_enabled`, `auto_reenabled_after_3_days`, `handoff_to_human`, `followup_sent`, `followup_skipped`, `followup_blocked_24h`, `deepseek_json_invalid`, `turn_failed`.
+Recommended event types: `bot_disabled`, `bot_enabled`, `owner_intervention`, `handoff_to_human`, `followup_sent`, `followup_skipped`, `followup_blocked_24h`, `deepseek_json_invalid`, `turn_failed`.
 
 ## Redis key conventions
 
@@ -204,7 +202,7 @@ Use a project prefix and version: `wa:v1:`.
 
 - Global key: `wa:v1:followups:runner-lock`
 - Value: token
-- TTL: slightly less than scheduler interval, e.g. 5 hours for a 6-hour interval, or a shorter TTL if the job is quick.
+- TTL: slightly less than scheduler interval, e.g. 11 hours for a 12-hour interval, or a shorter TTL if the job is quick.
 - Purpose: prevent multiple bot processes from running the scheduler concurrently.
 
 ### Follow-up conversation lock
@@ -253,38 +251,35 @@ For each `messages.upsert`:
    - human: `last_human_message_at`, `last_owner_intervention_at`;
    - assistant: `last_assistant_message_at`.
 
-### 3. Owner mode/keyword checks
+### 3. Owner mode checks
 
 If role is `human` and `fromMe === true`:
 1. Normalize text using settings: `trim`; lower-case unless `keyword_case_sensitive`; exact comparison by default.
-2. If text equals `bot_off_keyword`:
-   - set conversation `mode='HUMAN'`;
-   - set `mode_reason='owner_keyword_off'`, `mode_changed_by='owner'`, `mode_changed_at=NOW()`;
-   - create `bot_disabled` event;
-   - finalize turn; no AI reply.
-3. Else if text equals `bot_on_keyword`:
-   - set `mode='AI'`;
+2. If text equals `bot_on_keyword`:
+   - set conversation `mode='AI'`;
    - set `mode_reason='owner_keyword_on'`, `mode_changed_by='owner'`, `mode_changed_at=NOW()`, `last_ai_reactivated_at=NOW()`;
+   - clear or expire transient Redis human/off labels for that conversation if present;
    - create `bot_enabled` event;
    - finalize turn; future customer messages are AI-eligible.
-4. Else apply the 3-day reactivation rule below.
-5. Owner messages never trigger an AI reply to themselves in that turn.
+3. Otherwise:
+   - set conversation `mode='HUMAN'`;
+   - set `mode_reason='owner_intervention'`, `mode_changed_by='owner'`, `mode_changed_at=NOW()`;
+   - refresh `last_owner_intervention_at` / `last_human_message_at` for the current message;
+   - apply or refresh transient Redis label-like state used by runtime checks, e.g. `wa:v1:conversation:human:{conversationId}`, with TTL/cleanup appropriate to the active turn;
+   - create `bot_disabled` or `owner_intervention` event;
+   - finalize turn; no AI reply.
+4. Owner messages never trigger an AI reply to themselves in that turn.
 
-Customer messages that equal owner keywords are persisted as `user` and do not toggle mode.
+Customer messages that equal `bot_on_keyword` or administrative-looking text are persisted as `user` and do not toggle mode.
 
-### 4. Three-day owner-reply reactivation rule
+### 4. Owner reactivation and intervention refresh
 
-For a human/owner message that is not the off keyword and the conversation is currently `HUMAN`:
-1. Compute `reactivation_base_at = greatest_non_null(last_owner_intervention_at before current message, last_human_message_at before current message, mode_changed_at)`.
-2. If `NOW() - reactivation_base_at >= owner_reactivation_days`:
-   - set mode to `AI`;
-   - set `mode_reason='auto_reenabled_after_3_days_owner_reply'`;
-   - set `mode_changed_by='system'`, `mode_changed_at=NOW()`, `last_ai_reactivated_at=NOW()`;
-   - create `auto_reenabled_after_3_days` event including the base timestamp and threshold.
-3. If the threshold is not met, keep `HUMAN`.
-4. Finalize the owner turn without AI reply.
+For an owner WhatsApp message where the conversation is currently `HUMAN`:
+1. If normalized text equals `bot_on_keyword`, set mode to `AI`, set `mode_reason='owner_keyword_on'`, set `mode_changed_by='owner'`, set `mode_changed_at=NOW()` and `last_ai_reactivated_at=NOW()`, then clear transient Redis human/off labels for that conversation.
+2. If normalized text does not equal `bot_on_keyword`, keep mode `HUMAN`, refresh `last_owner_intervention_at` and any transient Redis human/off label, and finalize without AI reply.
+3. Dashboard/manual mode changes may also reactivate to `AI`, but dashboard messages are not treated as WhatsApp owner keyword commands.
 
-The timestamp comparison must use persisted timestamps captured before the current owner message updates `last_owner_intervention_at`, otherwise every owner reply would reset the base before evaluation.
+The timestamp refresh must not erase durable history or Baileys auth state.
 
 ### 5. Customer mode check and debounce
 
@@ -338,7 +333,7 @@ Dashboard messages are human intervention but are not owner WhatsApp `fromMe` me
 ### Parity with `seguimiento.json`
 
 The local scheduler matches the reference workflow behavior:
-- runs every 6 hours by default;
+- evaluates due conversations every 12 hours by default;
 - selects conversations where the latest visible message is from the bot/assistant;
 - requires no customer message after that assistant message;
 - requires `followup_attempts < 2`;
@@ -353,7 +348,7 @@ A conversation is eligible only if:
 2. `followup_attempts < followup_max_attempts`.
 3. Latest non-system visible message is `role='assistant'`.
 4. No `role='user'` message exists after that assistant message.
-5. `last_assistant_message_at <= NOW() - followup_min_hours_after_assistant`.
+5. The 12-hour due interval has elapsed since the last assistant/follow-up evaluation; do not wait 24 hours after the assistant message.
 6. `last_user_message_at >= NOW() - whatsapp_freeform_window_hours` when free-form follow-ups are blocked outside 24h.
 7. No active Redis inbound state exists:
    - no `wa:v1:turn:queue:{conversationId}`;
@@ -448,6 +443,10 @@ Rules:
 - if JSON is malformed, do not send raw text;
 - record skip/audit for troubleshooting.
 
+## Contacts CRM data source
+
+ContactsOverview should consume the persisted `ConversationListRow[]` already loaded by Home from `/api/conversations`, or an equivalent direct call to the same API. It must remove fake contact initialization and derive display name, phone, mode, and latest interaction from persisted conversation fields. Status/tags should be omitted or explicitly empty until a persisted CRM contact model exists.
+
 ## Contracts for DB helpers
 
 Future `promt.md` should require these helpers in `src/lib/db.ts` or equivalent:
@@ -468,11 +467,10 @@ All message insertion and conversation timestamp updates must be transactional.
 
 Test-first tasks should cover:
 - duplicate Baileys message id is not persisted/responded twice;
-- `fromMe` owner off keyword switches `AI -> HUMAN` and sends no AI reply;
+- `fromMe` owner non-activation message switches or refreshes `AI/HUMAN -> HUMAN` and sends no AI reply;
 - customer text equal to owner keyword does not toggle mode;
 - owner on keyword switches `HUMAN -> AI`;
-- owner non-command reply after 3 days reactivates AI;
-- owner non-command reply before 3 days does not reactivate;
+- owner non-activation reply refreshes `HUMAN` and does not reactivate;
 - user message resets follow-up attempts;
 - scheduler sends only when latest message is assistant and no user replied after it;
 - scheduler skips when inbound Redis lock/debounce/queue exists;
@@ -503,4 +501,4 @@ This is within the configured 400 changed-line review budget. No chained PR spli
 
 ## Open decisions
 
-No blocking product decision remains for the design. The defaults above choose exact, owner-only keywords and block automatic free-form follow-ups outside 24 hours.
+No blocking product decision remains for the design. The defaults above keep exact owner-only `bot_on_keyword`, remove any separate deactivation word, evaluate follow-ups every 12 hours, and block automatic free-form follow-ups outside 24 hours.

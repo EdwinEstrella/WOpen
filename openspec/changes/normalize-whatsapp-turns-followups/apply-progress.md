@@ -9,8 +9,8 @@ Initial code implementation slice completed on 2026-06-01.
 - Added a minimal runnable TypeScript test strategy for the repository.
 - Followed strict TDD RED/GREEN for pure domain/rule helpers before any live integration work.
 - Implemented pure helpers for:
-  - owner-only bot off/on keyword normalization and customer non-toggle;
-  - 3-day owner reply reactivation decision;
+  - historical owner command keyword normalization and customer non-toggle coverage (superseded by the 2026-06-02 amendment: no separate deactivation keyword; owner non-activation messages refresh `HUMAN`/off state);
+  - historical owner reply reactivation coverage (superseded by the 2026-06-02 amendment: reactivation from WhatsApp requires `bot_on_keyword`, `ok.` by default);
   - inbound turn finalization cleanup contract that excludes Baileys `./auth/` and durable DB state;
   - follow-up eligibility including AI mode, latest assistant, no user reply, attempt cap, active turn state, follow-up lock, minimum delay, and 24h boundary;
   - DeepSeek normal reply and follow-up JSON validation with invalid raw text marked unsafe to send;
@@ -40,7 +40,7 @@ Initial code implementation slice completed on 2026-06-01.
 
 | Cycle | RED Evidence | GREEN Evidence | Refactor/Triangulate Evidence |
 |-------|--------------|----------------|-------------------------------|
-| Minimal test runner + pure rule slice | Added `tests/whatsapp-rules.test.ts` first and ran `npm test`; failed with missing implementation module. | Added `src/domain/whatsapp-rules.ts`; `npm test` passed with 6/6 tests. | Kept implementation pure/no network calls; `npx tsc --noEmit` and final `npm test` pass; covered owner keywords, 3-day reactivation, turn cleanup, follow-up eligibility, DeepSeek parsing, and Humano handoff contract from OpenSpec scenarios. |
+| Minimal test runner + pure rule slice | Added `tests/whatsapp-rules.test.ts` first and ran `npm test`; failed with missing implementation module. | Added `src/domain/whatsapp-rules.ts`; `npm test` passed with 6/6 tests. | Kept implementation pure/no network calls; `npx tsc --noEmit` and final `npm test` pass; covered the then-current owner keyword/reactivation model, turn cleanup, follow-up eligibility, DeepSeek parsing, and Humano handoff contract. Current owner/follow-up requirements are superseded by the 2026-06-02 OpenSpec amendment. |
 
 ## Deviations from Design
 
@@ -71,7 +71,7 @@ Initial code implementation slice completed on 2026-06-01.
 
 - Added deterministic DB contract helpers without live PostgreSQL/network dependencies.
 - Added schema SQL contract for required `conversations`, `messages`, `settings`, and `conversation_events` tables plus the unique WhatsApp message id index.
-- Added settings defaults for owner keywords, 3-day reactivation, follow-up max attempts, and 24h boundary behavior.
+- Added settings defaults for the then-current owner keyword/reactivation model, follow-up max attempts, and 24h boundary behavior. Current owner/follow-up requirements are superseded by the 2026-06-02 OpenSpec amendment.
 - Added an in-memory repository contract covering:
   - `user` message timestamp updates and follow-up reset;
   - `assistant` and `human` source-specific timestamps;
@@ -194,8 +194,8 @@ Initial code implementation slice completed on 2026-06-01.
   - Redis-style dedupe before persistence, LLM calls, or sends;
   - persisting accepted messages before DeepSeek calls;
   - `fromMe=false` customer messages as `role='user'` and `fromMe=true` owner messages as `role='human'`;
-  - owner-only off/on keywords with no DeepSeek call in the owner command turn;
-  - 3-day owner reply reactivation using pre-message timestamps;
+  - the then-current owner command model with no DeepSeek call in the owner command turn;
+  - the then-current owner reply reactivation model using pre-message timestamps; current requirements are superseded by the 2026-06-02 OpenSpec amendment (`ok.` reactivates; any other owner WhatsApp message refreshes `HUMAN`/off state);
   - customer keyword text not toggling administrative mode;
   - `HUMAN` mode customer messages persisting without DeepSeek;
   - `AI` mode customer path enqueue/debounce/lock/history/prompt/DeepSeek/send/persist flow;
@@ -682,3 +682,67 @@ Initial code implementation slice completed on 2026-06-01.
 
 - Fresh review this blocker fix before runtime wiring.
 - Then wire live Redis/PostgreSQL plus existing DeepSeek/Telegram adapters into inbound/scheduler runtime dependencies in a separate integration slice.
+
+---
+
+## Code Apply Amendment — 2026-06-02
+
+### Completed Tasks
+
+- Hardened inbound WhatsApp filtering so `remoteJid` values ending in `g.us` are ignored before dedupe, persistence, DeepSeek, or send operations.
+- Replaced the legacy owner control model with owner-only activation:
+  - owner `fromMe === true` messages are persisted as `role='human'`;
+  - owner text matching `bot_on_keyword` (`ok.` by default) switches the chat to `AI` and records `last_ai_reactivated_at`;
+  - every other owner message switches/refreshes `HUMAN` with `owner_intervention_whatsapp` and the bot stays silent.
+- Removed stale app/test references to the separate deactivation keyword and timed owner auto-reactivation model.
+- Updated follow-up defaults and tests to use a 12-hour due/evaluation interval while keeping the 24-hour WhatsApp free-form boundary.
+- Restored strict normal DeepSeek JSON parsing: malformed raw text now triggers repair/failure and is never sendable as raw assistant text.
+- Reworked Contacts CRM to consume persisted `conversations` data from `/api/conversations` via `Home` instead of local fake contacts, invented statuses, or invented tags.
+- Brightened the dashboard theme and shell with a light green/white palette, stronger panels, higher-contrast borders/shadows, and a more visible brand gradient.
+
+### Files Changed
+
+- `src/domain/whatsapp-rules.ts`
+- `src/lib/baileys/inbound-handler.ts`
+- `src/lib/db-contract.ts`
+- `src/lib/postgres-adapter.ts`
+- `src/app/globals.css`
+- `src/app/page.tsx`
+- `src/components/ContactsOverview.tsx`
+- `src/components/SettingsPanel.tsx`
+- `tests/whatsapp-rules.test.ts`
+- `tests/inbound-handler.test.ts`
+- `tests/db-contract.test.ts`
+- `tests/followup-scheduler.test.ts`
+- `tests/postgres-adapter.test.ts`
+
+### Test Commands Run
+
+| Phase | Command | Result |
+|-------|---------|--------|
+| RED | `npm test` | Failed before fixes: 61 pass / 11 fail. Failures covered stale DeepSeek raw-text acceptance, stale 24h follow-up expectations, stale owner/off/reactivation behavior, and inbound debounce timing. |
+| GREEN | `npm test` | Passed after code/test updates: 72 tests, 17 suites, 0 failures. |
+| VERIFY | `npx tsc --noEmit` | Passed with no TypeScript output/errors. |
+| VERIFY | `npm run build` | Passed: Next.js production build compiled and generated routes successfully. |
+| VERIFY | stale legacy-token search over `src`, `tests`, `package.json`, and the active OpenSpec change | No results after excluding this historical evidence note from the search target. |
+
+### TDD Cycle Evidence
+
+| Cycle | RED Evidence | GREEN Evidence | Refactor/Triangulate Evidence |
+|-------|--------------|----------------|-------------------------------|
+| Owner activation + group ignore + strict parser + follow-up/UI amendment | `npm test` failed on legacy owner-control behavior, DeepSeek parser repair/failure, follow-up SQL expectations, and inbound handler behavior. | Updated domain rules, inbound handler, DB defaults/adapters, tests, Contacts CRM, settings UI, and visual tokens; `npm test` passed with 72/72 tests. | Verified no stale legacy-control language remains with search; `npx tsc --noEmit` and `npm run build` passed. |
+
+### Deviations from Design
+
+- The configured `sdd-apply` subagent could not start because its Codex model is unsupported for this account; a normal `worker` retry also disappeared before producing output. The parent session completed the apply inline as a controlled fallback and will run fresh review afterward.
+- Visual improvement is implemented as a theme/shell polish pass, not a full product redesign.
+
+### Remaining Tasks
+
+- Run fresh-context review of the code diff before final acceptance.
+- If review passes, proceed to SDD verify/archive decision.
+
+### Workload / PR Boundary
+
+- Current code amendment is larger than the original OpenSpec-only forecast but remains a single coherent behavior/UI apply slice.
+- Fresh review is required before completion.

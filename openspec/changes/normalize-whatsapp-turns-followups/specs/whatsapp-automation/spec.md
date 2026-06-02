@@ -60,24 +60,25 @@ The system MUST prevent duplicate automatic responses for the same WhatsApp mess
 - THEN cleanup MUST be safe to run again
 - AND it MUST NOT remove durable conversation mode, message history, or Baileys authentication data
 
-### Requirement: Owner-Configurable Bot Mode Keywords
+### Requirement: Owner Intervention and Activation Keyword
 
-The system MUST provide settings for owner-only bot deactivation and activation keywords, and only messages sent by the owner from their WhatsApp in a chat MAY administratively change that chat between `AI` and `HUMAN` modes.
+The system MUST provide a setting only for the owner activation keyword, default `ok.`. Messages sent by the owner from their WhatsApp (`fromMe === true`) MUST either reactivate the chat when they match that keyword or place/refresh the chat in `HUMAN` mode when they do not. Redis MAY carry transient label-like runtime state for checks, but PostgreSQL conversation mode is the durable source of truth.
 
-#### Scenario: Owner disables bot for a chat
+#### Scenario: Owner message without activation turns bot silent for a chat
 
 - GIVEN a conversation is in `AI` mode
-- AND the owner sends the configured bot-off keyword in that chat
+- AND the owner sends any WhatsApp message in that chat whose normalized text does not equal `bot_on_keyword`
 - WHEN the message is processed
-- THEN the system MUST normalize the text according to settings before comparison
-- AND it MUST change that conversation to `HUMAN` mode
-- AND it MUST persist the owner message as role `human`
-- AND it MUST NOT send an AI response for that owner command
+- THEN the system MUST persist the owner message as role `human`
+- AND it MUST change that conversation to `HUMAN` mode in PostgreSQL
+- AND it MUST apply or refresh transient Redis label/lock state used by runtime checks
+- AND it MUST refresh the human intervention timestamp for that chat
+- AND it MUST NOT send an AI response for that owner message
 
 #### Scenario: Owner enables bot for a chat
 
 - GIVEN a conversation is in `HUMAN` mode
-- AND the owner sends the configured bot-on keyword, such as `ok.`, in that chat
+- AND the owner sends the configured `bot_on_keyword`, such as `ok.`, in that chat
 - WHEN the message is processed
 - THEN the system MUST change that conversation to `AI` mode
 - AND it MUST persist the owner message as role `human`
@@ -85,32 +86,31 @@ The system MUST provide settings for owner-only bot deactivation and activation 
 
 #### Scenario: Customer keyword does not perform administrative toggle
 
-- GIVEN a customer sends text equal to a configured owner administrative keyword
+- GIVEN a customer sends text equal to `ok.` or any administrative value
 - WHEN the message is processed
 - THEN the system MUST persist it as role `user`
 - AND it MUST NOT treat the message as an owner administrative command
-- AND it MUST NOT change mode solely because the customer used the owner keyword
+- AND it MUST NOT change mode solely because the customer used that text
 
-### Requirement: Three-Day Owner Reply Reactivation
+### Requirement: Owner Reactivation and Intervention Refresh
 
-The system MUST reactivate the bot for a conversation when the owner replies after the configured three-day inactivity or human-intervention threshold is met, and MUST record the reactivation event with enough audit detail to explain the mode change.
+The system MUST reactivate the bot for a conversation only when the owner uses the configured activation keyword or when an explicit dashboard/manual action changes mode. Every non-activation owner WhatsApp message MUST refresh the human intervention/off timestamp and keep the bot silent for that turn.
 
-#### Scenario: Owner reply after threshold reactivates AI
+#### Scenario: Owner activation keyword reactivates AI
 
 - GIVEN a conversation is in `HUMAN` mode
-- AND the relevant human intervention or activity timestamp is at least 3 days old
-- WHEN the owner sends a non-off-command message in that conversation
+- WHEN the owner sends a message whose normalized text equals `bot_on_keyword`
 - THEN the system MUST persist the message as role `human`
 - AND it MUST change the conversation to `AI` mode
 - AND it MUST record the reactivation timestamp and reason
 
-#### Scenario: Owner reply before threshold does not auto-reactivate
+#### Scenario: Owner non-activation message refreshes HUMAN mode
 
 - GIVEN a conversation is in `HUMAN` mode
-- AND the relevant human intervention or activity timestamp is less than 3 days old
-- WHEN the owner sends a message that is not the configured bot-on keyword
+- WHEN the owner sends a message that is not the configured `bot_on_keyword`
 - THEN the system MUST persist the message as role `human`
 - AND it MUST leave the conversation in `HUMAN` mode
+- AND it MUST refresh the human intervention/off timestamp
 
 ### Requirement: Conversation Labels, States, and Timestamps
 
@@ -144,11 +144,12 @@ The system MUST run follow-ups according to the behavior adapted from `seguimien
 
 #### Scenario: Eligible first follow-up is sent
 
-- GIVEN the scheduler runs on its configured interval, such as every 6 hours
+- GIVEN the scheduler evaluates due conversations every 12 hours or by an equivalent 12-hour due interval
 - AND a conversation is in `AI` mode
 - AND the last visible message is role `assistant`
 - AND the customer has not replied after that assistant message
 - AND `followup_attempts` is less than 2
+- AND the 12-hour follow-up due interval has elapsed
 - AND the conversation is inside the allowed WhatsApp messaging window
 - WHEN DeepSeek returns strict JSON with `respuesta` equal to `SI` and a non-empty `mensaje`
 - THEN the system MUST send the follow-up through Baileys
@@ -194,6 +195,18 @@ The system MUST avoid sending automatic free-form follow-ups outside the allowed
 - THEN the system MUST NOT send an automatic free-form follow-up
 - AND it MUST record that the follow-up was blocked because of the messaging boundary or spam-risk policy
 - AND it SHOULD expose or route the case for human intervention when configured
+
+### Requirement: Contacts CRM Uses Persisted Conversations
+
+The Contacts CRM module MUST render persisted conversation/contact data from the existing conversations API path and MUST NOT initialize fake local contact rows.
+
+#### Scenario: Contacts are loaded from persisted conversations
+
+- GIVEN Home has loaded conversations from `/api/conversations`
+- WHEN the Contacts CRM tab is rendered
+- THEN ContactsOverview MUST consume those persisted rows or equivalent API data
+- AND it MUST NOT show hardcoded fake contacts
+- AND it MUST NOT invent status or tag fields that are not persisted
 
 ### Requirement: JSON Workflow Parity on Local Stack
 
