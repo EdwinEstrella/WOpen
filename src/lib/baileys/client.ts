@@ -10,7 +10,7 @@ import fs from "node:fs";
 import { Redis } from "ioredis";
 import { createIoredisTurnState } from "../redis-adapter.ts";
 import { createInboundHandler } from "./inbound-handler.ts";
-import { runtimePaths } from "../runtime-paths.ts";
+import { runtimePaths, clearDirectoryContents } from "../runtime-paths.ts";
 import {
 	getConnectionState,
 	setConnectionState,
@@ -182,7 +182,12 @@ export async function startWASocket() {
 			// Generar ASCII QR de fallback en consola
 			try {
 				const qrcodeTerminal = await import("qrcode-terminal");
-				qrcodeTerminal.generate(qr, { small: true });
+				const generateFn = qrcodeTerminal.default?.generate || qrcodeTerminal.generate;
+				if (typeof generateFn === "function") {
+					generateFn(qr, { small: true });
+				} else {
+					console.warn("[bot] No se encontro la funcion generate en qrcode-terminal");
+				}
 			} catch (error) {
 				console.warn("[bot] No se pudo imprimir el QR en consola:", error);
 			}
@@ -232,7 +237,7 @@ export async function startWASocket() {
 					phone: null,
 				});
 				try {
-					fs.rmSync(authDir, { recursive: true, force: true });
+					clearDirectoryContents(authDir);
 				} catch (error) {
 					console.warn(
 						"[bot] No se pudo limpiar el directorio de credenciales:",

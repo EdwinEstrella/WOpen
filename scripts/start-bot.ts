@@ -5,6 +5,7 @@ import { startWASocket, shutdownWASocket } from "../src/lib/baileys/client.ts";
 import {
 	getDestructiveRestartFlagPath,
 	runtimePaths,
+	clearDirectoryContents,
 } from "../src/lib/runtime-paths.ts";
 import { startFollowupsCron } from "./followups-cron.ts";
 
@@ -33,10 +34,10 @@ async function main() {
 				// Apagamos el socket actual limpiando listeners
 				await shutdownWASocket();
 
-				// Borramos la carpeta de sesión local auth/ como defensa
+				// Limpiamos la carpeta de sesión local auth/ como defensa
 				if (fs.existsSync(authDir)) {
-					fs.rmSync(authDir, { recursive: true, force: true });
-					console.log("[bot-process] Carpeta auth/ eliminada con éxito.");
+					clearDirectoryContents(authDir);
+					console.log("[bot-process] Directorio auth/ vaciado con éxito.");
 				}
 
 				// Volvemos a arrancar limpio, lo cual forzará un nuevo QR

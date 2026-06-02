@@ -1,4 +1,5 @@
 import path from "node:path";
+import fs from "node:fs";
 
 function resolveRuntimePath(
 	value: string | undefined,
@@ -17,4 +18,21 @@ export const destructiveRestartFlagName = ".reset-auth";
 
 export function getDestructiveRestartFlagPath(): string {
 	return path.join(runtimePaths.dataDir, destructiveRestartFlagName);
+}
+
+/**
+ * Safely clears all files and directories inside a target directory,
+ * without deleting the target directory itself (crucial for Docker mounted volumes).
+ */
+export function clearDirectoryContents(dirPath: string): void {
+	if (!fs.existsSync(dirPath)) return;
+	const items = fs.readdirSync(dirPath);
+	for (const item of items) {
+		const itemPath = path.join(dirPath, item);
+		try {
+			fs.rmSync(itemPath, { recursive: true, force: true });
+		} catch (error) {
+			console.warn(`[runtime-paths] No se pudo eliminar ${itemPath}:`, error);
+		}
+	}
 }

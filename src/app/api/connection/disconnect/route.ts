@@ -4,6 +4,7 @@ import { setConnectionState } from "../../../../lib/db.ts";
 import {
 	getDestructiveRestartFlagPath,
 	runtimePaths,
+	clearDirectoryContents,
 } from "../../../../lib/runtime-paths.ts";
 
 export async function POST() {
@@ -21,10 +22,10 @@ export async function POST() {
 		const restartFlagPath = getDestructiveRestartFlagPath();
 		const dataDir = runtimePaths.dataDir;
 
-		// 2. Borramos la carpeta auth/
+		// 2. Vaciamos la carpeta auth/
 		if (fs.existsSync(authDir)) {
-			fs.rmSync(authDir, { recursive: true, force: true });
-			console.log("[api] Directorio auth/ eliminado.");
+			clearDirectoryContents(authDir);
+			console.log("[api] Directorio auth/ vaciado.");
 		}
 
 		// Aseguramos que la carpeta data/ existe
