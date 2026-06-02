@@ -41,7 +41,8 @@ export async function ensureSchemaInitialized() {
 }
 
 // Ejecutamos la inicialización del esquema asincrónicamente al importar
-ensureSchemaInitialized().catch(() => {});
+// (Desactivado para no fallar durante el build de Next.js. Se llama lazily en cada función).
+// ensureSchemaInitialized().catch(() => {});
 
 // 1. getOrCreateConversation(phone, jid?, name?)
 export async function getOrCreateConversation(
