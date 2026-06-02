@@ -10,5 +10,5 @@ tsconfig.tsbuildinfo
 
 # Runtime data
 data/
-auth/
+/auth/
 .env.local
