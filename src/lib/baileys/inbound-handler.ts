@@ -356,7 +356,7 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 			const activeMarker = await deps.turnState.getDebounceMarker(
 				beforeConversation.id,
 			);
-			if (activeMarker && now.getTime() + 500 < activeMarker) {
+			if (activeMarker && deps.now().getTime() + 500 < activeMarker) {
 				// Si el marcador activo de Redis es posterior a nuestro despertar (con margen de gracia),
 				// significa que llegó un mensaje más nuevo que reinició el contador.
 				// Por ende, salimos silenciosamente y dejamos que el handler de ese nuevo mensaje lo procese.
