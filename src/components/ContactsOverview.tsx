@@ -23,6 +23,7 @@ export default function ContactsOverview({
 }: ContactsOverviewProps) {
 	const [query, setQuery] = useState("");
 	const [modeFilter, setModeFilter] = useState<"ALL" | "AI" | "HUMAN">("ALL");
+	const [zoomImage, setZoomImage] = useState<string | null>(null);
 
 	const contacts = useMemo(() => {
 		const normalized = query.trim().toLocaleLowerCase();
@@ -115,7 +116,9 @@ export default function ContactsOverview({
 												<img
 													src={contact.profile_picture_url}
 													alt={contact.name || contact.phone}
-													className="w-8 h-8 rounded-full object-cover border border-primary/30 shrink-0"
+													className="w-8 h-8 rounded-full object-cover border border-primary/30 shrink-0 cursor-pointer hover:scale-105 hover:brightness-95 transition-all"
+													onClick={() => setZoomImage(contact.profile_picture_url)}
+													title="Ver imagen en grande"
 												/>
 											) : (
 												<div className="w-8 h-8 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center font-display text-primary text-xs font-bold shrink-0">
@@ -161,6 +164,27 @@ export default function ContactsOverview({
 					)}
 				</div>
 			</div>
+
+			{zoomImage && (
+				<div 
+					className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity"
+					onClick={() => setZoomImage(null)}
+				>
+					<div className="relative max-w-3xl max-h-[85vh] p-2 bg-surface-container border border-outline-variant/30 rounded-2xl overflow-hidden shadow-2xl flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+						<img 
+							src={zoomImage} 
+							alt="Contacto foto" 
+							className="max-w-full max-h-[80vh] object-contain rounded-lg"
+						/>
+						<button 
+							className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/60 text-white font-bold text-lg focus:outline-none transition-colors"
+							onClick={() => setZoomImage(null)}
+						>
+							×
+						</button>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }
