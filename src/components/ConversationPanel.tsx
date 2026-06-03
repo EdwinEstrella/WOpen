@@ -35,6 +35,8 @@ export default function ConversationPanel({
 	const [profileName, setProfileName] = useState(conversation.name?.trim() || "");
 	const [savingProfile, setSavingProfile] = useState(false);
 	const [zoomImage, setZoomImage] = useState<string | null>(null);
+	const [avatarError, setAvatarError] = useState(false);
+	const [drawerAvatarError, setDrawerAvatarError] = useState(false);
 
 	const chatEndRef = useRef<HTMLDivElement>(null);
 	const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -106,6 +108,8 @@ if (conversation.id !== prevConversationId) {
 	prevMessagesLengthRef.current = 0;
 	setShowScrollDown(false);
 	setProfileName(conversation.name?.trim() || "");
+	setAvatarError(false);
+	setDrawerAvatarError(false);
 }
 
 // Polling de 2 segundos
@@ -143,7 +147,6 @@ if (conversation.id !== prevConversationId) {
 		if (!container) return;
 
 		container.addEventListener("scroll", handleScroll);
-		handleScroll();
 
 		return () => {
 			container.removeEventListener("scroll", handleScroll);
@@ -277,7 +280,7 @@ if (conversation.id !== prevConversationId) {
 					title="Abrir perfil del contacto"
 					aria-label={`Perfil de ${displayName}`}
 				>
-					{profilePictureUrl ? (
+					{profilePictureUrl && !avatarError ? (
 						<Image
 							src={profilePictureUrl}
 							alt={displayName}
@@ -288,6 +291,7 @@ if (conversation.id !== prevConversationId) {
 								e.stopPropagation();
 								setZoomImage(profilePictureUrl);
 							}}
+							onError={() => setAvatarError(true)}
 							title="Ver imagen en grande"
 						/>
 					) : (
@@ -354,7 +358,7 @@ if (conversation.id !== prevConversationId) {
 						</div>
 
 						<div className="flex flex-col items-center mb-8">
-							{profilePictureUrl ? (
+							{profilePictureUrl && !drawerAvatarError ? (
 								<button 
 									type="button"
 									onClick={() => setZoomImage(profilePictureUrl)}
@@ -366,6 +370,7 @@ if (conversation.id !== prevConversationId) {
 										alt={displayName}
 										fill
 										className="size- object-cover"
+										onError={() => setDrawerAvatarError(true)}
 									/>
 								</button>
 							) : (

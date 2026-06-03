@@ -27,6 +27,15 @@ export default function ContactsOverview({
 	const [query, setQuery] = useState("");
 	const [modeFilter, setModeFilter] = useState<"ALL" | "AI" | "HUMAN">("ALL");
 	const [zoomImage, setZoomImage] = useState<string | null>(null);
+	const [failedAvatarUrls, setFailedAvatarUrls] = useState<Set<string>>(new Set());
+
+	const handleAvatarError = (url: string) => {
+		setFailedAvatarUrls((prev) => {
+			const next = new Set(prev);
+			next.add(url);
+			return next;
+		});
+	};
 
 	const contacts = useMemo(() => {
 		const normalized = query.trim().toLocaleLowerCase();
@@ -115,7 +124,7 @@ export default function ContactsOverview({
 										className="hover:bg-surface-container-low/50 transition-colors"
 									>
 										<td className="px-6 py-4 font-semibold text-on-surface flex items-center gap-3">
-											{contact.profile_picture_url ? (
+											{contact.profile_picture_url && !failedAvatarUrls.has(contact.profile_picture_url) ? (
 												<Image
 													src={contact.profile_picture_url}
 													alt={contact.name || contact.phone}
@@ -123,6 +132,7 @@ export default function ContactsOverview({
 													height={32}
 													className="size- rounded-full object-cover border border-primary/30 shrink-0 cursor-pointer hover:scale-105 hover:brightness-95 transition-all"
 													onClick={() => setZoomImage(contact.profile_picture_url)}
+													onError={() => contact.profile_picture_url && handleAvatarError(contact.profile_picture_url)}
 													title="Ver imagen en grande"
 												/>
 											) : (

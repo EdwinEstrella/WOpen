@@ -1,7 +1,7 @@
-﻿import {
+import {
 	makeWASocket,
 	DisconnectReason,
-	useMultiFileAuthState,
+	useMultiFileAuthState as getMultiFileAuthState,
 	fetchLatestBaileysVersion,
 	Browsers,
 	downloadMediaMessage,
@@ -52,6 +52,7 @@ const turnState = createIoredisTurnState(redisClient as any);
 export let globalSock: ReturnType<typeof makeWASocket> | null = null;
 let reconnectTimer: NodeJS.Timeout | null = null;
 let outboxInterval: NodeJS.Timeout | null = null;
+let profilePicInterval: NodeJS.Timeout | null = null;
 
 // Creamos el Inbound Handler inyectando las dependencias necesarias
 export const inboundHandler = createInboundHandler({
@@ -237,7 +238,7 @@ export async function startWASocket() {
 		);
 	}
 
-	const { state, saveCreds } = await useMultiFileAuthState(authDir);
+	const { state, saveCreds } = await getMultiFileAuthState(authDir);
 
 	const sock = makeWASocket({
 		version: version as any,
@@ -307,6 +308,11 @@ export async function startWASocket() {
 
 			startOutboxProcessor();
 			void refreshAllProfilePictures();
+
+			if (profilePicInterval) clearInterval(profilePicInterval);
+			profilePicInterval = setInterval(() => {
+				void refreshAllProfilePictures();
+			}, 6 * 60 * 60 * 1000);
 
 			// Obtener información propia de perfil y guardarla en settings
 			void (async () => {
@@ -470,6 +476,10 @@ function scheduleReconnect(delay: number) {
 // Cierre seguro del socket viejo y limpieza de listeners
 export async function shutdownWASocket() {
 	stopOutboxProcessor();
+	if (profilePicInterval) {
+		clearInterval(profilePicInterval);
+		profilePicInterval = null;
+	}
 	if (globalSock) {
 		try {
 			globalSock.ev.removeAllListeners("connection.update");

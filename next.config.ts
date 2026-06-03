@@ -10,6 +10,14 @@ const nextConfig: NextConfig = {
 		"@tailwindcss/oxide",
 		"lightningcss"
 	],
+	images: {
+		remotePatterns: [
+			{
+				protocol: "https",
+				hostname: "**.whatsapp.net",
+			},
+		],
+	},
 };
 
 export default nextConfig;

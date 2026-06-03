@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SearchIcon, UserIcon, TrashIcon, PlusIcon, PhoneIcon, MailIcon } from "./Icons.tsx";
 
 interface DashboardHeaderProps {
@@ -33,6 +33,11 @@ export default function DashboardHeader({
 	const [loading, setLoading] = useState(false);
 	const [profileModalOpen, setProfileModalOpen] = useState(false);
 	const [zoomImage, setZoomImage] = useState<string | null>(null);
+	const [botAvatarError, setBotAvatarError] = useState(false);
+
+	useEffect(() => {
+		setBotAvatarError(false);
+	}, [botProfile?.profile_picture_url]);
 
 	// Estados del gestor de respuestas rápidas
 	const [localQuickReplies, setLocalQuickReplies] = useState<Array<{ id: string; shortcut: string; text: string }>>([]);
@@ -172,13 +177,14 @@ export default function DashboardHeader({
 								onClick={openProfileModal}
 								className="px-4 py-1 bg-transparent hover:bg-primary/10 border border-primary text-primary font-display text-[10px] font-bold uppercase tracking-wider rounded-full transition-all duration-200 active:scale-95 flex items-center gap-1.5 cursor-pointer"
 							>
-								{botProfile?.profile_picture_url ? (
+								{botProfile?.profile_picture_url && !botAvatarError ? (
 									<Image
 										src={botProfile.profile_picture_url}
 										width={20}
 										height={20}
 										className="size- rounded-full object-cover border border-primary/30"
 										alt="Bot avatar"
+										onError={() => setBotAvatarError(true)}
 									/>
 								) : (
 									<UserIcon size={10} />
@@ -242,13 +248,14 @@ export default function DashboardHeader({
 									aria-label={botProfile?.profile_picture_url ? "Ampliar foto de perfil" : "Foto de perfil no disponible"}
 									className={`size- rounded-full overflow-hidden border-2 border-primary/50 bg-surface-bright flex items-center justify-center shadow-lg group relative ${botProfile?.profile_picture_url ? "cursor-pointer" : ""}`}
 								>
-									{botProfile?.profile_picture_url ? (
+									{botProfile?.profile_picture_url && !botAvatarError ? (
 										<>
 											<Image 
 												src={botProfile.profile_picture_url} 
 												alt="Bot profile" 
 												fill
 												className="size- object-cover transition-transform duration-300 group-hover:scale-105" 
+												onError={() => setBotAvatarError(true)}
 											/>
 											<div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] uppercase font-bold tracking-wider transition-opacity duration-200">
 												Ampliar
