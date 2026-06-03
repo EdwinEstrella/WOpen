@@ -85,6 +85,10 @@ export interface HandlerRepository {
 	insertMessageAndTouchConversation(
 		input: InsertMessageInput,
 	): MaybePromise<{ id: number }>;
+	updateConversation?(
+		id: number,
+		patch: Partial<ConversationRow>,
+	): MaybePromise<ConversationRow>;
 	setMode(
 		id: number,
 		mode: ConversationMode,
@@ -135,6 +139,7 @@ export interface InboundHandlerDeps {
 		presence: "composing" | "paused" | "recording" | "available",
 		jid: string,
 	) => Promise<void>;
+	fetchProfilePictureUrl?: (jid: string) => Promise<string | null>;
 }
 
 export interface MessageProcessResult {
@@ -228,6 +233,20 @@ function settingsFrom(raw: Record<string, unknown>): AutomationSettings {
 	};
 }
 
+function shouldRefreshProfilePicture(
+	conversation: ConversationRow,
+	now: Date,
+): boolean {
+	if (!conversation.profile_picture_url) return true;
+	if (!conversation.profile_picture_fetched_at) return true;
+	const fetchedAt =
+		conversation.profile_picture_fetched_at instanceof Date
+			? conversation.profile_picture_fetched_at
+			: new Date(conversation.profile_picture_fetched_at);
+	if (Number.isNaN(fetchedAt.getTime())) return true;
+	return now.getTime() - fetchedAt.getTime() > 24 * 60 * 60 * 1000;
+}
+
 export function createInboundHandler(deps: InboundHandlerDeps) {
 	async function handleMessage(
 		upsert: WhatsAppUpsert,
@@ -254,6 +273,26 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 			jid: message.key.remoteJid,
 			name: message.pushName ?? null,
 		});
+		if (
+			deps.repo.updateConversation &&
+			deps.fetchProfilePictureUrl &&
+			shouldRefreshProfilePicture(beforeConversation, now)
+		) {
+			void deps
+				.fetchProfilePictureUrl(chatJid)
+				.then((profilePictureUrl) =>
+					deps.repo.updateConversation?.(beforeConversation.id, {
+						profile_picture_url: profilePictureUrl,
+						profile_picture_fetched_at: deps.now(),
+					}),
+				)
+				.catch((error) => {
+					console.warn(
+						"[bot] No se pudo obtener la foto de perfil del contacto:",
+						error,
+					);
+				});
+		}
 		const rawSettings = await deps.repo.getSettings();
 		const settings = settingsFrom(rawSettings);
 		const debounceMs = Number(rawSettings.debounce_ms ?? 30000);

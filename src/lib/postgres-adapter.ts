@@ -37,7 +37,10 @@ const actorFor = (changedBy: ModeChangedBy): EventActorRole =>
 
 export async function initializePostgresSchema(pool: PostgresQueryable) {
 	await pool.query(
-		`${DATABASE_SCHEMA_SQL}\nALTER TABLE conversations ADD COLUMN IF NOT EXISTS unread_count INTEGER NOT NULL DEFAULT 0;`
+		`${DATABASE_SCHEMA_SQL}
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS unread_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS profile_picture_url TEXT;
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS profile_picture_fetched_at TIMESTAMP WITH TIME ZONE;`
 	);
 }
 
@@ -62,6 +65,8 @@ const UPDATE_CONVERSATION_COLUMNS = new Set([
 	"last_owner_intervention_at",
 	"last_ai_reactivated_at",
 	"unread_count",
+	"profile_picture_url",
+	"profile_picture_fetched_at",
 	"updated_at",
 ]);
 

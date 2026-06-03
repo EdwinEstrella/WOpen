@@ -151,6 +151,7 @@ export default function ConversationPanel({
 	const displayName = conversation.name?.trim() || `+${cleanPhone}`;
 	const technicalJid = conversation.jid || `${cleanPhone}@s.whatsapp.net`;
 	const initials = (conversation.name?.trim() || cleanPhone).slice(0, 1).toLocaleUpperCase();
+	const profilePictureUrl = conversation.profile_picture_url;
 
 	const handleSaveProfile = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -186,9 +187,17 @@ export default function ConversationPanel({
 					className="flex items-center gap-3 text-left rounded-2xl hover:bg-surface px-2 py-1 transition-colors"
 					title="Abrir perfil del contacto"
 				>
-					<div className="w-10 h-10 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-primary font-display font-bold">
-						{initials || <UserIcon size={16} />}
-					</div>
+					{profilePictureUrl ? (
+						<img
+							src={profilePictureUrl}
+							alt={displayName}
+							className="w-10 h-10 rounded-full object-cover border border-primary/30"
+						/>
+					) : (
+						<div className="w-10 h-10 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-primary font-display font-bold">
+							{initials || <UserIcon size={16} />}
+						</div>
+					)}
 					<div className="flex flex-col">
 						<span className="font-display text-sm font-bold text-on-surface">{displayName}</span>
 					<span className="flex items-center gap-1.5 text-[10px] font-mono text-on-surface-variant/80 tracking-wider mt-0.5">
@@ -239,9 +248,17 @@ export default function ConversationPanel({
 						</div>
 
 						<div className="flex flex-col items-center mb-8">
-							<div className="w-20 h-20 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-primary font-display text-2xl font-bold mb-3">
-								{initials || <UserIcon size={28} />}
-							</div>
+							{profilePictureUrl ? (
+								<img
+									src={profilePictureUrl}
+									alt={displayName}
+									className="w-20 h-20 rounded-full object-cover border border-primary/30 mb-3"
+								/>
+							) : (
+								<div className="w-20 h-20 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-primary font-display text-2xl font-bold mb-3">
+									{initials || <UserIcon size={28} />}
+								</div>
+							)}
 							<p className="font-semibold text-on-surface">{displayName}</p>
 							<p className="font-mono text-xs text-on-surface-variant mt-1">+{cleanPhone}</p>
 						</div>

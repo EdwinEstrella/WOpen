@@ -17,6 +17,7 @@ import {
 	getOrCreateConversation,
 	getConversationById,
 	insertMessageAndTouchConversation,
+	updateConversation,
 	setMode,
 	recordConversationEvent,
 	getSettings,
@@ -54,6 +55,7 @@ export const inboundHandler = createInboundHandler({
 			getOrCreateConversation(input.phone, input.jid, input.name),
 		getConversationById,
 		insertMessageAndTouchConversation,
+		updateConversation,
 		setMode,
 		recordConversationEvent,
 		getSettings,
@@ -100,6 +102,14 @@ export const inboundHandler = createInboundHandler({
 	sendPresenceUpdate: async (presence, jid) => {
 		if (globalSock) {
 			await globalSock.sendPresenceUpdate(presence, jid);
+		}
+	},
+	fetchProfilePictureUrl: async (jid) => {
+		if (!globalSock) return null;
+		try {
+			return (await globalSock.profilePictureUrl(jid, "preview")) ?? null;
+		} catch {
+			return null;
 		}
 	},
 });

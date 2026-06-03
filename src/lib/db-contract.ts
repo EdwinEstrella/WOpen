@@ -41,6 +41,7 @@ export const DEFAULT_SETTINGS = {
 export const DATABASE_SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS conversations (
   id SERIAL PRIMARY KEY, phone TEXT UNIQUE NOT NULL, jid TEXT UNIQUE, name TEXT,
+  profile_picture_url TEXT, profile_picture_fetched_at TIMESTAMP WITH TIME ZONE,
   mode TEXT CHECK(mode IN ('AI','HUMAN')) NOT NULL DEFAULT 'AI', mode_reason TEXT,
   mode_changed_at TIMESTAMP WITH TIME ZONE, mode_changed_by TEXT CHECK(mode_changed_by IN ('system','owner','dashboard','assistant')),
   followup_attempts INTEGER NOT NULL DEFAULT 0, last_followup_at TIMESTAMP WITH TIME ZONE,
@@ -113,6 +114,8 @@ export interface ConversationRow {
 	phone: string;
 	jid: string | null;
 	name: string | null;
+	profile_picture_url: string | null;
+	profile_picture_fetched_at: Date | null;
 	mode: ConversationMode;
 	mode_reason: string | null;
 	mode_changed_at: Date | null;
@@ -225,6 +228,8 @@ export function createInMemoryRepository() {
 				phone: input.phone,
 				jid: input.jid ?? null,
 				name: input.name ?? null,
+				profile_picture_url: null,
+				profile_picture_fetched_at: null,
 				mode: "AI",
 				mode_reason: null,
 				mode_changed_at: null,
