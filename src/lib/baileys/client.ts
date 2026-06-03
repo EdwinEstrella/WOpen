@@ -1,4 +1,4 @@
-import {
+﻿import {
 	makeWASocket,
 	DisconnectReason,
 	useMultiFileAuthState,

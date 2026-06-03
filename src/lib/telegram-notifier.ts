@@ -1,4 +1,4 @@
-export type TelegramFetchResponse = {
+﻿export type TelegramFetchResponse = {
 	ok: boolean;
 	status: number;
 	json?: () => Promise<unknown>;

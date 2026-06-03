@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { motion } from "framer-motion";
 import { BotIcon, CheckCheckIcon, ExternalLinkIcon, ImageIcon, MicIcon, UserIcon } from "lucide-react";

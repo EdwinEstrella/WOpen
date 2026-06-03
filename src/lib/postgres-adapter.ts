@@ -1,4 +1,4 @@
-import {
+﻿import {
 	DATABASE_SCHEMA_SQL,
 	DEFAULT_SETTINGS,
 	type ConversationEventRow,

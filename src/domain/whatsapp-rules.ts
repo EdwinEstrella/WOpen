@@ -1,4 +1,4 @@
-export type ConversationMode = "AI" | "HUMAN";
+﻿export type ConversationMode = "AI" | "HUMAN";
 export type MessageRole = "user" | "assistant" | "human";
 
 export interface AutomationSettings {
