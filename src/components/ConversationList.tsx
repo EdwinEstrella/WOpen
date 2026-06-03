@@ -163,6 +163,7 @@ export default function ConversationList({
 						const isSelected = convo.id === selectedId;
 						const displayName = convo.name?.trim() || `+${convo.phone}`;
 						const relativeTime = getRelativeTime(convo.last_message_at);
+						const preview = formatConversationPreview(convo);
 
 						return (
 							<button
