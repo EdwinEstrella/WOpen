@@ -172,7 +172,7 @@ export async function listConversations(options: { archived?: boolean; hasMessag
 		   SELECT content, role
 		   FROM messages
 		   WHERE conversation_id = c.id
-		   ORDER BY created_at DESC
+		   ORDER BY created_at DESC, id DESC
 		   LIMIT 1
 		 ) m ON TRUE
 		 WHERE (c.phone <> cs.phone OR cs.phone IS NULL) AND c.is_archived = $1`;

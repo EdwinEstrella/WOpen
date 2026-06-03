@@ -123,4 +123,14 @@ describe("shadcn/ui redesign foundation contract", () => {
 		assert.match(panel, /object-contain/);
 		assert.match(panel, /Abrir original/);
 	});
+
+	it("uses a stable latest-message order for sidebar previews", () => {
+		const db = readProjectFile("src/lib/db.ts");
+		const list = readProjectFile("src/components/ConversationList.tsx");
+
+		assert.match(db, /ORDER BY created_at DESC, id DESC/);
+		assert.match(list, /formatConversationPreview/);
+		assert.match(list, /last_message_role/);
+		assert.match(list, /Modo IA/);
+	});
 });
