@@ -8,6 +8,8 @@ interface ConversationListProps {
 	conversations: ConversationListRow[];
 	selectedId: number | null;
 	onSelectConversation: (id: number) => void;
+	showArchived: boolean;
+	onToggleArchived: (val: boolean) => void;
 }
 
 // Función helper para calcular tiempo transcurrido en formato relativo amable
@@ -34,6 +36,8 @@ export default function ConversationList({
 	conversations,
 	selectedId,
 	onSelectConversation,
+	showArchived,
+	onToggleArchived,
 }: ConversationListProps) {
 	const [activeFilter, setActiveFilter] = useState<FilterType>("ALL");
 	const [searchQuery, setSearchQuery] = useState("");
@@ -68,10 +72,20 @@ export default function ConversationList({
 		<div className="flex flex-col h-full bg-surface">
 			{/* Encabezado de Lista */}
 			<div className="p-4 flex items-center justify-between shrink-0">
-				<h2 className="font-display text-sm font-bold text-on-surface uppercase tracking-wider">Chats Activos</h2>
-				<span className="bg-primary/10 border border-primary/20 text-primary text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
-					{filteredConversations.length}
-				</span>
+				<h2 className="font-display text-sm font-bold text-on-surface uppercase tracking-wider">
+					{showArchived ? "Chats Archivados" : "Chats Activos"}
+				</h2>
+				<div className="flex items-center gap-2">
+					<button
+						onClick={() => onToggleArchived(!showArchived)}
+						className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-1 rounded bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 transition-all cursor-pointer"
+					>
+						{showArchived ? "Ver Activos" : "Ver Archivados"}
+					</button>
+					<span className="bg-primary/10 border border-primary/20 text-primary text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
+						{filteredConversations.length}
+					</span>
+				</div>
 			</div>
 
 			{/* Buscador de Contactos */}

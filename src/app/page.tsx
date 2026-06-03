@@ -33,6 +33,7 @@ export default function Home() {
 	const [activeTab, setActiveTab] = useState<Tab>("dashboard");
 	const [conversations, setConversations] = useState<ConversationListRow[]>([]);
 	const [selectedId, setSelectedId] = useState<number | null>(null);
+	const [showArchived, setShowArchived] = useState(false);
 	const [quickReplies, setQuickReplies] = useState<Array<{ id: string; shortcut: string; text: string }>>([]);
 
 	const prevConversationsRef = useRef<ConversationListRow[]>([]);
@@ -64,9 +65,9 @@ export default function Home() {
 	}, []);
 
 	// Función para cargar conversaciones desde el endpoint
-	const loadConversations = async () => {
+	const loadConversations = async (archived = showArchived) => {
 		try {
-			const res = await fetch("/api/conversations");
+			const res = await fetch(`/api/conversations?archived=${archived}`);
 			if (res.ok) {
 				const data = await res.json();
 				setConversations(data);
@@ -78,10 +79,10 @@ export default function Home() {
 
 	// Polling continuo cada 2s para mantener la lista actualizada
 	useEffect(() => {
-		loadConversations();
-		const interval = setInterval(loadConversations, 2000);
+		loadConversations(showArchived);
+		const interval = setInterval(() => loadConversations(showArchived), 2000);
 		return () => clearInterval(interval);
-	}, []);
+	}, [showArchived]);
 
 	// Comparar para enviar notificaciones de navegador si llega un mensaje nuevo en segundo plano
 	useEffect(() => {
@@ -302,6 +303,11 @@ export default function Home() {
 											conversations={sortedConversations}
 											selectedId={selectedId}
 											onSelectConversation={setSelectedId}
+											showArchived={showArchived}
+											onToggleArchived={(val) => {
+												setSelectedId(null);
+												setShowArchived(val);
+											}}
 										/>
 									</div>
 

@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { listConversations } from "../../../lib/db.ts";
 
-export async function GET() {
+export async function GET(req: Request) {
 	try {
-		const conversations = await listConversations();
+		const { searchParams } = new URL(req.url);
+		const archived = searchParams.get("archived") === "true";
+		const conversations = await listConversations({ archived });
 		return NextResponse.json(conversations);
 	} catch (error: any) {
 		console.error("[api] Error en GET /api/conversations:", error);

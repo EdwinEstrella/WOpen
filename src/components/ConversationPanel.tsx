@@ -216,15 +216,15 @@ export default function ConversationPanel({
 			const res = await fetch(`/api/conversations/${conversation.id}`, {
 				method: "PATCH",
 				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ is_archived: true }),
+				body: JSON.stringify({ is_archived: !conversation.is_archived }),
 			});
 			if (res.ok) {
 				onDeleted();
 			} else {
-				console.error("[archive] Error archivando conversación.");
+				console.error("[archive] Error actualizando estado de archivado.");
 			}
 		} catch (error) {
-			console.error("[archive] Error de red archivando conversación:", error);
+			console.error("[archive] Error de red actualizando estado de archivado:", error);
 		} finally {
 			setArchiving(false);
 		}
@@ -306,10 +306,10 @@ export default function ConversationPanel({
 					<button
 						onClick={handleArchive}
 						disabled={archiving}
-						className="px-3 py-1.5 text-primary hover:bg-primary/10 border border-primary rounded-full text-[10px] font-bold uppercase tracking-wider transition-all duration-200 disabled:opacity-50 flex items-center gap-1.5"
-						title="Archivar conversación para no verla al frente"
+						className="px-3 py-1.5 text-primary hover:bg-primary/10 border border-primary rounded-full text-[10px] font-bold uppercase tracking-wider transition-all duration-200 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+						title={conversation.is_archived ? "Desarchivar conversación para verla al frente" : "Archivar conversación para no verla al frente"}
 					>
-						<ArchiveIcon size={12} /> Archivar
+						<ArchiveIcon size={12} /> {conversation.is_archived ? "Desarchivar" : "Archivar"}
 					</button>
 
 					<button

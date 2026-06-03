@@ -159,8 +159,9 @@ export interface ConversationListRow extends ConversationRow {
 	last_message_content?: string | null;
 	last_message_role?: string | null;
 }
-export async function listConversations(): Promise<ConversationListRow[]> {
+export async function listConversations(options: { archived?: boolean } = {}): Promise<ConversationListRow[]> {
 	await ensureSchemaInitialized();
+	const isArchived = options.archived === true;
 	const res = await pool.query<ConversationListRow>(
 		`SELECT c.*, 
 		        m.content AS last_message_content, 
@@ -174,8 +175,9 @@ export async function listConversations(): Promise<ConversationListRow[]> {
 		   ORDER BY created_at DESC
 		   LIMIT 1
 		 ) m ON TRUE
-		 WHERE (c.phone <> cs.phone OR cs.phone IS NULL) AND c.is_archived = FALSE
-		 ORDER BY c.last_message_at DESC NULLS LAST, c.id DESC`
+		 WHERE (c.phone <> cs.phone OR cs.phone IS NULL) AND c.is_archived = $1
+		 ORDER BY c.last_message_at DESC NULLS LAST, c.id DESC`,
+		[isArchived]
 	);
 	return res.rows;
 }
@@ -366,5 +368,22 @@ export async function updateConversation(
 ): Promise<ConversationRow> {
 	await ensureSchemaInitialized();
 	return repo.updateConversation(id, patch);
+}
+
+// 25. updateConversationNameIfExists(jid, name)
+export async function updateConversationNameIfExists(jid: string, name: string): Promise<void> {
+	await ensureSchemaInitialized();
+	const phone = jid.replace(/@.*/, "");
+	
+	const normalized = name.trim();
+	if (normalized === "Azokia" || normalized === "Azokiallc" || normalized === "") return;
+
+	await pool.query(
+		`UPDATE conversations
+		 SET name = $1, updated_at = NOW()
+		 WHERE (phone = $2 OR jid = $3)
+		   AND (name IS NULL OR TRIM(name) = '' OR (name <> $1 AND name <> 'Azokia' AND name <> 'Azokiallc'))`,
+		[normalized, phone, jid]
+	);
 }
 

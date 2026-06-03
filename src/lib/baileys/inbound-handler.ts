@@ -271,7 +271,7 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 		const beforeConversation = await deps.repo.getOrCreateConversation({
 			phone,
 			jid: message.key.remoteJid,
-			name: message.pushName ?? null,
+			name: fromMe ? null : (message.pushName ?? null),
 		});
 		if (
 			deps.repo.updateConversation &&

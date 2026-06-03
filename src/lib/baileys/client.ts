@@ -18,6 +18,7 @@ import {
 	getConversationById,
 	insertMessageAndTouchConversation,
 	updateConversation,
+	updateConversationNameIfExists,
 	setMode,
 	recordConversationEvent,
 	getSettings,
@@ -27,6 +28,8 @@ import {
 	notifyTelegramHumanNeeded,
 	getPendingOutbox,
 	markOutboxSent,
+	deleteConversation,
+	enqueueOutbox,
 	listConversations,
 } from "../db.ts";
 
@@ -397,6 +400,36 @@ export async function startWASocket() {
 			);
 		}
 	});
+
+	sock.ev.on("contacts.upsert", async (contacts: any[]) => {
+		for (const contact of contacts) {
+			if (contact.id && !contact.id.endsWith("@g.us")) {
+				const name = contact.name?.trim() || contact.notify?.trim() || contact.verifiedName?.trim();
+				if (name) {
+					try {
+						await updateConversationNameIfExists(contact.id, name);
+					} catch (err) {
+						console.error("[bot-error] Falló al procesar contacts.upsert para el JID " + contact.id + ":", err);
+					}
+				}
+			}
+		}
+	});
+
+	sock.ev.on("contacts.update", async (contacts: any[]) => {
+		for (const contact of contacts) {
+			if (contact.id && !contact.id.endsWith("@g.us")) {
+				const name = contact.name?.trim() || contact.notify?.trim() || contact.verifiedName?.trim();
+				if (name) {
+					try {
+						await updateConversationNameIfExists(contact.id, name);
+					} catch (err) {
+						console.error("[bot-error] Falló al procesar contacts.update para el JID " + contact.id + ":", err);
+					}
+				}
+			}
+		}
+	});
 }
 
 // Programador de reconexión defensivo
@@ -417,6 +450,8 @@ export async function shutdownWASocket() {
 			globalSock.ev.removeAllListeners("connection.update");
 			globalSock.ev.removeAllListeners("creds.update");
 			globalSock.ev.removeAllListeners("messages.upsert");
+			globalSock.ev.removeAllListeners("contacts.upsert");
+			globalSock.ev.removeAllListeners("contacts.update");
 			globalSock.end(undefined);
 		} catch (error) {
 			console.warn("[bot] Error cerrando el socket anterior:", error);
