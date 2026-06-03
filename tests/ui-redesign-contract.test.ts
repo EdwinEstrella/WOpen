@@ -184,8 +184,12 @@ describe("shadcn/ui redesign foundation contract", () => {
 		assert.match(prompts, /w-\[min\(96vw,1100px\)\]/);
 		assert.match(prompts, /h-\[min\(88vh,780px\)\]/);
 		assert.match(prompts, /min-h-\[360px\] flex-1 resize-none/);
+		assert.match(prompts, /aria-label=\{`Editar prompt \$\{prompt\.title\}`\}/);
 		assert.doesNotMatch(prompts, /rows=\{8\}/);
 		assert.doesNotMatch(prompts, /\{prompt\.content\}/);
 		assert.doesNotMatch(prompts, /max-h-32 overflow-y-auto whitespace-pre-wrap/);
+		assert.doesNotMatch(prompts, /EditIcon/);
+		assert.doesNotMatch(prompts, /TrashIcon/);
+		assert.doesNotMatch(prompts, /RobotIcon/);
 	});
 });

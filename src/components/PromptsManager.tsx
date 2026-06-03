@@ -9,7 +9,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { PlusIcon, EditIcon, TrashIcon, RobotIcon } from "./Icons.tsx";
+import { PlusIcon } from "./Icons.tsx";
 import type { SystemPromptRow } from "../lib/db.ts";
 
 function sortPrompts(prompts: SystemPromptRow[]): SystemPromptRow[] {
@@ -115,6 +115,7 @@ export default function PromptsManager() {
 		try {
 			const res = await fetch(`/api/prompts?id=${id}`, { method: "DELETE" });
 			if (res.ok) {
+				if (editId === id) closeForm();
 				await loadPrompts();
 			} else {
 				const data = await res.json();
@@ -124,6 +125,10 @@ export default function PromptsManager() {
 			console.error("[prompts] Error borrando prompt:", error);
 		}
 	};
+
+	const currentPrompt = editId
+		? prompts.find((prompt) => prompt.id === editId) ?? null
+		: null;
 
 	return (
 		<div className="glass-panel mx-auto flex max-h-full w-full max-w-4xl flex-col overflow-hidden rounded-3xl p-6 shadow-2xl">
@@ -182,6 +187,24 @@ export default function PromptsManager() {
 						</div>
 
 						<div className="flex shrink-0 flex-col-reverse gap-3 border-t border-outline-variant/20 bg-surface-container-low/50 px-6 py-4 sm:flex-row sm:justify-end">
+							{currentPrompt && !currentPrompt.is_active && (
+								<button
+									type="button"
+									onClick={() => handleSetActive(currentPrompt.id)}
+									className="rounded-xl border border-primary px-4 py-2 font-display text-[10px] font-bold uppercase tracking-wider text-primary transition-all duration-200 hover:bg-primary/10"
+								>
+									Activar prompt
+								</button>
+							)}
+							{currentPrompt && !currentPrompt.is_active && (
+								<button
+									type="button"
+									onClick={() => handleDelete(currentPrompt.id)}
+									className="rounded-xl border border-error/40 px-4 py-2 font-display text-[10px] font-bold uppercase tracking-wider text-error transition-all duration-200 hover:bg-error/15"
+								>
+									Eliminar
+								</button>
+							)}
 							<button
 								type="button"
 								onClick={closeForm}
@@ -208,58 +231,19 @@ export default function PromptsManager() {
 				) : (
 					<div className="flex flex-col gap-4">
 						{prompts.map((prompt) => (
-							<div
+							<button
+								type="button"
 								key={prompt.id}
-								className={`flex flex-col gap-3 rounded-2xl border p-5 transition-all duration-200 ${
+								onClick={() => startEdit(prompt)}
+								aria-label={`Editar prompt ${prompt.title}`}
+								className={`rounded-2xl border px-5 py-4 text-left transition-all duration-200 ${
 									prompt.is_active
 										? "border-primary bg-primary/5 glow-active"
 										: "border-outline-variant/10 bg-surface-container-low/20 hover:border-outline-variant/30"
 								}`}
 							>
-								<div className="flex items-center justify-between gap-4">
-									<div className="flex min-w-0 items-center gap-3">
-										<h4 className="truncate text-xs font-bold text-on-surface">{prompt.title}</h4>
-										{prompt.is_active && (
-											<span className="flex shrink-0 items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[8px] font-extrabold uppercase tracking-wider text-primary animate-pulse">
-												<RobotIcon size={8} /> Activo
-											</span>
-										)}
-									</div>
-
-									<div className="flex shrink-0 items-center gap-3">
-										{!prompt.is_active && (
-											<button
-												type="button"
-												onClick={() => handleSetActive(prompt.id)}
-												className="flex items-center gap-1 rounded-xl border border-primary px-3 py-1.5 font-display text-[9px] font-extrabold uppercase tracking-wider text-primary transition-all duration-200 hover:bg-primary/10"
-											>
-												<span>Activar</span>
-											</button>
-										)}
-
-										<button
-											type="button"
-											onClick={() => startEdit(prompt)}
-											className="flex items-center justify-center rounded-lg p-1.5 text-xs text-on-surface-variant transition-colors hover:bg-surface-bright hover:text-on-surface"
-											title="Editar prompt"
-										>
-											<EditIcon size={12} />
-										</button>
-
-										{!prompt.is_active && (
-											<button
-												type="button"
-												onClick={() => handleDelete(prompt.id)}
-												className="flex items-center justify-center rounded-lg p-1.5 text-xs text-error/80 transition-colors hover:bg-error/15 hover:text-error"
-												title="Eliminar prompt"
-											>
-												<TrashIcon size={12} />
-											</button>
-										)}
-									</div>
-								</div>
-
-							</div>
+								<h4 className="truncate text-xs font-bold text-on-surface">{prompt.title}</h4>
+							</button>
 						))}
 					</div>
 				)}
