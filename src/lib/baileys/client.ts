@@ -30,7 +30,7 @@ import {
 	listConversations,
 } from "../db.ts";
 
-const logger = pino({ level: "silent" });
+const logger = pino({ level: process.env.LOG_LEVEL || "warn" });
 const authDir = runtimePaths.authDir;
 const dataDir = runtimePaths.dataDir;
 
@@ -130,8 +130,16 @@ function startOutboxProcessor() {
 				console.log(
 					`[bot] Enviando mensaje de Outbox a ${jid}: "${item.content.substring(0, 30)}..."`,
 				);
-				await globalSock.sendMessage(jid, { text: item.content });
-				await markOutboxSent(item.id);
+				try {
+					await globalSock.sendMessage(jid, { text: item.content });
+					await markOutboxSent(item.id);
+					console.log(`[bot] Mensaje de Outbox id ${item.id} enviado exitosamente.`);
+				} catch (sendError: any) {
+					console.error(
+						`[bot-error] Falló el envío del mensaje de Outbox id ${item.id} a ${jid}. Error:`,
+						sendError?.message || sendError
+					);
+				}
 			}
 		} catch (error) {
 			console.error("[bot] Error en el procesador de Outbox:", error);
@@ -357,6 +365,24 @@ export async function startWASocket() {
 			console.log(
 				`[bot-debug] Mensaje key: ${JSON.stringify(msg.key)}, pushName: ${msg.pushName}, timestamp: ${msg.messageTimestamp}`,
 			);
+
+			// Detectar si el mensaje no pudo ser desencriptado (Bad MAC / Ciphertext stub)
+			const isDecryptionFailure = !msg.message && msg.messageStubType !== undefined;
+			if (isDecryptionFailure && msg.key.remoteJid) {
+				const remoteJid = msg.key.remoteJid;
+				// Aplicar solo para chats 1:1
+				if (remoteJid.endsWith("@s.whatsapp.net") || remoteJid.endsWith("@lid")) {
+					console.warn(
+						`[bot-warning] Detectado posible error de desencriptación (Bad MAC) para el JID ${remoteJid}. Forzando recreación de sesión de Signal...`
+					);
+					try {
+						await sock.assertSessions([remoteJid], true);
+						console.log(`[bot] Sesión de Signal para ${remoteJid} restablecida exitosamente.`);
+					} catch (err) {
+						console.error(`[bot-error] Falló al establecer sesión de Signal para ${remoteJid}:`, err);
+					}
+				}
+			}
 		}
 		try {
 			await inboundHandler.handleUpsert(upsert);
