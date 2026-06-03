@@ -4,6 +4,7 @@ import {
 	getConversationById,
 	insertMessageAndTouchConversation,
 	enqueueOutbox,
+	updateConversation,
 } from "../../../../lib/db.ts";
 
 interface Ctx {
@@ -21,6 +22,11 @@ export async function GET(_req: Request, { params }: Ctx) {
 		}
 
 		const messages = await getMessages(parsedId, 100);
+		
+		// Reset unread_count on read
+		await updateConversation(parsedId, { unread_count: 0 }).catch((err) => {
+			console.error("[api] Failed to reset unread_count:", err);
+		});
 		return NextResponse.json(messages);
 	} catch (error: any) {
 		console.error("[api] Error en GET /api/messages/[conversationId]:", error);

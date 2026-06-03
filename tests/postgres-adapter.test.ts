@@ -68,6 +68,7 @@ const conversation = (
 	last_human_message_at: null,
 	last_owner_intervention_at: null,
 	last_ai_reactivated_at: null,
+	unread_count: 0,
 	created_at: new Date("2026-01-01T00:00:00.000Z"),
 	updated_at: new Date("2026-01-01T00:00:00.000Z"),
 	...patch,

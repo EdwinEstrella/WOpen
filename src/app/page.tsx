@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import ConnectionGate from "../components/ConnectionGate.tsx";
 import DashboardHeader from "../components/DashboardHeader.tsx";
 import ConversationList from "../components/ConversationList.tsx";
@@ -34,6 +34,17 @@ export default function Home() {
 	const [conversations, setConversations] = useState<ConversationListRow[]>([]);
 	const [selectedId, setSelectedId] = useState<number | null>(null);
 
+	const prevConversationsRef = useRef<ConversationListRow[]>([]);
+
+	// Pedir permiso de notificaciones en el navegador
+	useEffect(() => {
+		if (typeof window !== "undefined" && "Notification" in window) {
+			if (Notification.permission === "default") {
+				Notification.requestPermission().catch(() => {});
+			}
+		}
+	}, []);
+
 	// Función para cargar conversaciones desde el endpoint
 	const loadConversations = async () => {
 		try {
@@ -53,6 +64,56 @@ export default function Home() {
 		const interval = setInterval(loadConversations, 2000);
 		return () => clearInterval(interval);
 	}, []);
+
+	// Comparar para enviar notificaciones de navegador si llega un mensaje nuevo en segundo plano
+	useEffect(() => {
+		const prev = prevConversationsRef.current;
+		if (prev.length > 0) {
+			for (const currentConvo of conversations) {
+				const oldConvo = prev.find((c) => c.id === currentConvo.id);
+				const hasNewMessages = oldConvo
+					? currentConvo.unread_count > oldConvo.unread_count
+					: currentConvo.unread_count > 0;
+
+				if (hasNewMessages && currentConvo.id !== selectedId) {
+					if (
+						typeof window !== "undefined" &&
+						"Notification" in window &&
+						Notification.permission === "granted"
+					) {
+						new Notification(currentConvo.name?.trim() || `+${currentConvo.phone}`, {
+							body: currentConvo.last_message_content || "Nuevo mensaje de WhatsApp",
+						});
+					}
+				}
+			}
+		}
+		prevConversationsRef.current = conversations;
+	}, [conversations, selectedId]);
+
+	// Ordenamiento de conversaciones:
+	// - La conversación seleccionada (abierta) se mantiene al tope (index 0).
+	// - Las demás se ordenan por last_message_at descendente (más recientes primero) por debajo.
+	// - Si no hay ninguna seleccionada, todas se ordenan por last_message_at descendente.
+	const sortedConversations = useMemo(() => {
+		const list = [...conversations];
+		if (selectedId === null) {
+			return list.sort((a, b) => {
+				const timeA = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+				const timeB = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+				return timeB - timeA || b.id - a.id;
+			});
+		}
+
+		const active = list.find((c) => c.id === selectedId);
+		const others = list.filter((c) => c.id !== selectedId).sort((a, b) => {
+			const timeA = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+			const timeB = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+			return timeB - timeA || b.id - a.id;
+		});
+
+		return active ? [active, ...others] : others;
+	}, [conversations, selectedId]);
 
 	// Sincronizar el objeto seleccionado de la lista actualizada
 	const selectedConversation =
@@ -204,7 +265,7 @@ export default function Home() {
 									{/* Columna Izquierda: Lista de Chats */}
 									<div className="w-80 flex-shrink-0 border-r border-outline-variant/10">
 										<ConversationList
-											conversations={conversations}
+											conversations={sortedConversations}
 											selectedId={selectedId}
 											onSelectConversation={setSelectedId}
 										/>

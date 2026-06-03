@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import type { ConversationListRow } from "../lib/db.ts";
 import { RobotIcon, UserIcon } from "./Icons.tsx";
 
@@ -27,30 +28,75 @@ function getRelativeTime(dateInput: string | Date | null | undefined): string {
 	return date.toLocaleDateString("es-ES", { day: "numeric", month: "short" });
 }
 
+type FilterType = "ALL" | "PENDING" | "UNREAD" | "READ";
+
 export default function ConversationList({
 	conversations,
 	selectedId,
 	onSelectConversation,
 }: ConversationListProps) {
+	const [activeFilter, setActiveFilter] = useState<FilterType>("ALL");
+
+	// Filtrado de las conversaciones
+	const filteredConversations = useMemo(() => {
+		return conversations.filter((convo) => {
+			if (activeFilter === "PENDING") {
+				// Conversaciones pendientes de respuesta (último mensaje fue del cliente/user)
+				return convo.last_message_role === "user";
+			}
+			if (activeFilter === "UNREAD") {
+				// Conversaciones con mensajes pendientes por leer
+				return convo.unread_count > 0;
+			}
+			if (activeFilter === "READ") {
+				// Conversaciones ya leídas (sin mensajes pendientes)
+				return convo.unread_count === 0;
+			}
+			return true;
+		});
+	}, [conversations, activeFilter]);
+
 	return (
 		<div className="flex flex-col h-full bg-surface">
 			{/* Encabezado de Lista */}
 			<div className="p-4 flex items-center justify-between shrink-0">
 				<h2 className="font-display text-sm font-bold text-on-surface uppercase tracking-wider">Chats Activos</h2>
 				<span className="bg-primary/10 border border-primary/20 text-primary text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
-					{conversations.length}
+					{filteredConversations.length}
 				</span>
+			</div>
+
+			{/* Selector de Filtros */}
+			<div className="px-4 pb-3 flex flex-wrap gap-1.5 shrink-0 border-b border-outline-variant/10">
+				{[
+					{ id: "ALL", label: "Todos" },
+					{ id: "PENDING", label: "Pendientes" },
+					{ id: "UNREAD", label: "Por leer" },
+					{ id: "READ", label: "Leídos" },
+				].map((tab) => (
+					<button
+						key={tab.id}
+						onClick={() => setActiveFilter(tab.id as FilterType)}
+						className={`px-2.5 py-1 text-[9px] font-extrabold rounded-lg uppercase tracking-wider transition-all duration-200 border ${
+							activeFilter === tab.id
+								? "bg-primary/10 border-primary/40 text-primary shadow-[0_0_10px_rgba(12,83,58,0.1)]"
+								: "bg-surface-container-lowest/50 border-outline-variant/20 text-on-surface-variant hover:text-on-surface hover:border-outline-variant/40"
+						}`}
+					>
+						{tab.label}
+					</button>
+				))}
 			</div>
 			
 			{/* Lista de Hilos */}
 			<div className="flex-1 overflow-y-auto p-2 space-y-1">
-				{conversations.length === 0 ? (
+				{filteredConversations.length === 0 ? (
 					<div className="flex flex-col items-center justify-center p-8 text-center text-on-surface-variant/60">
 						<span className="text-3xl mb-3">💬</span>
-						<p className="text-xs">No hay conversaciones activas.</p>
+						<p className="text-xs">No hay conversaciones bajo este filtro.</p>
 					</div>
 				) : (
-					conversations.map((convo) => {
+					filteredConversations.map((convo) => {
 						const isSelected = convo.id === selectedId;
 						const displayName = convo.name?.trim() || `+${convo.phone}`;
 						const relativeTime = getRelativeTime(convo.last_message_at);
@@ -67,9 +113,16 @@ export default function ConversationList({
 							>
 								{/* Fila superior: Nombre e indicador de tiempo */}
 								<div className="flex items-center justify-between w-full">
-									<span className={`text-xs font-semibold truncate max-w-[160px] ${isSelected ? "text-primary" : "text-on-surface"}`}>
-										{displayName}
-									</span>
+									<div className="flex items-center gap-2 max-w-[170px] truncate">
+										<span className={`text-xs font-semibold truncate ${isSelected ? "text-primary" : "text-on-surface"}`}>
+											{displayName}
+										</span>
+										{convo.unread_count > 0 && (
+											<span className="bg-primary text-on-primary text-[9px] font-extrabold px-1.5 py-0.5 rounded-full shrink-0 animate-pulse">
+												{convo.unread_count}
+											</span>
+										)}
+									</div>
 									<span className="text-[9px] font-medium text-on-surface-variant/60">
 										{relativeTime}
 									</span>

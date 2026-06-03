@@ -36,7 +36,9 @@ const actorFor = (changedBy: ModeChangedBy): EventActorRole =>
 			: "human";
 
 export async function initializePostgresSchema(pool: PostgresQueryable) {
-	await pool.query(DATABASE_SCHEMA_SQL);
+	await pool.query(
+		`${DATABASE_SCHEMA_SQL}\nALTER TABLE conversations ADD COLUMN IF NOT EXISTS unread_count INTEGER NOT NULL DEFAULT 0;`
+	);
 }
 
 function valueOrNull(value: unknown) {
@@ -58,6 +60,7 @@ const UPDATE_CONVERSATION_COLUMNS = new Set([
 	"last_human_message_at",
 	"last_owner_intervention_at",
 	"last_ai_reactivated_at",
+	"unread_count",
 	"updated_at",
 ]);
 
@@ -244,11 +247,12 @@ export function createPostgresRepository(pool: PostgresPool) {
 						 last_user_message_at = $2,
 						 followup_attempts = 0,
 						 followup_blocked_at = NULL,
-						 followup_blocked_reason = NULL`;
+						 followup_blocked_reason = NULL,
+						 unread_count = unread_count + 1`;
 						} else if (existingMsg.role === "assistant") {
 							touchSql += ", last_assistant_message_at = $2";
 						} else {
-							touchSql += ", last_human_message_at = $2";
+							touchSql += `, last_human_message_at = $2, unread_count = 0`;
 							if (existingMsg.from_me || existingMsg.source === "whatsapp")
 								touchSql += ", last_owner_intervention_at = $2";
 						}
@@ -288,11 +292,12 @@ export function createPostgresRepository(pool: PostgresPool) {
 				 last_user_message_at = $2,
 				 followup_attempts = 0,
 				 followup_blocked_at = NULL,
-				 followup_blocked_reason = NULL`;
+				 followup_blocked_reason = NULL,
+				 unread_count = unread_count + 1`;
 				} else if (input.role === "assistant") {
 					touchSql += ", last_assistant_message_at = $2";
 				} else {
-					touchSql += ", last_human_message_at = $2";
+					touchSql += `, last_human_message_at = $2, unread_count = 0`;
 					if (input.from_me || input.source === "whatsapp")
 						touchSql += ", last_owner_intervention_at = $2";
 				}
