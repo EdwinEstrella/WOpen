@@ -9,8 +9,32 @@ import {
 	TrendingUpIcon,
 	TrendingDownIcon
 } from "./Icons.tsx";
+import type { ConversationListRow } from "../lib/db.ts";
 
-export default function DashboardOverview() {
+interface DashboardOverviewProps {
+	conversations?: ConversationListRow[];
+}
+
+export default function DashboardOverview({ conversations = [] }: DashboardOverviewProps) {
+	// 1. Conversaciones Activas
+	const activeCount = conversations.length;
+
+	// 2. Porcentaje de modo IA
+	const aiConversations = conversations.filter((c) => c.mode === "AI").length;
+	const aiRate = activeCount > 0 ? Math.round((aiConversations / activeCount) * 100) : 0;
+
+	// 3. Soporte Humano (chats en modo MANUAL)
+	const humanCount = conversations.filter((c) => c.mode === "HUMAN").length;
+
+	// 4. Respuestas Pendientes (último mensaje de un usuario)
+	const pendingCount = conversations.filter((c) => c.last_message_role === "user").length;
+
+	// 5. Actividad en Vivo real
+	const sortedForActivity = [...conversations]
+		.filter((c) => c.last_message_at)
+		.sort((a, b) => new Date(b.last_message_at!).getTime() - new Date(a.last_message_at!).getTime())
+		.slice(0, 5);
+
 	return (
 		<div className="flex-1 overflow-y-auto pr-1">
 			<div className="max-w-[1440px] mx-auto space-y-6">
@@ -26,12 +50,12 @@ export default function DashboardOverview() {
 							<MessagesIcon className="text-primary" size={18} />
 						</div>
 						<div>
-							<div className="font-display text-4xl font-bold text-on-surface mb-2">542</div>
+							<div className="font-display text-4xl font-bold text-on-surface mb-2">{activeCount}</div>
 							<div className="flex items-center gap-2">
 								<span className="flex items-center gap-1 text-primary bg-primary/10 px-2 py-0.5 rounded text-xs font-semibold">
-									<TrendingUpIcon size={12} /> +12.5%
+									<TrendingUpIcon size={12} /> Real
 								</span>
-								<span className="text-xs text-on-surface-variant">vs última hora</span>
+								<span className="text-xs text-on-surface-variant">chats en CRM</span>
 							</div>
 						</div>
 						
@@ -54,12 +78,12 @@ export default function DashboardOverview() {
 							<ZapIcon className="text-primary" size={18} />
 						</div>
 						<div>
-							<div className="font-display text-4xl font-bold text-on-surface mb-2">82%</div>
+							<div className="font-display text-4xl font-bold text-on-surface mb-2">{aiRate}%</div>
 							<div className="flex items-center gap-2">
 								<span className="flex items-center gap-1 text-primary bg-primary/10 px-2 py-0.5 rounded text-xs font-semibold">
-									<TrendingUpIcon size={12} /> +3.2%
+									<TrendingUpIcon size={12} /> Activo
 								</span>
-								<span className="text-xs text-on-surface-variant">vs semana anterior</span>
+								<span className="text-xs text-on-surface-variant">tasa de autogestión</span>
 							</div>
 						</div>
 						
@@ -81,12 +105,12 @@ export default function DashboardOverview() {
 							<UserIcon className="text-secondary" size={18} />
 						</div>
 						<div>
-							<div className="font-display text-4xl font-bold text-on-surface mb-2">124</div>
+							<div className="font-display text-4xl font-bold text-on-surface mb-2">{humanCount}</div>
 							<div className="flex items-center gap-2">
 								<span className="flex items-center gap-1 text-secondary bg-secondary/10 px-2 py-0.5 rounded text-xs font-semibold">
-									<TrendingDownIcon size={12} /> -5.1%
+									<TrendingDownIcon size={12} /> Manual
 								</span>
-								<span className="text-xs text-on-surface-variant">vs semana anterior</span>
+								<span className="text-xs text-on-surface-variant">chats transferidos</span>
 							</div>
 						</div>
 						
@@ -108,7 +132,7 @@ export default function DashboardOverview() {
 							<HourglassIcon className="text-error" size={18} />
 						</div>
 						<div>
-							<div className="font-display text-4xl font-bold text-on-surface mb-2">18</div>
+							<div className="font-display text-4xl font-bold text-on-surface mb-2">{pendingCount}</div>
 							<div className="flex items-center gap-2">
 								<span className="flex items-center gap-1 text-error bg-error/10 px-2.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider">
 									<HourglassIcon size={10} /> Requiere Acción
@@ -138,41 +162,60 @@ export default function DashboardOverview() {
 							<button className="text-primary text-xs hover:underline font-semibold">Ver Todo</button>
 						</div>
 						<div className="p-6 flex-1 overflow-y-auto space-y-6 max-h-[360px]">
-							{/* Item 1 */}
-							<div className="flex gap-4 relative">
-								<div className="absolute left-[15px] top-8 bottom-[-24px] w-px bg-outline-variant/20"></div>
-								<div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 z-10 glow-active">
-									<RobotIcon className="text-primary" size={14} />
+							{sortedForActivity.length === 0 ? (
+								<div className="h-full flex flex-col items-center justify-center text-center text-on-surface-variant/60 py-8">
+									<p className="text-xs">Sin actividad registrada en los chats reales.</p>
 								</div>
-								<div>
-									<div className="text-xs text-on-surface font-semibold mb-1">IA respondió a cliente</div>
-									<div className="text-xs text-on-surface-variant line-clamp-2">"Tu pedido #8921 ya fue despachado y llegará mañana al mediodía..."</div>
-									<div className="text-[10px] text-on-surface-variant/60 mt-1">Ahora mismo • WhatsApp</div>
-								</div>
-							</div>
-							{/* Item 2 */}
-							<div className="flex gap-4 relative">
-								<div className="absolute left-[15px] top-8 bottom-[-24px] w-px bg-outline-variant/20"></div>
-								<div className="w-8 h-8 rounded-full bg-secondary/10 border border-secondary/20 flex items-center justify-center shrink-0 z-10">
-									<UserIcon className="text-secondary" size={14} />
-								</div>
-								<div>
-									<div className="text-xs text-on-surface font-semibold mb-1">Agente intervino chat</div>
-									<div className="text-xs text-on-surface-variant">Soporte tomó el control de la conversación de Edwin Estrella.</div>
-									<div className="text-[10px] text-on-surface-variant/60 mt-1">Hace 2 min • Intervención</div>
-								</div>
-							</div>
-							{/* Item 3 */}
-							<div className="flex gap-4 relative">
-								<div className="w-8 h-8 rounded-full bg-tertiary-container/10 border border-tertiary-container/20 flex items-center justify-center shrink-0 z-10">
-									<TargetIcon className="text-tertiary-container" size={14} />
-								</div>
-								<div>
-									<div className="text-xs text-on-surface font-semibold mb-1">Nuevo Lead Calificado</div>
-									<div className="text-xs text-on-surface-variant">Cliente usó palabra clave de alta intención "precios y planes".</div>
-									<div className="text-[10px] text-on-surface-variant/60 mt-1">Hace 15 min • Regla IA</div>
-								</div>
-							</div>
+							) : (
+								sortedForActivity.map((convo, idx) => {
+									const isLastUser = convo.last_message_role === "user";
+									const isLastAssistant = convo.last_message_role === "assistant";
+									const isLastHuman = convo.last_message_role === "human";
+									
+									let itemTitle = "Mensaje en el chat";
+									let iconColorClass = "bg-surface-variant/10 border-outline-variant/20 text-on-surface-variant";
+									let Icon = TargetIcon;
+
+									if (isLastAssistant) {
+										itemTitle = "IA respondió a cliente";
+										iconColorClass = "bg-primary/10 border-primary/20 text-primary glow-active";
+										Icon = RobotIcon;
+									} else if (isLastHuman) {
+										itemTitle = "Agente intervino chat";
+										iconColorClass = "bg-secondary/10 border-secondary/20 text-secondary";
+										Icon = UserIcon;
+									} else if (isLastUser) {
+										itemTitle = "Cliente envió mensaje";
+										iconColorClass = "bg-tertiary-container/10 border-tertiary-container/20 text-tertiary-container";
+										Icon = TargetIcon;
+									}
+
+									const nameOrPhone = convo.name?.trim() || `+${convo.phone}`;
+									const timeStr = convo.last_message_at 
+										? new Intl.DateTimeFormat("es-AR", { timeStyle: "short" }).format(new Date(convo.last_message_at))
+										: "";
+
+									return (
+										<div key={convo.id} className="flex gap-4 relative">
+											{idx < sortedForActivity.length - 1 && (
+												<div className="absolute left-[15px] top-8 bottom-[-24px] w-px bg-outline-variant/20"></div>
+											)}
+											<div className={`w-8 h-8 rounded-full border flex items-center justify-center shrink-0 z-10 ${iconColorClass}`}>
+												<Icon size={14} />
+											</div>
+											<div className="min-w-0 flex-1">
+												<div className="text-xs text-on-surface font-semibold mb-1 flex justify-between items-center gap-2">
+													<span className="truncate">{itemTitle} ({nameOrPhone})</span>
+													<span className="text-[10px] text-on-surface-variant/60 shrink-0 font-mono">{timeStr}</span>
+												</div>
+												<div className="text-xs text-on-surface-variant truncate">
+													{convo.last_message_content || "Sin mensajes todavía"}
+												</div>
+											</div>
+										</div>
+									);
+								})
+							)}
 						</div>
 					</div>
 
@@ -198,7 +241,7 @@ export default function DashboardOverview() {
 								</div>
 								<h3 className="text-sm font-bold text-on-surface">Panel de Analíticas Activo</h3>
 								<p className="text-xs max-w-sm">
-									La precisión de respuesta del bot se mantiene en <strong className="text-primary font-semibold">96.4%</strong> esta semana con un total de 1,421 mensajes autogestionados de manera estable.
+									La precisión de respuesta del bot se mantiene estable con un total de <strong className="text-primary font-semibold">{aiConversations}</strong> chats autogestionados de manera activa por la Inteligencia Artificial.
 								</p>
 							</div>
 						</div>

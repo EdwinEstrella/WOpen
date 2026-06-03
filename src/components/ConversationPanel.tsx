@@ -374,17 +374,20 @@ export default function ConversationPanel({
 
 			{zoomImage && (
 				<div 
-					className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity"
+					className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md transition-opacity duration-300"
 					onClick={() => setZoomImage(null)}
 				>
-					<div className="relative max-w-3xl max-h-[85vh] p-2 bg-surface-container border border-outline-variant/30 rounded-2xl overflow-hidden shadow-2xl flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+					<div 
+						className="relative w-[90vw] h-[90vw] max-w-[480px] max-h-[480px] p-1.5 bg-surface-container border border-outline-variant/40 rounded-3xl overflow-hidden shadow-2xl flex items-center justify-center animate-[scaleIn_0.2s_ease-out]"
+						onClick={(e) => e.stopPropagation()}
+					>
 						<img 
 							src={zoomImage} 
 							alt="Contacto foto" 
-							className="max-w-full max-h-[80vh] object-contain rounded-lg"
+							className="w-full h-full object-cover rounded-2xl animate-fade-in"
 						/>
 						<button 
-							className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/60 text-white font-bold text-lg focus:outline-none transition-colors"
+							className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white font-display text-xl font-bold focus:outline-none transition-all duration-200 hover:scale-105 active:scale-95 shadow-md"
 							onClick={() => setZoomImage(null)}
 						>
 							×

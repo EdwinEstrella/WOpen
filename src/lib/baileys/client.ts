@@ -108,7 +108,7 @@ export const inboundHandler = createInboundHandler({
 	fetchProfilePictureUrl: async (jid) => {
 		if (!globalSock) return null;
 		try {
-			return (await globalSock.profilePictureUrl(jid, "preview")) ?? null;
+			return (await globalSock.profilePictureUrl(jid, "image")) ?? null;
 		} catch {
 			return null;
 		}
@@ -160,7 +160,7 @@ async function refreshAllProfilePictures() {
 			if (shouldRefresh) {
 				try {
 					console.log(`[bot] Consultando foto de perfil de ${jid} a WhatsApp...`);
-					const url = await globalSock.profilePictureUrl(jid, "preview");
+					const url = await globalSock.profilePictureUrl(jid, "image");
 					await updateConversation(convo.id, {
 						profile_picture_url: url || null,
 						profile_picture_fetched_at: now,

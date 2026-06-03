@@ -268,7 +268,7 @@ export default function Home() {
 
 						{/* Contenido Dinámico de Pestañas */}
 						<main className="flex-1 p-6 overflow-hidden flex flex-col min-h-0 relative z-10">
-							{activeTab === "dashboard" && <DashboardOverview />}
+							{activeTab === "dashboard" && <DashboardOverview conversations={conversations} />}
 
 							{activeTab === "chats" && (
 								<div className="flex-1 glass-panel rounded-2xl overflow-hidden flex min-h-[500px] shadow-2xl">

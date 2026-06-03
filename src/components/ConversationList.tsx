@@ -36,10 +36,18 @@ export default function ConversationList({
 	onSelectConversation,
 }: ConversationListProps) {
 	const [activeFilter, setActiveFilter] = useState<FilterType>("ALL");
+	const [searchQuery, setSearchQuery] = useState("");
 
 	// Filtrado de las conversaciones
 	const filteredConversations = useMemo(() => {
+		const normalizedSearch = searchQuery.trim().toLowerCase();
 		return conversations.filter((convo) => {
+			if (normalizedSearch) {
+				const nameMatch = convo.name?.toLowerCase().includes(normalizedSearch);
+				const phoneMatch = convo.phone.toLowerCase().includes(normalizedSearch);
+				if (!nameMatch && !phoneMatch) return false;
+			}
+
 			if (activeFilter === "PENDING") {
 				// Conversaciones pendientes de respuesta (último mensaje fue del cliente/user)
 				return convo.last_message_role === "user";
@@ -54,7 +62,7 @@ export default function ConversationList({
 			}
 			return true;
 		});
-	}, [conversations, activeFilter]);
+	}, [conversations, activeFilter, searchQuery]);
 
 	return (
 		<div className="flex flex-col h-full bg-surface">
@@ -64,6 +72,30 @@ export default function ConversationList({
 				<span className="bg-primary/10 border border-primary/20 text-primary text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
 					{filteredConversations.length}
 				</span>
+			</div>
+
+			{/* Buscador de Contactos */}
+			<div className="px-4 pb-3 shrink-0">
+				<div className="relative">
+					<input
+						type="text"
+						value={searchQuery}
+						onChange={(e) => setSearchQuery(e.target.value)}
+						placeholder="Buscar por nombre o teléfono..."
+						className="w-full bg-surface-container-lowest border border-outline-variant/40 rounded-xl pl-8 pr-8 py-1.5 text-[11px] focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all placeholder-on-surface-variant/50 text-on-surface"
+					/>
+					<span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant/40 text-[10px]">
+						🔍
+					</span>
+					{searchQuery && (
+						<button
+							onClick={() => setSearchQuery("")}
+							className="absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant/60 hover:text-on-surface text-[10px] font-bold"
+						>
+							✕
+						</button>
+					)}
+				</div>
 			</div>
 
 			{/* Selector de Filtros */}
