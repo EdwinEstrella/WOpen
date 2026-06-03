@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { RobotIcon, UserIcon } from "./Icons.tsx";
 import type { ConversationListRow } from "../lib/db.ts";
 
@@ -180,6 +180,7 @@ export default function ContactsOverview({
 							className="w-full h-full object-cover rounded-2xl animate-fade-in"
 						/>
 						<button 
+							type="button"
 							className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white font-display text-xl font-bold focus:outline-none transition-all duration-200 hover:scale-105 active:scale-95 shadow-md"
 							onClick={() => setZoomImage(null)}
 						>

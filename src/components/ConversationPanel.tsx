@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useRef } from "react";
 import { TrashIcon, MessagesIcon, RobotIcon, ArrowRightIcon, ArrowDownIcon, UserIcon, PhoneIcon, EditIcon, ArchiveIcon } from "./Icons.tsx";
@@ -303,7 +303,7 @@ export default function ConversationPanel({
 						onModeChange={onModeChanged}
 					/>
 					
-					<button
+					<button type="button"
 						onClick={handleArchive}
 						disabled={archiving}
 						className="px-3 py-1.5 text-primary hover:bg-primary/10 border border-primary rounded-full text-[10px] font-bold uppercase tracking-wider transition-all duration-200 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
@@ -312,7 +312,7 @@ export default function ConversationPanel({
 						<ArchiveIcon size={12} /> {conversation.is_archived ? "Desarchivar" : "Archivar"}
 					</button>
 
-					<button
+					<button type="button"
 						onClick={handleDelete}
 						disabled={deleting}
 						className="px-3 py-1.5 text-error hover:bg-error/10 border border-error rounded-full text-[10px] font-bold uppercase tracking-wider transition-all duration-200 disabled:opacity-50 flex items-center gap-1.5"
@@ -424,7 +424,7 @@ export default function ConversationPanel({
 
 				{/* Botón Flotante para bajar */}
 				{showScrollDown && (
-					<button
+					<button type="button"
 						onClick={scrollToBottom}
 						className="absolute bottom-4 right-6 w-10 h-10 rounded-full bg-surface border border-outline-variant text-primary hover:text-primary-bright hover:bg-surface-bright flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 animate-fade-in z-20"
 						title="Ir al final de la conversación"
@@ -508,7 +508,7 @@ export default function ConversationPanel({
 						>
 							Abrir original
 						</a>
-						<button 
+						<button type="button"
 							className="absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-xl font-bold text-white shadow-md ring-1 ring-white/15 transition-all duration-200 hover:scale-105 hover:bg-black/80 focus:outline-none active:scale-95"
 							onClick={() => setZoomImage(null)}
 							aria-label="Cerrar imagen"

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import ConnectionGate from "../components/ConnectionGate.tsx";
@@ -206,7 +206,7 @@ export default function Home() {
 						{/* Links de Navegación */}
 						<div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
 							{/* Dashboard overview */}
-							<button
+							<button type="button"
 								onClick={() => setActiveTab("dashboard")}
 								className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
 									activeTab === "dashboard"
@@ -219,7 +219,7 @@ export default function Home() {
 							</button>
 
 							{/* Conversations Workspace */}
-							<button
+							<button type="button"
 								onClick={() => setActiveTab("chats")}
 								className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
 									activeTab === "chats"
@@ -232,7 +232,7 @@ export default function Home() {
 							</button>
 
 							{/* AI System Prompts */}
-							<button
+							<button type="button"
 								onClick={() => setActiveTab("prompts")}
 								className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
 									activeTab === "prompts"
@@ -245,7 +245,7 @@ export default function Home() {
 							</button>
 
 							{/* Workflow Builder */}
-							<button
+							<button type="button"
 								onClick={() => setActiveTab("automations")}
 								className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
 									activeTab === "automations"
@@ -258,7 +258,7 @@ export default function Home() {
 							</button>
 
 							{/* Contacts CRM */}
-							<button
+							<button type="button"
 								onClick={() => setActiveTab("contacts")}
 								className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
 									activeTab === "contacts"
@@ -271,7 +271,7 @@ export default function Home() {
 							</button>
 
 							{/* Settings Panel */}
-							<button
+							<button type="button"
 								onClick={() => setActiveTab("settings")}
 								className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
 									activeTab === "settings"

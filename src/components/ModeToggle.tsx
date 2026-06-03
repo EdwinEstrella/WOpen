@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 
@@ -39,6 +39,7 @@ export default function ModeToggle({
 	return (
 		<div className="flex items-center gap-2 shrink-0">
 			<button
+				type="button"
 				onClick={() => handleToggle("AI")}
 				disabled={loading}
 				className={`px-4 py-1.5 rounded-full font-display text-[10px] font-bold uppercase tracking-wider transition-all duration-200 flex items-center gap-1.5 ${
@@ -50,6 +51,7 @@ export default function ModeToggle({
 				🤖 MODO IA
 			</button>
 			<button
+				type="button"
 				onClick={() => handleToggle("HUMAN")}
 				disabled={loading}
 				className={`px-4 py-1.5 rounded-full font-display text-[10px] font-bold uppercase tracking-wider transition-all duration-200 flex items-center gap-1.5 ${

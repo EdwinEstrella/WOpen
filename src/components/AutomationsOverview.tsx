@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import {
 	PlusIcon,
 	MessagesIcon,
@@ -17,10 +17,10 @@ export default function AutomationsOverview() {
 					<p className="text-xs text-on-surface-variant mt-1">Definí secuencias de flujos lógicos guiados por inteligencia artificial</p>
 				</div>
 				<div className="flex gap-2">
-					<button className="px-4 py-2 rounded-lg bg-surface-container-high border border-outline-variant/30 text-xs font-semibold text-on-surface hover:bg-surface-container-highest transition-colors active:scale-95">
+					<button type="button" className="px-4 py-2 rounded-lg bg-surface-container-high border border-outline-variant/30 text-xs font-semibold text-on-surface hover:bg-surface-container-highest transition-colors active:scale-95">
 						📂 Cargar Plantilla
 					</button>
-					<button className="px-4 py-2.5 rounded-lg bg-primary text-on-primary text-xs font-bold hover:bg-primary-container transition-colors active:scale-95 glow-active flex items-center gap-1.5">
+					<button type="button" className="px-4 py-2.5 rounded-lg bg-primary text-on-primary text-xs font-bold hover:bg-primary-container transition-colors active:scale-95 glow-active flex items-center gap-1.5">
 						<PlusIcon size={12} /> Nuevo Flujo
 					</button>
 				</div>

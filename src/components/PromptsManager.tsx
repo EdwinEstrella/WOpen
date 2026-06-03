@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { PlusIcon, EditIcon, TrashIcon, RobotIcon } from "./Icons.tsx";
@@ -116,7 +116,7 @@ export default function PromptsManager() {
 				</div>
 				
 				{!formVisible && (
-					<button
+					<button type="button"
 						onClick={() => {
 							setEditId(null);
 							setTitle("");
@@ -218,7 +218,7 @@ export default function PromptsManager() {
 									{/* Acciones */}
 									<div className="flex items-center gap-3">
 										{!prompt.is_active && (
-											<button
+											<button type="button"
 												onClick={() => handleSetActive(prompt.id)}
 												className="px-3 py-1.5 border border-primary text-primary hover:bg-primary/10 rounded-xl font-display text-[9px] font-extrabold uppercase tracking-wider transition-all duration-200 flex items-center gap-1"
 											>
@@ -226,7 +226,7 @@ export default function PromptsManager() {
 											</button>
 										)}
 
-										<button
+										<button type="button"
 											onClick={() => startEdit(prompt)}
 											className="p-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-bright rounded-lg text-xs transition-colors flex items-center justify-center"
 											title="Editar prompt"
@@ -235,7 +235,7 @@ export default function PromptsManager() {
 										</button>
 
 										{!prompt.is_active && (
-											<button
+											<button type="button"
 												onClick={() => handleDelete(prompt.id)}
 												className="p-1.5 text-error/80 hover:text-error hover:bg-error/15 rounded-lg text-xs transition-colors flex items-center justify-center"
 												title="Eliminar prompt"

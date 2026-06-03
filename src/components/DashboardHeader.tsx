@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { SearchIcon, UserIcon, TrashIcon, PlusIcon, PhoneIcon, MailIcon } from "./Icons.tsx";
@@ -167,6 +167,7 @@ export default function DashboardHeader({
 
 							{/* Botón de Perfil */}
 							<button
+								type="button"
 								onClick={openProfileModal}
 								className="px-4 py-1 bg-transparent hover:bg-primary/10 border border-primary text-primary font-display text-[10px] font-bold uppercase tracking-wider rounded-full transition-all duration-200 active:scale-95 flex items-center gap-1.5 cursor-pointer"
 							>
@@ -184,6 +185,7 @@ export default function DashboardHeader({
 
 							{/* Botón Desconectar */}
 							<button
+								type="button"
 								onClick={handleDisconnect}
 								disabled={loading}
 								className="px-4 py-1 bg-transparent hover:bg-error/10 border border-error text-error font-display text-[10px] font-bold uppercase tracking-wider rounded-full transition-all duration-200 active:scale-95 disabled:opacity-50 cursor-pointer"
@@ -200,6 +202,7 @@ export default function DashboardHeader({
 
 					{/* Avatar / Logout */}
 					<button 
+						type="button"
 						onClick={handleLogout}
 						title="Cerrar Sesión"
 						className="w-8 h-8 rounded-full overflow-hidden border border-primary hover:bg-primary/10 transition-colors cursor-pointer flex items-center justify-center bg-transparent"
@@ -347,6 +350,7 @@ export default function DashboardHeader({
 												</p>
 											</div>
 											<button
+												type="button"
 												onClick={() => handleDeleteReply(reply.id)}
 												className="text-error hover:bg-error/10 p-1.5 rounded-full transition-colors cursor-pointer shrink-0"
 												title="Eliminar"
@@ -401,12 +405,14 @@ export default function DashboardHeader({
 							{/* Botones de Acción */}
 							<div className="flex gap-3 mt-2 shrink-0">
 								<button
+									type="button"
 									onClick={() => setProfileModalOpen(false)}
 									className="flex-1 py-2.5 bg-transparent border border-outline-variant hover:bg-surface-bright font-display text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-200 active:scale-95 cursor-pointer"
 								>
 									Cerrar
 								</button>
 								<button
+									type="button"
 									onClick={handleSaveReplies}
 									disabled={savingReplies}
 									className="flex-1 py-2.5 bg-primary text-on-primary font-display text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-200 active:scale-95 hover:bg-primary-bright disabled:opacity-50 cursor-pointer shadow-lg"
@@ -418,6 +424,7 @@ export default function DashboardHeader({
 
 						{/* Botón de cerrar absoluto para escritorio */}
 						<button 
+							type="button"
 							onClick={() => setProfileModalOpen(false)}
 							className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-bright transition-colors cursor-pointer"
 						>
@@ -443,6 +450,7 @@ export default function DashboardHeader({
 							className="w-full h-full object-cover rounded-2xl animate-fade-in"
 						/>
 						<button 
+							type="button"
 							className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white font-display text-xl font-bold focus:outline-none transition-all duration-200 hover:scale-105 active:scale-95 shadow-md cursor-pointer"
 							onClick={() => setZoomImage(null)}
 						>

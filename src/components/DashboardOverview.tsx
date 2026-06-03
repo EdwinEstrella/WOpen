@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import {
 	MessagesIcon,
 	ZapIcon,
@@ -159,7 +159,7 @@ export default function DashboardOverview({ conversations = [] }: DashboardOverv
 					<div className="glass-panel rounded-2xl p-0 flex flex-col lg:col-span-1">
 						<div className="px-6 py-4 border-b border-outline-variant/10 flex justify-between items-center bg-surface-container-low/30 rounded-t-2xl">
 							<h2 className="font-display text-sm font-bold text-on-surface">Actividad en Vivo</h2>
-							<button className="text-primary text-xs hover:underline font-semibold">Ver Todo</button>
+							<button type="button" className="text-primary text-xs hover:underline font-semibold">Ver Todo</button>
 						</div>
 						<div className="p-6 flex-1 overflow-y-auto space-y-6 max-h-[360px]">
 							{sortedForActivity.length === 0 ? (
