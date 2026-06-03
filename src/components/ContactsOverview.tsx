@@ -111,11 +111,19 @@ export default function ContactsOverview({
 										className="hover:bg-surface-container-low/50 transition-colors"
 									>
 										<td className="px-6 py-4 font-semibold text-on-surface flex items-center gap-3">
-											<div className="w-8 h-8 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center font-display text-primary text-xs font-bold shrink-0">
-												{(contact.name || contact.phone)
-													.charAt(0)
-													.toLocaleUpperCase()}
-											</div>
+											{contact.profile_picture_url ? (
+												<img
+													src={contact.profile_picture_url}
+													alt={contact.name || contact.phone}
+													className="w-8 h-8 rounded-full object-cover border border-primary/30 shrink-0"
+												/>
+											) : (
+												<div className="w-8 h-8 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center font-display text-primary text-xs font-bold shrink-0">
+													{(contact.name || contact.phone)
+														.charAt(0)
+														.toLocaleUpperCase()}
+												</div>
+											)}
 											{contact.name || "Sin nombre"}
 										</td>
 										<td className="px-6 py-4 text-on-surface-variant font-mono">

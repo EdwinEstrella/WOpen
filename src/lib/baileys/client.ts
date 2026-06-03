@@ -144,6 +144,44 @@ function stopOutboxProcessor() {
 	}
 }
 
+async function refreshAllProfilePictures() {
+	if (!globalSock) return;
+	try {
+		console.log("[bot] Iniciando actualización proactiva de fotos de perfil...");
+		const conversations = await listConversations();
+		const now = new Date();
+		for (const convo of conversations) {
+			const jid = convo.jid || (convo.phone.includes("@") ? convo.phone : `${convo.phone}@s.whatsapp.net`);
+			const shouldRefresh = !convo.profile_picture_url || 
+				!convo.profile_picture_fetched_at || 
+				(now.getTime() - new Date(convo.profile_picture_fetched_at).getTime() > 24 * 60 * 60 * 1000);
+			
+			if (shouldRefresh) {
+				try {
+					console.log(`[bot] Consultando foto de perfil de ${jid} a WhatsApp...`);
+					const url = await globalSock.profilePictureUrl(jid, "preview");
+					await updateConversation(convo.id, {
+						profile_picture_url: url || null,
+						profile_picture_fetched_at: now,
+					});
+					// Delay para no sobrecargar el socket
+					await new Promise((resolve) => setTimeout(resolve, 1000));
+				} catch (err: any) {
+					console.log(`[bot] No se pudo obtener foto de perfil para ${jid}: ${err.message || err}`);
+					// Guardamos la fecha de intento para no volver a intentar hasta dentro de 24h
+					await updateConversation(convo.id, {
+						profile_picture_fetched_at: now,
+					});
+					await new Promise((resolve) => setTimeout(resolve, 500));
+				}
+			}
+		}
+		console.log("[bot] Finalizada la actualización proactiva de fotos de perfil.");
+	} catch (error) {
+		console.error("[bot] Error en refreshAllProfilePictures:", error);
+	}
+}
+
 // Función principal para iniciar el socket de Baileys
 export async function startWASocket() {
 	console.log("[bot] Iniciando conexión con WhatsApp...");
@@ -229,6 +267,7 @@ export async function startWASocket() {
 			});
 
 			startOutboxProcessor();
+			void refreshAllProfilePictures();
 		}
 
 		// 4. Estado de conexión: close (desconectado/caído)
