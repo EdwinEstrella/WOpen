@@ -137,3 +137,22 @@ Para validar la correcta tipificación de TypeScript en todo el proyecto:
 ```bash
 npx tsc --noEmit
 ```
+
+---
+
+## ❓ Preguntas Frecuentes (FAQ)
+
+### 1. ¿Qué pasa con los mensajes de seguimiento (follow-ups) si el cliente no responde? ¿Se descartan al llegar al límite de intentos?
+**Sí.** Una vez que se alcanza el límite máximo de intentos de seguimiento configurado en la base de datos (por ejemplo, 3 intentos), el bot descarta automáticamente el número. No se vuelve a leer su historial ni a realizar peticiones a la API de DeepSeek para esa conversación. El contador se restablece a 0 de forma automática únicamente cuando el cliente envía un nuevo mensaje, volviendo a ser elegible para seguimientos si el bot responde y el cliente vuelve a guardar silencio.
+
+### 2. ¿Los seguimientos automáticos pueden chocar si el bot o el operador humano están chateando activamente con el cliente?
+**No, no chocan.** Se utiliza un sistema de estado de turno y cerrojos distribuidos (locks) en Redis. Antes de procesar cualquier seguimiento, el planificador consulta el estado de la conversación. Si hay mensajes en cola (`turnQueue`), un retraso de escritura activo (`debounceMarker`), un procesamiento de respuesta de la IA en curso (`turnLock`), o el bot está mandando un mensaje (`processingMarker`), el planificador omite la evaluación inmediatamente.
+
+### 3. ¿Qué ocurre si un operador humano interviene en una conversación? ¿Sigue funcionando el bot y el seguimiento?
+**El bot se apaga completamente para ese chat.** Al intervenir un operador humano (ya sea escribiendo directamente desde WhatsApp o a través del panel web), el sistema detecta la respuesta de rol `human` y cambia de inmediato el modo de la conversación a `HUMAN`. En este modo, el bot no genera respuestas automáticas a mensajes entrantes ni el planificador de seguimientos procesa el número. Para reactivarlo, el operador debe cambiar el modo de la conversación a `AI` desde el dashboard o enviar la palabra clave de activación (ej: `ok.`) desde su WhatsApp en ese chat.
+
+### 4. ¿Cómo se previene que el bot envíe el mismo mensaje de seguimiento exacto múltiples veces seguidas?
+Se aplican dos capas de seguridad concurrentes:
+- **Protección a Nivel Prompt (DeepSeek)**: El system prompt de seguimientos prohíbe repetir mensajes de seguimiento que ya aparezcan en el historial, forzando a la IA a cambiar de enfoque (por ejemplo, ofrecer una demo gratis de 3 días, preguntar por precios de planes o consultar por el equipo físico) en lugar de insistir con el mismo texto.
+- **Guardia de Duplicados Programática**: El planificador limpia y normaliza el mensaje generado (eliminando acentos, mayúsculas, espacios y caracteres especiales) y lo compara con todos los mensajes salientes previos del asistente. Si detecta una repetición literal, bloquea el envío, registra un evento de omisión por duplicado y no satura al cliente.
+
