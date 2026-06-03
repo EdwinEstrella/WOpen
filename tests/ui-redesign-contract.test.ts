@@ -110,6 +110,16 @@ describe("shadcn/ui redesign foundation contract", () => {
 		assert.match(bubble, /<audio/);
 		assert.match(bubble, /preload="metadata"/);
 		assert.match(bubble, /Nota de voz/);
+		assert.match(bubble, /isMediaPlaceholder/);
+		assert.match(bubble, /!\s*isMediaPlaceholder\(content, media_type\)/);
+	});
+
+	it("uses a single header profile trigger instead of a separate profile and logout icon", () => {
+		const header = readProjectFile("src/components/DashboardHeader.tsx");
+
+		assert.match(header, /aria-label="Abrir perfil de WhatsApp"/);
+		assert.doesNotMatch(header, />\s*Perfil\s*<\/button>/);
+		assert.doesNotMatch(header, /aria-label="Cerrar Sesión del Panel"/);
 	});
 
 	it("keeps chat contrast readable and image previews high fidelity", () => {

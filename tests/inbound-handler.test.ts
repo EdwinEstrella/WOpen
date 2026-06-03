@@ -19,6 +19,7 @@ function upsert(input: {
 	id?: string;
 	fromMe?: boolean;
 	text?: string;
+	audio?: boolean;
 	name?: string;
 	timestamp?: Date;
 	senderPn?: string;
@@ -35,7 +36,9 @@ function upsert(input: {
 				},
 				pushName: input.name ?? "Cliente",
 				messageTimestamp: input.timestamp ?? at("2026-06-04T12:00:00Z"),
-				message: { conversation: input.text ?? "Hola" },
+				message: input.audio
+					? { audioMessage: {} }
+					: { conversation: input.text ?? "Hola" },
 			},
 		],
 	};
@@ -45,6 +48,7 @@ function makeDeps() {
 	const repo = createInMemoryRepository();
 	const turnState = createInMemoryTurnState();
 	const calls: string[] = [];
+	const deepSeekInputs: Parameters<InboundHandlerDeps["callDeepSeek"]>[0][] = [];
 	const sent: string[] = [];
 	const sentJids: string[] = [];
 	const telegram: unknown[] = [];
@@ -67,6 +71,7 @@ function makeDeps() {
 		},
 		callDeepSeek: async (input) => {
 			calls.push(`deepseek:${input.conversationId}`);
+			deepSeekInputs.push(input);
 			return deepSeekRaw;
 		},
 		sendMessage: async (jid, text) => {
@@ -86,6 +91,7 @@ function makeDeps() {
 		repo,
 		turnState,
 		calls,
+		deepSeekInputs,
 		sent,
 		sentJids,
 		telegram,
@@ -349,6 +355,17 @@ describe("owner-aware inbound handler AI/HUMAN customer paths", () => {
 			true,
 		);
 		assert.equal(turnState.hasActiveTurnState(convo.id), false);
+	});
+
+	it("normalizes WhatsApp voice notes without exposing the raw audio marker", async () => {
+		const { handler, deepSeekInputs } = makeDeps();
+
+		await handler.handleUpsert(upsert({ id: "m-audio", audio: true }));
+
+		const [input] = deepSeekInputs;
+		assert.ok(input);
+		assert.equal(input.queuedMessages[0]?.text.includes("[Audio: Nota de voz]"), false);
+		assert.equal(input.queuedMessages[0]?.text.startsWith("Nota de voz recibida."), true);
 	});
 
 	it("lock acquisition failure does not delete another processor's active turn state", async () => {

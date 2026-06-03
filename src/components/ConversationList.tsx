@@ -36,7 +36,7 @@ function formatConversationPreview(convo: ConversationListRow): string {
 	if (!content) return "Sin mensajes todavía";
 
 	const mediaLabel =
-		content === "[Audio: Nota de voz]"
+		content === "Nota de voz" || content === "[Audio: Nota de voz]"
 			? "Nota de voz"
 			: content === "[Imagen]"
 				? "Imagen recibida"

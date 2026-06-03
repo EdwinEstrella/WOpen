@@ -174,27 +174,6 @@ export default function DashboardHeader({
 								<span>+{phone}</span>
 							</div>
 
-							{/* Botón de Perfil */}
-							<button
-								type="button"
-								onClick={openProfileModal}
-								className="px-4 py-1 bg-transparent hover:bg-primary/10 border border-primary text-primary font-display text-[10px] font-bold uppercase tracking-wider rounded-full transition-all duration-200 active:scale-95 flex items-center gap-1.5 cursor-pointer"
-							>
-								{botProfile?.profile_picture_url && !botAvatarError ? (
-									<Image
-										src={botProfile.profile_picture_url}
-										width={20}
-										height={20}
-										className="size-5 rounded-full object-cover border border-primary/30"
-										alt="Bot avatar"
-										onError={() => setBotAvatarError(true)}
-									/>
-								) : (
-									<UserIcon size={10} />
-								)}
-								Perfil
-							</button>
-
 							{/* Botón Desconectar */}
 							<button
 								type="button"
@@ -213,15 +192,26 @@ export default function DashboardHeader({
 						</div>
 					)}
 
-					{/* Avatar / Logout */}
+					{/* Perfil */}
 					<button 
 						type="button"
-						onClick={handleLogout}
-						title="Cerrar Sesión"
-						aria-label="Cerrar Sesión del Panel"
+						onClick={openProfileModal}
+						title="Abrir perfil"
+						aria-label="Abrir perfil de WhatsApp"
 						className="size-8 rounded-full overflow-hidden border border-primary hover:bg-primary/10 transition-colors cursor-pointer flex items-center justify-center bg-transparent"
 					>
-						<UserIcon className="text-primary hover:text-primary transition-colors" size={14} />
+						{botProfile?.profile_picture_url && !botAvatarError ? (
+							<Image
+								src={botProfile.profile_picture_url}
+								width={32}
+								height={32}
+								className="size-full object-cover"
+								alt="Bot avatar"
+								onError={() => setBotAvatarError(true)}
+							/>
+						) : (
+							<UserIcon className="text-primary hover:text-primary transition-colors" size={14} />
+						)}
 					</button>
 				</div>
 

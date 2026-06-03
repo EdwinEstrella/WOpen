@@ -19,6 +19,17 @@ function mediaUrlFrom(metadata: Record<string, unknown>): string | null {
 	return typeof mediaUrl === "string" && mediaUrl.trim() ? mediaUrl : null;
 }
 
+function isMediaPlaceholder(content: string, mediaType: MessageRow["media_type"]): boolean {
+	const normalized = content.trim();
+	if (mediaType === "audio") {
+		return normalized === "Nota de voz" || normalized === "[Audio: Nota de voz]";
+	}
+	if (mediaType === "image") {
+		return normalized === "Imagen recibida" || normalized === "[Imagen]";
+	}
+	return false;
+}
+
 export default function MessageBubble({ message }: MessageBubbleProps) {
 	const { role, content, media_type, created_at, metadata } = message;
 
@@ -140,7 +151,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 						</div>
 					)}
 
-					{content && (
+					{content && !isMediaPlaceholder(content, media_type) && (
 						<p className="m-0 whitespace-pre-wrap break-words text-sm font-medium leading-relaxed text-foreground">
 							{content}
 						</p>

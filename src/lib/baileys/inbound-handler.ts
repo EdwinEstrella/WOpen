@@ -204,7 +204,7 @@ function detectMediaTypeAndContent(message: WhatsAppMessage): {
 		};
 	}
 	if (message.message?.audioMessage) {
-		return { mediaType: "audio", content: "[Audio: Nota de voz]" };
+		return { mediaType: "audio", content: "Nota de voz" };
 	}
 	if (message.message?.imageMessage) {
 		return { mediaType: "image", content: "[Imagen]" };
@@ -484,11 +484,11 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 			const systemPrompt = await deps.getActiveSystemPrompt();
 
 			const mappedHistory = history.map((msg) => {
-				if (msg.content === "[Audio: Nota de voz]") {
+				if (msg.content === "Nota de voz" || msg.content === "[Audio: Nota de voz]") {
 					return {
 						...msg,
 						content:
-							"[Audio: Nota de voz] (Nota de sistema: El usuario te envió una nota de voz/audio. Respondé de forma amable explicándole que por el momento no podés escuchar audios, y pedile por favor que te escriba su consulta por texto para que lo puedas ayudar.)",
+							"Nota de voz recibida. Nota de sistema: El usuario te envió una nota de voz/audio. Respondé de forma amable explicándole que por el momento no podés escuchar audios, y pedile por favor que te escriba su consulta por texto para que lo puedas ayudar.",
 					};
 				}
 				if (msg.content === "[Imagen]") {
@@ -502,10 +502,10 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 			});
 
 			const mappedQueuedMessages = queuedMessages.map((msg) => {
-				if (msg.mediaType === "audio" || msg.text === "[Audio: Nota de voz]") {
+				if (msg.mediaType === "audio" || msg.text === "Nota de voz" || msg.text === "[Audio: Nota de voz]") {
 					return {
 						...msg,
-						text: "[Audio: Nota de voz] (Nota de sistema: El usuario te envió una nota de voz/audio. Respondé de forma amable explicándole que por el momento no podés escuchar audios, y pedile por favor que te escriba su consulta por texto para que lo puedas ayudar.)",
+						text: "Nota de voz recibida. Nota de sistema: El usuario te envió una nota de voz/audio. Respondé de forma amable explicándole que por el momento no podés escuchar audios, y pedile por favor que te escriba su consulta por texto para que lo puedas ayudar.",
 					};
 				}
 				if (msg.mediaType === "image" || msg.text === "[Imagen]") {
