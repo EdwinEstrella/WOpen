@@ -168,10 +168,19 @@ export function createFollowUpScheduler(deps: FollowUpSchedulerDeps) {
 				return;
 			}
 
-			const decision = await deps.decideFollowUp(
-				await deps.getRecentHistory(fresh.id),
-			);
+			const history = await deps.getRecentHistory(fresh.id);
+			console.log(`[scheduler-debug] Evaluando seguimiento para conversación ID: ${fresh.id} (Teléfono: ${fresh.phone}, Intentos previos: ${fresh.followup_attempts}).`);
+			console.log(`[scheduler-debug] Historial cargado: ${history.length} mensaje(s).`);
+			if (history.length > 0) {
+				console.log(`[scheduler-debug] Últimos mensajes del historial:`);
+				history.slice(-3).forEach((m) => {
+					console.log(`  - [${m.role}]: "${m.content.slice(0, 80)}${m.content.length > 80 ? '...' : ''}"`);
+				});
+			}
+
+			const decision = await deps.decideFollowUp(history);
 			if (!decision.ok) {
+				console.log(`[scheduler-debug] Error llamando a DeepSeek: ${decision.reason}`);
 				await deps.repo.recordConversationEvent({
 					conversation_id: fresh.id,
 					event_type: "deepseek_json_invalid",
@@ -184,6 +193,7 @@ export function createFollowUpScheduler(deps: FollowUpSchedulerDeps) {
 			}
 			const message = decision.parsed.message?.trim() ?? "";
 			if (!decision.parsed.shouldSend || !message) {
+				console.log(`[scheduler-debug] Decisión DeepSeek: NO enviar seguimiento.`);
 				await deps.repo.recordConversationEvent({
 					conversation_id: fresh.id,
 					event_type: "followup_skipped",
@@ -194,6 +204,8 @@ export function createFollowUpScheduler(deps: FollowUpSchedulerDeps) {
 				run.skippedByDecision += 1;
 				return;
 			}
+
+			console.log(`[scheduler-debug] Decisión DeepSeek: SI enviar seguimiento. Mensaje: "${message}"`);
 
 			await deps.sendWhatsAppMessage(
 				fresh.jid ?? `${fresh.phone}@s.whatsapp.net`,

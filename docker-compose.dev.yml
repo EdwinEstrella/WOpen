@@ -2,6 +2,9 @@ services:
   app:
     ports:
       - "3000:3000"
+    environment:
+      - DEV_FOLLOWUP_POLL_INTERVAL_MS=${DEV_FOLLOWUP_POLL_INTERVAL_MS}
+      - DEV_FOLLOWUP_MIN_AGE_SECONDS=${DEV_FOLLOWUP_MIN_AGE_SECONDS}
     # Si querés desarrollar en tiempo real sin tener que reconstruir la imagen en cada cambio,
     # podés descomentar las siguientes líneas para montar tu código local y usar el modo dev:
     # environment:

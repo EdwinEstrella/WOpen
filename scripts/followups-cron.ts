@@ -79,13 +79,25 @@ export async function runFollowupSchedulerOnce() {
 }
 
 export function startFollowupsCron() {
-	// Evaluamos candidatos de seguimiento cada 1 minuto (el scheduler se encarga de aplicar los filtros temporales)
-	console.log("[scheduler] Iniciando loop de follow-ups (evaluación cada 1 minuto)...");
-	
+	let intervalMs = 60000;
+
+	if (process.env.DEV_FOLLOWUP_POLL_INTERVAL_MS) {
+		const parsed = parseInt(process.env.DEV_FOLLOWUP_POLL_INTERVAL_MS, 10);
+		if (!isNaN(parsed)) {
+			intervalMs = parsed;
+		}
+	}
+
+	const intervalDesc = intervalMs >= 60000
+		? `${Math.round(intervalMs / 60000)} minuto(s)`
+		: `${Math.round(intervalMs / 1000)} segundo(s)`;
+
+	console.log(`[scheduler] Iniciando loop de follow-ups (evaluación cada ${intervalDesc})...`);
+
 	// Primera ejecución inmediata
 	runFollowupSchedulerOnce().catch(() => {});
-	
+
 	setInterval(async () => {
 		await runFollowupSchedulerOnce();
-	}, 60000);
+	}, intervalMs);
 }

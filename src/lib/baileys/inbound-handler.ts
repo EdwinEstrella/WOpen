@@ -481,7 +481,14 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 				});
 			}
 
-			for (const part of parsed.parts) {
+			const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+			for (let i = 0; i < parsed.parts.length; i++) {
+				const part = parsed.parts[i];
+				if (i > 0) {
+					// Simular escritura humana: delay proporcional al largo de la siguiente parte (50ms por carácter, min 1s, max 3.5s)
+					const delayMs = Math.min(Math.max(part.length * 50, 1000), 3500);
+					await delay(delayMs);
+				}
 				await deps.sendMessage(chatJid, part);
 				await deps.repo.insertMessageAndTouchConversation({
 					conversation_id: beforeConversation.id,

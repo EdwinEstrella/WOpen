@@ -388,9 +388,17 @@ export function createPostgresRepository(pool: PostgresPool) {
 		async getPendingFollowUps(
 			input: FollowUpQueryInput,
 		): Promise<ConversationRow[]> {
-			const followUpCutoff = new Date(
-				input.now.getTime() - input.minHoursAfterAssistant * 3_600_000,
-			);
+			let minAgeMs = input.minHoursAfterAssistant * 3_600_000;
+
+			// Si se define un override en segundos para pruebas de desarrollo, lo usamos
+			if (process.env.DEV_FOLLOWUP_MIN_AGE_SECONDS) {
+				const overrideSec = parseInt(process.env.DEV_FOLLOWUP_MIN_AGE_SECONDS, 10);
+				if (!isNaN(overrideSec)) {
+					minAgeMs = overrideSec * 1000;
+				}
+			}
+
+			const followUpCutoff = new Date(input.now.getTime() - minAgeMs);
 			const values: unknown[] = [followUpCutoff, input.maxAttempts];
 			let windowPredicate = "TRUE";
 			if (input.blockOutside24h) {

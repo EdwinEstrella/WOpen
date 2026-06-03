@@ -113,10 +113,34 @@ function followUpMessages(input: FollowUpRequest): ChatMessage[] {
 	return [
 		{
 			role: "system",
-			content:
-				'Revisa si amerita seguimiento. Devuelve solo JSON estricto: {"respuesta":"SI"|"NO","mensaje":"..."}.',
+			content: [
+				"Eres un asistente virtual de ventas. Tu tarea es analizar el historial de chat y decidir si amerita enviar un mensaje de seguimiento (follow-up) para reactivar la conversación porque el cliente dejó de responder.",
+				"",
+				"Reglas de Decisión:",
+				"- Si el último mensaje es del cliente (user), devuelve respuesta='NO'.",
+				"- Si ya se envió un seguimiento recientemente y el cliente no ha interactuado, evalúa si es prudente insistir. Si no, devuelve respuesta='NO'.",
+				"- Si amerita seguimiento, devuelve respuesta='SI' y redacta un mensaje.",
+				"",
+				"Reglas de Redacción del Mensaje de Seguimiento (mensaje):",
+				"- Debe ser un mensaje breve, natural y amigable para saber si el cliente sigue ahí, animarlo a responder o continuar con la conversación.",
+				"- Ejemplos de tono: '¡Hola! ¿Pudiste ver la información?', 'Hola, ¿sigues por ahí? Cuéntame si tienes alguna duda.', 'Hola, me quedé atento a tu respuesta. ¿Pudiste revisar lo anterior?'.",
+				"- ¡CRÍTICO!: NO repitas la respuesta anterior del asistente. NO respondas tus propias preguntas anteriores ni intentes re-explicar el negocio.",
+				"- ¡CRÍTICO!: NO escribas descripciones, resúmenes ni análisis de la conversación (por ejemplo, 'El usuario confirma...', 'Se le pregunta...'). El contenido de 'mensaje' debe ser el texto literal y en primera persona que se le enviará directamente al cliente por WhatsApp.",
+				"",
+				"Devuelve exclusivamente JSON estricto con el siguiente formato:",
+				'{"respuesta":"SI"|"NO","mensaje":"..."}'
+			].join("\n"),
 		},
 		...toChatHistory(input.history),
+		{
+			role: "user",
+			content: [
+				"Analizá el historial de chat anterior.",
+				"Decidí si corresponde enviar un mensaje de seguimiento (follow-up) para reactivar la conversación porque el cliente dejó de responder.",
+				"Devolvé exclusivamente JSON estricto con el siguiente formato sin markdown ni bloques de código:",
+				'{"respuesta":"SI"|"NO","mensaje":"..."}'
+			].join("\n"),
+		},
 	];
 }
 

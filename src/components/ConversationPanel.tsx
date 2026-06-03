@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { TrashIcon, MessagesIcon, RobotIcon, ArrowRightIcon } from "./Icons.tsx";
+import { TrashIcon, MessagesIcon, RobotIcon, ArrowRightIcon, ArrowDownIcon } from "./Icons.tsx";
 import type { ConversationListRow } from "../lib/db.ts";
 import type { MessageRow } from "../lib/db-contract.ts";
 import MessageBubble from "./MessageBubble.tsx";
@@ -22,14 +22,18 @@ export default function ConversationPanel({
 	const [text, setText] = useState("");
 	const [sending, setSending] = useState(false);
 	const [deleting, setDeleting] = useState(false);
+	const [showScrollDown, setShowScrollDown] = useState(false);
 
 	const chatEndRef = useRef<HTMLDivElement>(null);
 	const chatContainerRef = useRef<HTMLDivElement>(null);
 	const isFirstLoadRef = useRef(true);
+	const prevMessagesLengthRef = useRef(0);
 
-	// Resetear el flag de primera carga al cambiar de conversación
+	// Resetear flags al cambiar de conversación
 	useEffect(() => {
 		isFirstLoadRef.current = true;
+		prevMessagesLengthRef.current = 0;
+		setShowScrollDown(false);
 	}, [conversation.id]);
 
 	// Endpoint para recargar el historial de mensajes
@@ -52,14 +56,39 @@ export default function ConversationPanel({
 		return () => clearInterval(interval);
 	}, [conversation.id]);
 
-	// Auto-scroll respetuoso
+	// Escuchar scroll del contenedor para mostrar/ocultar el botón flotante
+	const handleScroll = () => {
+		const container = chatContainerRef.current;
+		if (!container) return;
+
+		const isFarFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight > 200;
+		setShowScrollDown(isFarFromBottom);
+	};
+
 	useEffect(() => {
 		const container = chatContainerRef.current;
 		if (!container) return;
 
-		const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+		container.addEventListener("scroll", handleScroll);
+		handleScroll();
 
-		if (isAtBottom || isFirstLoadRef.current) {
+		return () => {
+			container.removeEventListener("scroll", handleScroll);
+		};
+	}, [conversation.id]);
+
+	// Bajar al fondo
+	const scrollToBottom = () => {
+		chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+		setShowScrollDown(false);
+	};
+
+	// Auto-scroll respetuoso pero inmediato si llega un mensaje nuevo
+	useEffect(() => {
+		const lengthChanged = messages.length > prevMessagesLengthRef.current;
+		prevMessagesLengthRef.current = messages.length;
+
+		if (isFirstLoadRef.current || lengthChanged) {
 			chatEndRef.current?.scrollIntoView({
 				behavior: isFirstLoadRef.current ? "auto" : "smooth",
 			});
@@ -145,17 +174,33 @@ export default function ConversationPanel({
 				</div>
 			</div>
 
-			{/* Contenedor de Mensajes con Scroll */}
-			<div ref={chatContainerRef} className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 min-h-0 bg-background/50">
-				{messages.length === 0 ? (
-					<div className="flex-1 flex flex-col items-center justify-center text-on-surface-variant/60 text-xs gap-2">
-						<MessagesIcon className="text-on-surface-variant/30 animate-pulse mb-1" size={32} />
-						<p>No hay mensajes en este chat. Escribí un mensaje para iniciar.</p>
-					</div>
-				) : (
-					messages.map((message) => <MessageBubble key={message.id} message={message} />)
+			{/* Contenedor de Mensajes con Scroll y Botón Flotante */}
+			<div className="flex-1 min-h-0 relative">
+				<div
+					ref={chatContainerRef}
+					className="h-full overflow-y-auto p-6 flex flex-col gap-4 bg-background/50"
+				>
+					{messages.length === 0 ? (
+						<div className="flex-1 flex flex-col items-center justify-center text-on-surface-variant/60 text-xs gap-2">
+							<MessagesIcon className="text-on-surface-variant/30 animate-pulse mb-1" size={32} />
+							<p>No hay mensajes en este chat. Escribí un mensaje para iniciar.</p>
+						</div>
+					) : (
+						messages.map((message) => <MessageBubble key={message.id} message={message} />)
+					)}
+					<div ref={chatEndRef} />
+				</div>
+
+				{/* Botón Flotante para bajar */}
+				{showScrollDown && (
+					<button
+						onClick={scrollToBottom}
+						className="absolute bottom-4 right-6 w-10 h-10 rounded-full bg-surface border border-outline-variant text-primary hover:text-primary-bright hover:bg-surface-bright flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 animate-fade-in z-20"
+						title="Ir al final de la conversación"
+					>
+						<ArrowDownIcon size={18} />
+					</button>
 				)}
-				<div ref={chatEndRef} />
 			</div>
 
 			{/* Composer / Input Inferior */}
