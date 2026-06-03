@@ -32,6 +32,23 @@ function getRelativeTime(dateInput: string | Date | null | undefined): string {
 
 type FilterType = "ALL" | "PENDING" | "UNREAD" | "READ";
 
+function formatConversationPreview(convo: ConversationListRow): string {
+	const content = convo.last_message_content?.trim();
+	if (!content) return "Sin mensajes todavía";
+
+	const mediaLabel =
+		content === "[Audio: Nota de voz]"
+			? "Nota de voz"
+			: content === "[Imagen]"
+				? "Imagen recibida"
+				: content;
+
+	if (convo.last_message_role === "user") return mediaLabel;
+	if (convo.last_message_role === "assistant") return `IA: ${mediaLabel}`;
+	if (convo.last_message_role === "human") return `Vos: ${mediaLabel}`;
+	return mediaLabel;
+}
+
 export default function ConversationList({
 	conversations,
 	selectedId,
