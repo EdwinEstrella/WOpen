@@ -220,6 +220,8 @@ export async function startWASocket() {
 		browser: Browsers.macOS("Desktop"), // Browser fingerprint conocido
 		markOnlineOnConnect: false,
 		syncFullHistory: false,
+		connectTimeoutMs: 60000,
+		defaultQueryTimeoutMs: 120000,
 	});
 
 	globalSock = sock;
@@ -366,8 +368,9 @@ export async function startWASocket() {
 				`[bot-debug] Mensaje key: ${JSON.stringify(msg.key)}, pushName: ${msg.pushName}, timestamp: ${msg.messageTimestamp}`,
 			);
 
-			// Detectar si el mensaje no pudo ser desencriptado (Bad MAC / Ciphertext stub)
-			const isDecryptionFailure = !msg.message && msg.messageStubType !== undefined;
+			// Detectar si el mensaje no pudo ser desencriptado (Bad MAC / Ciphertext stub / MessageCounterError)
+			const hasNoMessage = !msg.message || Object.keys(msg.message).length === 0;
+			const isDecryptionFailure = hasNoMessage && (!msg.messageStubType || msg.messageStubType === 0 || msg.messageStubType === 1);
 			if (isDecryptionFailure && msg.key.remoteJid) {
 				const remoteJid = msg.key.remoteJid;
 				// Aplicar solo para chats 1:1
