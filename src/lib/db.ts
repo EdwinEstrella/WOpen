@@ -313,7 +313,7 @@ export interface SystemPromptRow {
 export async function getAllSystemPrompts(): Promise<SystemPromptRow[]> {
 	await ensureSchemaInitialized();
 	const res = await pool.query<SystemPromptRow>(
-		"SELECT * FROM system_prompts ORDER BY id ASC"
+		"SELECT * FROM system_prompts ORDER BY is_active DESC, id ASC"
 	);
 	return res.rows;
 }

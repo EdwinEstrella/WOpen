@@ -49,7 +49,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 		? { label: "Cliente", icon: UserIcon, badge: "default" as const }
 		: isAssistant
 			? { label: "IA", icon: BotIcon, badge: "secondary" as const }
-			: { label: "Agente", icon: UserIcon, badge: "outline" as const };
+			: { label: "Tú", icon: UserIcon, badge: "outline" as const };
 	const SenderIcon = sender.icon;
 
 	return (

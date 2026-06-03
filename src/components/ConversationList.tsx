@@ -44,7 +44,7 @@ function formatConversationPreview(convo: ConversationListRow): string {
 
 	if (convo.last_message_role === "user") return mediaLabel;
 	if (convo.last_message_role === "assistant") return `IA: ${mediaLabel}`;
-	if (convo.last_message_role === "human") return `Vos: ${mediaLabel}`;
+	if (convo.last_message_role === "human") return `Tú: ${mediaLabel}`;
 	return mediaLabel;
 }
 

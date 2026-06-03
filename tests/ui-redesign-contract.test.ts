@@ -150,10 +150,26 @@ describe("shadcn/ui redesign foundation contract", () => {
 	it("uses a stable latest-message order for sidebar previews", () => {
 		const db = readProjectFile("src/lib/db.ts");
 		const list = readProjectFile("src/components/ConversationList.tsx");
+		const bubble = readProjectFile("src/components/MessageBubble.tsx");
 
 		assert.match(db, /ORDER BY created_at DESC, id DESC/);
 		assert.match(list, /formatConversationPreview/);
 		assert.match(list, /last_message_role/);
 		assert.match(list, /Modo IA/);
+		assert.match(list, /Tú:/);
+		assert.doesNotMatch(list, /Vos:/);
+		assert.match(bubble, /label: "Tú"/);
+		assert.doesNotMatch(bubble, /label: "Agente"/);
+	});
+
+	it("persists the current UI location across browser refreshes", () => {
+		const home = readProjectFile("src/app/HomeClient.tsx");
+
+		assert.match(home, /UI_STATE_STORAGE_KEY/);
+		assert.match(home, /readStoredUiState/);
+		assert.match(home, /window\.localStorage\.getItem\(UI_STATE_STORAGE_KEY\)/);
+		assert.match(home, /window\.localStorage\.setItem\(UI_STATE_STORAGE_KEY, JSON\.stringify\(uiState\)\)/);
+		assert.match(home, /selectedId/);
+		assert.match(home, /showArchived/);
 	});
 });

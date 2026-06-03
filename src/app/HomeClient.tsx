@@ -24,10 +24,53 @@ type Tab =
 	| "contacts"
 	| "settings";
 
+const UI_STATE_STORAGE_KEY = "bot-personal.ui-state";
+const TABS: readonly Tab[] = [
+	"dashboard",
+	"chats",
+	"prompts",
+	"automations",
+	"contacts",
+	"settings",
+];
+
 interface UIState {
 	activeTab: Tab;
 	selectedId: number | null;
 	showArchived: boolean;
+}
+
+const DEFAULT_UI_STATE: UIState = {
+	activeTab: "dashboard",
+	selectedId: null,
+	showArchived: false,
+};
+
+function isTab(value: unknown): value is Tab {
+	return typeof value === "string" && TABS.includes(value as Tab);
+}
+
+function readStoredUiState(): UIState {
+	if (typeof window === "undefined") return DEFAULT_UI_STATE;
+
+	try {
+		const raw = window.localStorage.getItem(UI_STATE_STORAGE_KEY);
+		if (!raw) return DEFAULT_UI_STATE;
+
+		const parsed = JSON.parse(raw) as Partial<UIState>;
+		return {
+			activeTab: isTab(parsed.activeTab)
+				? parsed.activeTab
+				: DEFAULT_UI_STATE.activeTab,
+			selectedId:
+				typeof parsed.selectedId === "number" && Number.isFinite(parsed.selectedId)
+					? parsed.selectedId
+					: null,
+			showArchived: parsed.showArchived === true,
+		};
+	} catch {
+		return DEFAULT_UI_STATE;
+	}
 }
 
 type UIAction =
@@ -93,11 +136,11 @@ function dataReducer(state: DataState, action: DataAction): DataState {
 }
 
 export default function HomeClient() {
-	const [uiState, uiDispatch] = useReducer(uiReducer, {
-		activeTab: "dashboard",
-		selectedId: null,
-		showArchived: false,
-	});
+	const [uiState, uiDispatch] = useReducer(
+		uiReducer,
+		DEFAULT_UI_STATE,
+		readStoredUiState,
+	);
 
 	const [dataState, dataDispatch] = useReducer(dataReducer, {
 		conversations: [],
@@ -110,6 +153,10 @@ export default function HomeClient() {
 	const { conversations, quickReplies, contactsList, loadingContacts } = dataState;
 
 	const prevConversationsRef = useRef<ConversationListRow[]>([]);
+
+	useEffect(() => {
+		window.localStorage.setItem(UI_STATE_STORAGE_KEY, JSON.stringify(uiState));
+	}, [uiState]);
 
 	// Cargar respuestas rápidas
 	const loadQuickReplies = async () => {
