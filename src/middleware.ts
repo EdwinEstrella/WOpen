@@ -4,8 +4,8 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
 	const { pathname } = request.nextUrl;
 	
-	// Permitir rutas de API públicas o de autenticación
-	if (pathname.startsWith('/api/auth/')) {
+	// Permitir rutas de API públicas, de autenticación o archivos multimedia
+	if (pathname.startsWith('/api/auth/') || pathname.startsWith('/media/')) {
 		return NextResponse.next();
 	}
 
@@ -43,8 +43,9 @@ export const config = {
 		 * Match all request paths except for the ones starting with:
 		 * - _next/static (static files)
 		 * - _next/image (image optimization files)
+		 * - media (whatsapp media)
 		 * - favicon.ico, sitemap.xml, robots.txt (metadata files)
 		 */
-		'/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)',
+		'/((?!_next/static|_next/image|media|favicon.ico|sitemap.xml|robots.txt).*)',
 	],
 };

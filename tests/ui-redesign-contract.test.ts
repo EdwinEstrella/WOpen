@@ -25,12 +25,14 @@ describe("shadcn/ui redesign foundation contract", () => {
 				cssVariables: boolean;
 			};
 			aliases: Record<string, string>;
+			style: string;
 		}>("components.json");
 
 		assert.equal(config.rsc, true);
 		assert.equal(config.tsx, true);
 		assert.equal(config.tailwind.config, "");
 		assert.equal(config.tailwind.css, "src/app/globals.css");
+		assert.equal(config.style, "radix-nova");
 		assert.equal(config.tailwind.baseColor, "neutral");
 		assert.equal(config.tailwind.cssVariables, true);
 		assert.deepEqual(config.aliases, {
@@ -64,9 +66,10 @@ describe("shadcn/ui redesign foundation contract", () => {
 		const provider = readProjectFile("src/components/MotionProvider.tsx");
 		const layout = readProjectFile("src/app/layout.tsx");
 
-		assert.match(provider, /^"use client";/);
+		assert.match(provider, /^"use client";?/);
 		assert.match(provider, /import \{ MotionConfig \} from "framer-motion"/);
 		assert.match(provider, /reducedMotion="user"/);
+		assert.match(readProjectFile("src/app/globals.css"), /@import "tw-animate-css"/);
 		assert.match(layout, /import \{ MotionProvider \} from "@\/components\/MotionProvider"/);
 		assert.match(layout, /<MotionProvider>\s*\{children\}\s*<\/MotionProvider>/);
 		assert.match(layout, /<html lang="es">/);
@@ -91,5 +94,10 @@ describe("shadcn/ui redesign foundation contract", () => {
 		for (const filePath of requiredFiles) {
 			assert.equal(existsSync(path.join(root, filePath)), true, filePath);
 		}
+
+		const dialog = readProjectFile("src/components/ui/dialog.tsx");
+		assert.match(dialog, /from "radix-ui"/);
+		assert.match(dialog, /data-slot="dialog-content"/);
+		assert.match(dialog, /data-open:animate-in/);
 	});
 });
