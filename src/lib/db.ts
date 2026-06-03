@@ -174,7 +174,7 @@ export async function listConversations(): Promise<ConversationListRow[]> {
 		   ORDER BY created_at DESC
 		   LIMIT 1
 		 ) m ON TRUE
-		 WHERE c.phone <> cs.phone OR cs.phone IS NULL
+		 WHERE (c.phone <> cs.phone OR cs.phone IS NULL) AND c.is_archived = FALSE
 		 ORDER BY c.last_message_at DESC NULLS LAST, c.id DESC`
 	);
 	return res.rows;

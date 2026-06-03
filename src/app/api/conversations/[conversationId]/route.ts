@@ -35,15 +35,22 @@ export async function PATCH(req: Request, { params }: Ctx) {
 		}
 
 		const body = await req.json().catch(() => ({}));
-		const rawName = typeof body.name === "string" ? body.name.trim() : "";
-		const name = rawName.length > 0 ? rawName.slice(0, 120) : null;
+		const patch: any = {};
+		
+		if (typeof body.name === "string") {
+			const rawName = body.name.trim();
+			patch.name = rawName.length > 0 ? rawName.slice(0, 120) : null;
+		}
+		if (typeof body.is_archived === "boolean") {
+			patch.is_archived = body.is_archived;
+		}
 
 		const existing = await getConversationById(parsedId);
 		if (!existing) {
 			return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
 		}
 
-		const updated = await updateConversation(parsedId, { name });
+		const updated = await updateConversation(parsedId, patch);
 		return NextResponse.json(updated);
 	} catch (error: any) {
 		console.error("[api] Error en PATCH /api/conversations/[conversationId]:", error);

@@ -48,7 +48,9 @@ CREATE TABLE IF NOT EXISTS conversations (
   followup_blocked_at TIMESTAMP WITH TIME ZONE, followup_blocked_reason TEXT, last_message_at TIMESTAMP WITH TIME ZONE,
   last_user_message_at TIMESTAMP WITH TIME ZONE, last_assistant_message_at TIMESTAMP WITH TIME ZONE,
   last_human_message_at TIMESTAMP WITH TIME ZONE, last_owner_intervention_at TIMESTAMP WITH TIME ZONE,
-  last_ai_reactivated_at TIMESTAMP WITH TIME ZONE, unread_count INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  last_ai_reactivated_at TIMESTAMP WITH TIME ZONE, unread_count INTEGER NOT NULL DEFAULT 0,
+  is_archived BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 CREATE TABLE IF NOT EXISTS messages (
@@ -131,6 +133,7 @@ export interface ConversationRow {
 	last_owner_intervention_at: Date | null;
 	last_ai_reactivated_at: Date | null;
 	unread_count: number;
+	is_archived: boolean;
 	created_at: Date;
 	updated_at: Date;
 }
@@ -245,6 +248,7 @@ export function createInMemoryRepository() {
 				last_owner_intervention_at: null,
 				last_ai_reactivated_at: null,
 				unread_count: 0,
+				is_archived: false,
 				created_at: created,
 				updated_at: created,
 			};

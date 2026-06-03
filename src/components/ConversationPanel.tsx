@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { TrashIcon, MessagesIcon, RobotIcon, ArrowRightIcon, ArrowDownIcon, UserIcon, PhoneIcon, EditIcon } from "./Icons.tsx";
+import { TrashIcon, MessagesIcon, RobotIcon, ArrowRightIcon, ArrowDownIcon, UserIcon, PhoneIcon, EditIcon, ArchiveIcon } from "./Icons.tsx";
 import type { ConversationListRow } from "../lib/db.ts";
 import type { MessageRow } from "../lib/db-contract.ts";
 import MessageBubble from "./MessageBubble.tsx";
@@ -26,6 +26,7 @@ export default function ConversationPanel({
 	const [text, setText] = useState("");
 	const [sending, setSending] = useState(false);
 	const [deleting, setDeleting] = useState(false);
+	const [archiving, setArchiving] = useState(false);
 	const [showScrollDown, setShowScrollDown] = useState(false);
 	const [profileOpen, setProfileOpen] = useState(false);
 	const [profileName, setProfileName] = useState(conversation.name?.trim() || "");
@@ -207,6 +208,28 @@ export default function ConversationPanel({
 		}
 	};
 
+	// Archivar conversación
+	const handleArchive = async () => {
+		if (archiving) return;
+		setArchiving(true);
+		try {
+			const res = await fetch(`/api/conversations/${conversation.id}`, {
+				method: "PATCH",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ is_archived: true }),
+			});
+			if (res.ok) {
+				onDeleted();
+			} else {
+				console.error("[archive] Error archivando conversación.");
+			}
+		} catch (error) {
+			console.error("[archive] Error de red archivando conversación:", error);
+		} finally {
+			setArchiving(false);
+		}
+	};
+
 	const isAi = conversation.mode === "AI";
 	const cleanPhone = conversation.phone.replace(/@.*/, "");
 	const displayName = conversation.name?.trim() || `+${cleanPhone}`;
@@ -280,6 +303,15 @@ export default function ConversationPanel({
 						onModeChange={onModeChanged}
 					/>
 					
+					<button
+						onClick={handleArchive}
+						disabled={archiving}
+						className="px-3 py-1.5 text-primary hover:bg-primary/10 border border-primary rounded-full text-[10px] font-bold uppercase tracking-wider transition-all duration-200 disabled:opacity-50 flex items-center gap-1.5"
+						title="Archivar conversación para no verla al frente"
+					>
+						<ArchiveIcon size={12} /> Archivar
+					</button>
+
 					<button
 						onClick={handleDelete}
 						disabled={deleting}
