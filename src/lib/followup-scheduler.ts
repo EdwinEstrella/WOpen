@@ -205,6 +205,31 @@ export function createFollowUpScheduler(deps: FollowUpSchedulerDeps) {
 				return;
 			}
 
+			const cleanText = (txt: string) =>
+				txt
+					.toLowerCase()
+					.normalize("NFD")
+					.replace(/[\u0300-\u036f]/g, "")
+					.replace(/[^a-z0-9]/g, "");
+
+			const cleanNew = cleanText(message);
+			const isDuplicate = history.some(
+				(m) => m.role === "assistant" && cleanText(m.content) === cleanNew,
+			);
+
+			if (isDuplicate) {
+				console.log(`[scheduler-debug] Decisión omitida: El mensaje de seguimiento ya se envió antes (duplicado detectado).`);
+				await deps.repo.recordConversationEvent({
+					conversation_id: fresh.id,
+					event_type: "followup_skipped",
+					actor_role: "assistant",
+					reason: "duplicate_followup_message",
+					created_at: now,
+				});
+				run.skippedByDecision += 1;
+				return;
+			}
+
 			console.log(`[scheduler-debug] Decisión DeepSeek: SI enviar seguimiento. Mensaje: "${message}"`);
 
 			await deps.sendWhatsAppMessage(

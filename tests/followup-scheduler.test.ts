@@ -289,4 +289,21 @@ describe("follow-up scheduler orchestration", () => {
 			[eligible.id],
 		);
 	});
+
+	it("skips and records event when follow-up message is a duplicate of a past assistant message in history", async () => {
+		const { repo, convo } = seedCandidate();
+		const { scheduler, sent, calls } = makeDeps({
+			repo,
+			decision: {
+				ok: true,
+				parsed: { ok: true, shouldSend: true, message: "Respuesta previa" },
+			},
+		});
+		const result = await scheduler.runOnce();
+		assert.equal(result.status, "completed");
+		assert.equal(result.sent, 0);
+		assert.deepEqual(sent, []);
+		assert.equal(repo.listEvents().at(-1)?.event_type, "followup_skipped");
+		assert.equal(repo.listEvents().at(-1)?.reason, "duplicate_followup_message");
+	});
 });

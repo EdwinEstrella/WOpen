@@ -124,8 +124,9 @@ function followUpMessages(input: FollowUpRequest): ChatMessage[] {
 				"Reglas de Redacción del Mensaje de Seguimiento (mensaje):",
 				"- Debe ser un mensaje breve, natural y amigable para saber si el cliente sigue ahí, animarlo a responder o continuar con la conversación.",
 				"- Ejemplos de tono: '¡Hola! ¿Pudiste ver la información?', 'Hola, ¿sigues por ahí? Cuéntame si tienes alguna duda.', 'Hola, me quedé atento a tu respuesta. ¿Pudiste revisar lo anterior?'.",
-				"- ¡CRÍTICO!: NO repitas la respuesta anterior del asistente. NO respondas tus propias preguntas anteriores ni intentes re-explicar el negocio.",
-				"- ¡CRÍTICO!: NO escribas descripciones, resúmenes ni análisis de la conversación (por ejemplo, 'El usuario confirma...', 'Se le pregunta...'). El contenido de 'mensaje' debe ser el texto literal y en primera persona que se le enviará directamente al cliente por WhatsApp.",
+				"- ¡CRÍTICO!: NO repitas NINGÚN mensaje de seguimiento (follow-up) que ya se haya enviado antes en el historial. Si ves en el historial que ya le enviaste un mensaje de seguimiento (como '¡Hola! ¿Sigues por ahí?'), debés redactar un mensaje completamente diferente, cambiar el enfoque (por ejemplo, ofrecerle una demo gratis de 3 días, preguntarle si prefiere ver los precios detallados de los planes, o si tiene dudas sobre el equipo de US$300).",
+				"- ¡CRÍTICO!: NO respondas tus propias preguntas anteriores ni intentes re-explicar el negocio.",
+				"- ¡CRÍTICO!: NO escribas descripciones, resúmenes ni análisis de la conversación (por ejemplo, 'El usuario confirma...', 'Se le pregunta...'). El contenido de 'mensaje' debe ser el texto literal, en lenguaje sumamente natural y en primera persona que se le enviará directamente al cliente por WhatsApp.",
 				"",
 				"Devuelve exclusivamente JSON estricto con el siguiente formato:",
 				'{"respuesta":"SI"|"NO","mensaje":"..."}'
