@@ -24,6 +24,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 	const isUser = role === "user";
 	const isAssistant = role === "assistant";
 	const mediaUrl = mediaUrlFrom(metadata);
+	const mediaAvailable = metadata.mediaAvailable !== false;
 
 	const timeStr = created_at
 		? new Date(created_at).toLocaleTimeString("es-ES", {
@@ -107,7 +108,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 										<p className="mt-1 text-[10px] text-muted-foreground">Audio recibido por WhatsApp</p>
 									</div>
 								</div>
-								{mediaUrl && (
+								{mediaUrl && mediaAvailable && (
 									<Button variant="ghost" size="icon-sm" asChild>
 										<a href={mediaUrl} target="_blank" rel="noreferrer" aria-label="Abrir audio en otra pestaña">
 											<ExternalLinkIcon className="size-4" />
@@ -115,7 +116,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 									</Button>
 								)}
 							</div>
-							{mediaUrl ? (
+							{mediaUrl && mediaAvailable ? (
 								<audio
 									src={mediaUrl}
 									controls
@@ -124,7 +125,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 								/>
 							) : (
 								<p className="text-xs italic text-muted-foreground">
-									Audio recibido, pero el archivo todavía no está disponible.
+									Audio recibido, pero el archivo ya no está disponible en el servidor.
 								</p>
 							)}
 						</div>

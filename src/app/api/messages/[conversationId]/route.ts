@@ -6,6 +6,7 @@ import {
 	enqueueOutbox,
 	updateConversation,
 } from "../../../../lib/db.ts";
+import { withMediaAvailability } from "../../../../lib/media-metadata.ts";
 
 interface Ctx {
 	params: Promise<{ conversationId: string }>;
@@ -21,7 +22,7 @@ export async function GET(_req: Request, { params }: Ctx) {
 			return NextResponse.json({ error: "Invalid conversation ID" }, { status: 400 });
 		}
 
-		const messages = await getMessages(parsedId, 100);
+		const messages = withMediaAvailability(await getMessages(parsedId, 100));
 		
 		// Reset unread_count on read
 		await updateConversation(parsedId, { unread_count: 0 }).catch((err) => {

@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { GET } from "../src/app/media/[filename]/route.ts";
+import { withMediaAvailability } from "../src/lib/media-metadata.ts";
 import { runtimePaths } from "../src/lib/runtime-paths.ts";
 
 const mediaDir = runtimePaths.mediaDir;
@@ -34,5 +35,26 @@ describe("WhatsApp media serving", () => {
 		});
 
 		assert.equal(response.status, 400);
+	});
+
+	it("marks messages with missing media files as unavailable before the UI renders them", () => {
+		const [message] = withMediaAvailability([
+			{
+				id: 1,
+				conversation_id: 1,
+				whatsapp_message_id: "missing-media",
+				direction: "inbound",
+				role: "user",
+				content: "[Audio: Nota de voz]",
+				media_type: "audio",
+				source: "whatsapp",
+				from_me: false,
+				raw_timestamp: null,
+				created_at: new Date("2026-06-03T00:00:00Z"),
+				metadata: { mediaUrl: "/media/does-not-exist.ogg" },
+			},
+		]);
+
+		assert.equal((message.metadata as Record<string, unknown>).mediaAvailable, false);
 	});
 });
