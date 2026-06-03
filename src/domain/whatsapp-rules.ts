@@ -139,14 +139,17 @@ export function parseNormalReply(raw: string): NormalReplyParseResult {
 	try {
 		const data = JSON.parse(cleanRaw);
 		if (isRecord(data) && isRecord(data.response)) {
-			const parts = [
+			const rawParts = [
 				data.response.part_1,
 				data.response.part_2,
 				data.response.part_3,
-			]
-				.filter((part): part is string => typeof part === "string")
-				.map((part) => part.trim())
-				.filter(Boolean);
+			];
+
+			const parts = rawParts.flatMap((part) => {
+				if (typeof part !== "string") return [];
+				const trimmed = part.trim();
+				return trimmed ? [trimmed] : [];
+			});
 
 			if (parts.length > 0) {
 				const handoffRecord = isRecord(data.handoff) ? data.handoff : {};

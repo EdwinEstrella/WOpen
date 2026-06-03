@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useReducer, useEffect, useRef, useMemo } from "react";
 import ConnectionGate from "../components/ConnectionGate.tsx";
 import DashboardHeader from "../components/DashboardHeader.tsx";
 import ConversationList from "../components/ConversationList.tsx";
@@ -10,14 +10,9 @@ import SettingsPanel from "../components/SettingsPanel.tsx";
 import DashboardOverview from "../components/DashboardOverview.tsx";
 import AutomationsOverview from "../components/AutomationsOverview.tsx";
 import ContactsOverview from "../components/ContactsOverview.tsx";
+import Sidebar from "../components/Sidebar.tsx";
 import {
-	RobotIcon,
-	DashboardIcon,
 	MessagesIcon,
-	BrainIcon,
-	ZapIcon,
-	UsersIcon,
-	SettingsIcon,
 } from "../components/Icons.tsx";
 import type { ConversationListRow } from "../lib/db.ts";
 
@@ -29,14 +24,90 @@ type Tab =
 	| "contacts"
 	| "settings";
 
+interface UIState {
+	activeTab: Tab;
+	selectedId: number | null;
+	showArchived: boolean;
+}
+
+type UIAction =
+	| { type: "SET_TAB"; tab: Tab }
+	| { type: "SELECT_CONVO"; id: number | null }
+	| { type: "TOGGLE_ARCHIVED"; archived: boolean };
+
+function uiReducer(state: UIState, action: UIAction): UIState {
+	switch (action.type) {
+		case "SET_TAB":
+			return { ...state, activeTab: action.tab };
+		case "SELECT_CONVO":
+			return { ...state, selectedId: action.id };
+		case "TOGGLE_ARCHIVED":
+			return { ...state, showArchived: action.archived, selectedId: null };
+		default:
+			return state;
+	}
+}
+
+interface DataState {
+	conversations: ConversationListRow[];
+	quickReplies: Array<{ id: string; shortcut: string; text: string }>;
+	contactsList: ConversationListRow[];
+	loadingContacts: boolean;
+}
+
+type DataAction =
+	| { type: "SET_CONVOS"; conversations: ConversationListRow[] }
+	| { type: "SET_QUICK_REPLIES"; replies: Array<{ id: string; shortcut: string; text: string }> }
+	| { type: "SET_CONTACTS"; contacts: ConversationListRow[] }
+	| { type: "SET_LOADING_CONTACTS"; loading: boolean }
+	| { type: "UPDATE_CONVO_MODE"; id: number; mode: "AI" | "HUMAN" }
+	| { type: "UPDATE_CONVO_DATA"; updated: ConversationListRow };
+
+function dataReducer(state: DataState, action: DataAction): DataState {
+	switch (action.type) {
+		case "SET_CONVOS":
+			return { ...state, conversations: action.conversations };
+		case "SET_QUICK_REPLIES":
+			return { ...state, quickReplies: action.replies };
+		case "SET_CONTACTS":
+			return { ...state, contactsList: action.contacts };
+		case "SET_LOADING_CONTACTS":
+			return { ...state, loadingContacts: action.loading };
+		case "UPDATE_CONVO_MODE":
+			return {
+				...state,
+				conversations: state.conversations.map((c) =>
+					c.id === action.id ? { ...c, mode: action.mode } : c
+				),
+			};
+		case "UPDATE_CONVO_DATA":
+			return {
+				...state,
+				conversations: state.conversations.map((c) =>
+					c.id === action.updated.id ? { ...c, ...action.updated } : c
+				),
+			};
+		default:
+			return state;
+	}
+}
+
 export default function Home() {
-	const [activeTab, setActiveTab] = useState<Tab>("dashboard");
-	const [conversations, setConversations] = useState<ConversationListRow[]>([]);
-	const [selectedId, setSelectedId] = useState<number | null>(null);
-	const [showArchived, setShowArchived] = useState(false);
-	const [quickReplies, setQuickReplies] = useState<Array<{ id: string; shortcut: string; text: string }>>([]);
-	const [contactsList, setContactsList] = useState<ConversationListRow[]>([]);
-	const [loadingContacts, setLoadingContacts] = useState(false);
+	const [uiState, uiDispatch] = useReducer(uiReducer, {
+		activeTab: "dashboard",
+		selectedId: null,
+		showArchived: false,
+	});
+
+	const [dataState, dataDispatch] = useReducer(dataReducer, {
+		conversations: [],
+		quickReplies: [],
+		contactsList: [],
+		loadingContacts: false,
+	});
+
+	const { activeTab, selectedId, showArchived } = uiState;
+	const { conversations, quickReplies, contactsList, loadingContacts } = dataState;
 
 	const prevConversationsRef = useRef<ConversationListRow[]>([]);
 
@@ -46,7 +117,7 @@ export default function Home() {
 			const res = await fetch("/api/settings");
 			if (res.ok) {
 				const settings = await res.json();
-				setQuickReplies(settings.quick_replies || []);
+				dataDispatch({ type: "SET_QUICK_REPLIES", replies: settings.quick_replies || [] });
 			}
 		} catch (error) {
 			console.error("[home] Error cargando respuestas rápidas:", error);
@@ -72,7 +143,7 @@ export default function Home() {
 			const res = await fetch(`/api/conversations?archived=${archived}&hasMessages=true`);
 			if (res.ok) {
 				const data = await res.json();
-				setConversations(data);
+				dataDispatch({ type: "SET_CONVOS", conversations: data });
 			}
 		} catch (error) {
 			console.error("[home] Error cargando conversaciones:", error);
@@ -80,17 +151,17 @@ export default function Home() {
 	};
 
 	const loadAllContacts = async () => {
-		setLoadingContacts(true);
+		dataDispatch({ type: "SET_LOADING_CONTACTS", loading: true });
 		try {
 			const res = await fetch(`/api/conversations?archived=false`);
 			if (res.ok) {
 				const data = await res.json();
-				setContactsList(data);
+				dataDispatch({ type: "SET_CONTACTS", contacts: data });
 			}
 		} catch (error) {
 			console.error("[home] Error cargando contactos crm:", error);
 		} finally {
-			setLoadingContacts(false);
+			dataDispatch({ type: "SET_LOADING_CONTACTS", loading: false });
 		}
 	};
 
@@ -162,146 +233,28 @@ export default function Home() {
 		conversations.find((c) => c.id === selectedId) || null;
 
 	const handleModeChangeLocal = (newMode: "AI" | "HUMAN") => {
-		setConversations((prev) =>
-			prev.map((c) => (c.id === selectedId ? { ...c, mode: newMode } : c)),
-		);
+		if (selectedId) {
+			dataDispatch({ type: "UPDATE_CONVO_MODE", id: selectedId, mode: newMode });
+		}
 	};
 
 	const handleDeleteLocal = () => {
-		setSelectedId(null);
+		uiDispatch({ type: "SELECT_CONVO", id: null });
 		loadConversations();
 	};
 
 	const handleConversationUpdated = (updated: ConversationListRow) => {
-		setConversations((prev) =>
-			prev.map((conversation) =>
-				conversation.id === updated.id
-					? { ...conversation, ...updated }
-					: conversation,
-			),
-		);
+		dataDispatch({ type: "UPDATE_CONVO_DATA", updated });
 	};
 
 	return (
 		<ConnectionGate>
 			{(phone, onDisconnect, botProfile) => (
 				<div className="h-screen w-full flex bg-background text-on-surface antialiased font-sans overflow-hidden">
-					{/* Sidebar Lateral Fijo (Stitch Navigation) */}
-					<nav className="fixed left-0 top-0 h-screen w-[280px] bg-surface/95 border-r border-outline-variant/30 flex flex-col py-6 px-4 z-50 shadow-[20px_0_60px_rgba(12,83,58,0.14)] backdrop-blur-xl">
-						{/* Header de Marca */}
-						<div className="flex items-center gap-3 mb-10 px-2 shrink-0">
-							<div className="size- rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shrink-0 border border-primary/40 glow-active">
-								<RobotIcon className="text-on-primary" size={20} />
-							</div>
-							<div>
-								<h1 className="font-display text-base font-bold text-primary leading-tight">
-									Bot Personal
-								</h1>
-								<p className="text-[10px] font-semibold text-on-surface-variant/70 uppercase tracking-wide mt-0.5">
-									WhatsApp CRM
-								</p>
-							</div>
-						</div>
-
-						{/* Links de Navegación */}
-						<div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
-							{/* Dashboard overview */}
-							<button type="button"
-								onClick={() => setActiveTab("dashboard")}
-								className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
-									activeTab === "dashboard"
-										? "text-primary border border-primary bg-primary/10 rounded-xl"
-										: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
-								}`}
-							>
-								<DashboardIcon size={16} />
-								<span>Dashboard</span>
-							</button>
-
-							{/* Conversations Workspace */}
-							<button type="button"
-								onClick={() => setActiveTab("chats")}
-								className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
-									activeTab === "chats"
-										? "text-primary border border-primary bg-primary/10 rounded-xl"
-										: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
-								}`}
-							>
-								<MessagesIcon size={16} />
-								<span>Conversaciones</span>
-							</button>
-
-							{/* AI System Prompts */}
-							<button type="button"
-								onClick={() => setActiveTab("prompts")}
-								className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
-									activeTab === "prompts"
-										? "text-primary border border-primary bg-primary/10 rounded-xl"
-										: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
-								}`}
-							>
-								<BrainIcon size={16} />
-								<span>AI Prompts</span>
-							</button>
-
-							{/* Workflow Builder */}
-							<button type="button"
-								onClick={() => setActiveTab("automations")}
-								className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
-									activeTab === "automations"
-										? "text-primary border border-primary bg-primary/10 rounded-xl"
-										: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
-								}`}
-							>
-								<ZapIcon size={16} />
-								<span>Automatizaciones</span>
-							</button>
-
-							{/* Contacts CRM */}
-							<button type="button"
-								onClick={() => setActiveTab("contacts")}
-								className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
-									activeTab === "contacts"
-										? "text-primary border border-primary bg-primary/10 rounded-xl"
-										: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
-								}`}
-							>
-								<UsersIcon size={16} />
-								<span>Contactos CRM</span>
-							</button>
-
-							{/* Settings Panel */}
-							<button type="button"
-								onClick={() => setActiveTab("settings")}
-								className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
-									activeTab === "settings"
-										? "text-primary border border-primary bg-primary/10 rounded-xl"
-										: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
-								}`}
-							>
-								<SettingsIcon size={16} />
-								<span>Ajustes</span>
-							</button>
-						</div>
-
-						{/* Footer / Status */}
-						<div className="mt-auto pt-6 border-t border-outline-variant/10 space-y-2 shrink-0">
-							<div className="flex items-center justify-between px-2 py-1">
-								<span className="text-[10px] uppercase font-bold tracking-widest text-on-surface-variant/80">
-									Sistema
-								</span>
-								<div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-transparent border border-outline-variant">
-									<span className="size- rounded-full bg-primary animate-pulse"></span>
-									<span className="text-[9px] text-primary font-bold uppercase tracking-wider">
-										Online
-									</span>
-								</div>
-							</div>
-							<div className="text-[9px] text-center text-on-surface-variant/40 font-mono tracking-widest">
-								NEXUS CRM v1.0.0
-							</div>
-						</div>
-					</nav>
+					<Sidebar
+						activeTab={activeTab}
+						setActiveTab={(tab) => uiDispatch({ type: "SET_TAB", tab })}
+					/>
 
 					{/* Contenedor Principal de Contenido (pl-[280px] para respetar el Sidebar Fijo) */}
 					<div className="pl-[280px] flex-1 h-screen w-full flex flex-col relative overflow-hidden bg-background">
@@ -325,12 +278,9 @@ export default function Home() {
 										<ConversationList
 											conversations={sortedConversations}
 											selectedId={selectedId}
-											onSelectConversation={setSelectedId}
+											onSelectConversation={(id) => uiDispatch({ type: "SELECT_CONVO", id })}
 											showArchived={showArchived}
-											onToggleArchived={(val) => {
-												setSelectedId(null);
-												setShowArchived(val);
-											}}
+											onToggleArchived={(archived) => uiDispatch({ type: "TOGGLE_ARCHIVED", archived })}
 										/>
 									</div>
 

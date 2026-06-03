@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { SearchIcon, UserIcon, TrashIcon, PlusIcon, PhoneIcon, MailIcon } from "./Icons.tsx";
 
@@ -172,8 +173,10 @@ export default function DashboardHeader({
 								className="px-4 py-1 bg-transparent hover:bg-primary/10 border border-primary text-primary font-display text-[10px] font-bold uppercase tracking-wider rounded-full transition-all duration-200 active:scale-95 flex items-center gap-1.5 cursor-pointer"
 							>
 								{botProfile?.profile_picture_url ? (
-									<img
+									<Image
 										src={botProfile.profile_picture_url}
+										width={20}
+										height={20}
 										className="size- rounded-full object-cover border border-primary/30"
 										alt="Bot avatar"
 									/>
@@ -189,6 +192,7 @@ export default function DashboardHeader({
 								onClick={handleDisconnect}
 								disabled={loading}
 								className="px-4 py-1 bg-transparent hover:bg-error/10 border border-error text-error font-display text-[10px] font-bold uppercase tracking-wider rounded-full transition-all duration-200 active:scale-95 disabled:opacity-50 cursor-pointer"
+								aria-label={loading ? "Desconectando WhatsApp" : "Desconectar WhatsApp"}
 							>
 								{loading ? "Saliendo..." : "Desconectar"}
 							</button>
@@ -205,6 +209,7 @@ export default function DashboardHeader({
 						type="button"
 						onClick={handleLogout}
 						title="Cerrar Sesión"
+						aria-label="Cerrar Sesión del Panel"
 						className="size- rounded-full overflow-hidden border border-primary hover:bg-primary/10 transition-colors cursor-pointer flex items-center justify-center bg-transparent"
 					>
 						<UserIcon className="text-primary hover:text-primary transition-colors" size={14} />
@@ -231,15 +236,18 @@ export default function DashboardHeader({
 
 							{/* Foto de Perfil */}
 							<div className="flex flex-col items-center gap-3">
-								<div 
+								<button 
+									type="button"
 									onClick={() => botProfile?.profile_picture_url && setZoomImage(botProfile.profile_picture_url)}
+									aria-label={botProfile?.profile_picture_url ? "Ampliar foto de perfil" : "Foto de perfil no disponible"}
 									className={`size- rounded-full overflow-hidden border-2 border-primary/50 bg-surface-bright flex items-center justify-center shadow-lg group relative ${botProfile?.profile_picture_url ? "cursor-pointer" : ""}`}
 								>
 									{botProfile?.profile_picture_url ? (
 										<>
-											<img 
+											<Image 
 												src={botProfile.profile_picture_url} 
 												alt="Bot profile" 
+												fill
 												className="size- object-cover transition-transform duration-300 group-hover:scale-105" 
 											/>
 											<div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] uppercase font-bold tracking-wider transition-opacity duration-200">
@@ -249,7 +257,7 @@ export default function DashboardHeader({
 									) : (
 										<UserIcon size={36} className="text-primary/70" />
 									)}
-								</div>
+								</button>
 								
 								<div className="text-center">
 									<p className="font-mono text-sm font-semibold">+{phone}</p>
@@ -354,6 +362,7 @@ export default function DashboardHeader({
 												onClick={() => handleDeleteReply(reply.id)}
 												className="text-error hover:bg-error/10 p-1.5 rounded-full transition-colors cursor-pointer shrink-0"
 												title="Eliminar"
+												aria-label="Eliminar respuesta rápida"
 											>
 												<TrashIcon size={14} />
 											</button>
@@ -382,6 +391,7 @@ export default function DashboardHeader({
 										onChange={(e) => setNewShortcut(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ""))}
 										className="bg-transparent border-0 outline-none text-xs w-full text-on-surface font-mono"
 										required
+										aria-label="Atajo de respuesta rápida"
 									/>
 								</div>
 
@@ -391,6 +401,7 @@ export default function DashboardHeader({
 									onChange={(e) => setNewText(e.target.value)}
 									className="bg-surface border border-outline-variant rounded-xl px-3 py-2 text-xs outline-none focus:border-primary/50 text-on-surface min-h-[60px] resize-none"
 									required
+									aria-label="Contenido de la respuesta rápida"
 								/>
 
 								<button
@@ -426,6 +437,7 @@ export default function DashboardHeader({
 						<button 
 							type="button"
 							onClick={() => setProfileModalOpen(false)}
+							aria-label="Cerrar modal"
 							className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface size- rounded-full flex items-center justify-center hover:bg-surface-bright transition-colors cursor-pointer"
 						>
 							×
@@ -444,15 +456,17 @@ export default function DashboardHeader({
 						className="relative size-[90vw] max-w-[480px] max-h-[480px] p-1.5 bg-surface-container border border-outline-variant/40 rounded-3xl overflow-hidden shadow-2xl flex items-center justify-center animate-[scaleIn_0.2s_ease-out]"
 						onClick={(e) => e.stopPropagation()}
 					>
-						<img 
+						<Image 
 							src={zoomImage} 
 							alt="Bot foto grande" 
+							fill
 							className="size- object-cover rounded-2xl animate-fade-in"
 						/>
 						<button 
 							type="button"
 							className="absolute top-4 right-4 size- flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white font-display text-xl font-bold focus:outline-none transition-all duration-200 hover:scale-105 active:scale-95 shadow-md cursor-pointer"
 							onClick={() => setZoomImage(null)}
+							aria-label="Cerrar zoom de imagen"
 						>
 							×
 						</button>

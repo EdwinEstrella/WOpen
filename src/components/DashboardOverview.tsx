@@ -15,7 +15,10 @@ interface DashboardOverviewProps {
 	conversations?: ConversationListRow[];
 }
 
-export default function DashboardOverview({ conversations = [] }: DashboardOverviewProps) {
+const EMPTY_CONVOS: ConversationListRow[] = [];
+const shortTimeFormatter = new Intl.DateTimeFormat("es-AR", { timeStyle: "short" });
+
+export default function DashboardOverview({ conversations = EMPTY_CONVOS }: DashboardOverviewProps) {
 	// 1. Conversaciones Activas
 	const activeCount = conversations.length;
 
@@ -192,7 +195,7 @@ export default function DashboardOverview({ conversations = [] }: DashboardOverv
 
 									const nameOrPhone = convo.name?.trim() || `+${convo.phone}`;
 									const timeStr = convo.last_message_at 
-										? new Intl.DateTimeFormat("es-AR", { timeStyle: "short" }).format(new Date(convo.last_message_at))
+										? shortTimeFormatter.format(new Date(convo.last_message_at))
 										: "";
 
 									return (

@@ -132,10 +132,11 @@ export default function SettingsPanel() {
 					</h3>
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 						<div className="flex flex-col gap-1.5">
-							<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">
+							<label htmlFor="followup_interval_hours" className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">
 								Intervalo de evaluación (horas)
 							</label>
 							<input
+								id="followup_interval_hours"
 								type="number"
 								min="1"
 								value={settings.followup_interval_hours || 12}
@@ -150,10 +151,11 @@ export default function SettingsPanel() {
 							/>
 						</div>
 						<div className="flex flex-col gap-1.5">
-							<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">
+							<label htmlFor="followup_min_hours_after_assistant" className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">
 								Espera tras mensaje de IA (horas)
 							</label>
 							<input
+								id="followup_min_hours_after_assistant"
 								type="number"
 								min="1"
 								value={settings.followup_min_hours_after_assistant || 12}
@@ -171,10 +173,11 @@ export default function SettingsPanel() {
 
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 border-t border-outline-variant/10 pt-4">
 						<div className="flex flex-col gap-1.5">
-							<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">
+							<label htmlFor="followup_max_attempts" className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">
 								Intentos máximos de seguimiento
 							</label>
 							<input
+								id="followup_max_attempts"
 								type="number"
 								min="1"
 								max="5"

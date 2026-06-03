@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
 import { TrashIcon, MessagesIcon, RobotIcon, ArrowRightIcon, ArrowDownIcon, UserIcon, PhoneIcon, EditIcon, ArchiveIcon } from "./Icons.tsx";
 import type { ConversationListRow } from "../lib/db.ts";
@@ -15,12 +16,14 @@ interface ConversationPanelProps {
 	quickReplies?: Array<{ id: string; shortcut: string; text: string }>;
 }
 
+const EMPTY_REPLIES: any[] = [];
+
 export default function ConversationPanel({
 	conversation,
 	onModeChanged,
 	onDeleted,
 	onConversationUpdated,
-	quickReplies = [],
+	quickReplies = EMPTY_REPLIES,
 }: ConversationPanelProps) {
 	const [messages, setMessages] = useState<MessageRow[]>([]);
 	const [text, setText] = useState("");
@@ -95,15 +98,17 @@ export default function ConversationPanel({
 			}
 		}
 	};
+const [prevConversationId, setPrevConversationId] = useState(conversation.id);
 
-	// Resetear flags al cambiar de conversación
-	useEffect(() => {
-		isFirstLoadRef.current = true;
-		prevMessagesLengthRef.current = 0;
-		setShowScrollDown(false);
-		setProfileName(conversation.name?.trim() || "");
-	}, [conversation.id]);
+if (conversation.id !== prevConversationId) {
+	setPrevConversationId(conversation.id);
+	isFirstLoadRef.current = true;
+	prevMessagesLengthRef.current = 0;
+	setShowScrollDown(false);
+	setProfileName(conversation.name?.trim() || "");
+}
 
+// Polling de 2 segundos
 	// Endpoint para recargar el historial de mensajes
 	const loadMessages = async () => {
 		try {
@@ -270,11 +275,14 @@ export default function ConversationPanel({
 					onClick={() => setProfileOpen(true)}
 					className="flex items-center gap-3 text-left rounded-2xl hover:bg-surface px-2 py-1 transition-colors"
 					title="Abrir perfil del contacto"
+					aria-label={`Perfil de ${displayName}`}
 				>
 					{profilePictureUrl ? (
-						<img
+						<Image
 							src={profilePictureUrl}
 							alt={displayName}
+							width={32}
+							height={32}
 							className="size- rounded-full object-cover border border-primary/30 cursor-zoom-in hover:scale-105 transition-transform"
 							onClick={(e) => {
 								e.stopPropagation();
@@ -347,13 +355,19 @@ export default function ConversationPanel({
 
 						<div className="flex flex-col items-center mb-8">
 							{profilePictureUrl ? (
-								<img
-									src={profilePictureUrl}
-									alt={displayName}
-									className="size- rounded-full object-cover border border-primary/30 mb-3 cursor-zoom-in hover:scale-105 transition-transform"
+								<button 
+									type="button"
 									onClick={() => setZoomImage(profilePictureUrl)}
-									title="Ver imagen en grande"
-								/>
+									aria-label={`Ver foto de perfil de ${displayName} en grande`}
+									className="size- rounded-full overflow-hidden border border-primary/30 mb-3 cursor-zoom-in hover:scale-105 transition-transform"
+								>
+									<Image
+										src={profilePictureUrl}
+										alt={displayName}
+										fill
+										className="size- object-cover"
+									/>
+								</button>
 							) : (
 								<div className="size- rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-primary font-display text-2xl font-bold mb-3">
 									{initials || <UserIcon size={28} />}
@@ -495,11 +509,14 @@ export default function ConversationPanel({
 						className="relative flex max-h-[94vh] w-full max-w-6xl items-center justify-center overflow-hidden rounded-3xl border border-outline-variant/60 bg-surface-container-lowest p-3 shadow-2xl animate-[scaleIn_0.2s_ease-out]"
 						onClick={(e) => e.stopPropagation()}
 					>
-						<img 
-							src={zoomImage} 
-							alt="Contacto foto" 
-							className="max-h-[88vh] max-w-full rounded-2xl object-contain animate-fade-in"
-						/>
+						<div className="relative h-[88vh] w-full">
+							<Image 
+								src={zoomImage} 
+								alt="Contacto foto" 
+								fill
+								className="rounded-2xl object-contain animate-fade-in"
+							/>
+						</div>
 						<a
 							href={zoomImage}
 							target="_blank"

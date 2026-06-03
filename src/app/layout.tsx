@@ -3,8 +3,8 @@ import { MotionProvider } from "@/components/MotionProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-	title: "Bot Personal",
-	description: "Shell local para agente de WhatsApp con SDD/OpenSpec.",
+	title: "Bot Personal - WhatsApp CRM",
+	description: "Administrá tus conversaciones de WhatsApp y automatizaciones con IA.",
 };
 
 export default function RootLayout({

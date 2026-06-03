@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { PhoneIcon } from "./Icons.tsx";
 
@@ -65,9 +66,11 @@ export default function QRScreen({ status, qrPng, updatedAt }: QRScreenProps) {
 			{/* Caja de renderizado del QR: fondo claro neutro sólo para garantizar lectura por cámaras */}
 			<div className="relative size- bg-[#f1ead7] border border-primary/30 rounded-2xl flex flex-col items-center justify-center overflow-hidden mb-6 p-4 mx-auto shadow-inner">
 				{status === "qr" && qrPng ? (
-					<img
+					<Image
 						src={qrPng}
 						alt="WhatsApp Web QR Code"
+						width={256}
+						height={256}
 						className="size- object-contain animate-fade-in"
 					/>
 				) : status === "connecting" ? (

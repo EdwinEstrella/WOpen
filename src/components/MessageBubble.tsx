@@ -1,7 +1,8 @@
 ﻿"use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { BotIcon, CheckCheckIcon, ExternalLinkIcon, ImageIcon, MicIcon, UserIcon } from "lucide-react";
+import Image from "next/image";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,7 +42,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 	const SenderIcon = sender.icon;
 
 	return (
-		<motion.div
+		<m.div
 			layout
 			initial={{ opacity: 0, y: 8 }}
 			animate={{ opacity: 1, y: 0 }}
@@ -77,12 +78,17 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 									type="button"
 									className="group relative block w-full"
 									onClick={() => window.open(mediaUrl, "_blank", "noopener,noreferrer")}
+									aria-label="Ver imagen completa de WhatsApp"
 								>
-									<img
-										src={mediaUrl}
-										alt="Imagen de WhatsApp"
-										className="max-h-72 w-full object-contain transition duration-200 group-hover:scale-[1.01]"
-									/>
+									<div className="relative h-72 w-full">
+										<Image
+											src={mediaUrl}
+											alt="Imagen de WhatsApp"
+											fill
+											className="object-contain transition duration-200 group-hover:scale-[1.01]"
+											sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+										/>
+									</div>
 									<span className="absolute right-2 top-2 rounded-full bg-black/50 p-1.5 text-white opacity-0 transition-opacity group-hover:opacity-100">
 										<ExternalLinkIcon className="size-3.5" />
 									</span>
@@ -138,6 +144,6 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 					)}
 				</CardContent>
 			</Card>
-		</motion.div>
+		</m.div>
 	);
 }

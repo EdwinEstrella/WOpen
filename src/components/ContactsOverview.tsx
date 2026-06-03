@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { useMemo, useState } from "react";
 import { RobotIcon, UserIcon } from "./Icons.tsx";
 import type { ConversationListRow } from "../lib/db.ts";
@@ -113,9 +114,11 @@ export default function ContactsOverview({
 									>
 										<td className="px-6 py-4 font-semibold text-on-surface flex items-center gap-3">
 											{contact.profile_picture_url ? (
-												<img
+												<Image
 													src={contact.profile_picture_url}
 													alt={contact.name || contact.phone}
+													width={32}
+													height={32}
 													className="size- rounded-full object-cover border border-primary/30 shrink-0 cursor-pointer hover:scale-105 hover:brightness-95 transition-all"
 													onClick={() => setZoomImage(contact.profile_picture_url)}
 													title="Ver imagen en grande"
@@ -174,15 +177,17 @@ export default function ContactsOverview({
 						className="relative size-[90vw] max-w-[480px] max-h-[480px] p-1.5 bg-surface-container border border-outline-variant/40 rounded-3xl overflow-hidden shadow-2xl flex items-center justify-center animate-[scaleIn_0.2s_ease-out]"
 						onClick={(e) => e.stopPropagation()}
 					>
-						<img 
+						<Image 
 							src={zoomImage} 
 							alt="Contacto foto" 
+							fill
 							className="size- object-cover rounded-2xl animate-fade-in"
 						/>
 						<button 
 							type="button"
 							className="absolute top-4 right-4 size- flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white font-display text-xl font-bold focus:outline-none transition-all duration-200 hover:scale-105 active:scale-95 shadow-md"
 							onClick={() => setZoomImage(null)}
+							aria-label="Cerrar zoom de imagen"
 						>
 							×
 						</button>
