@@ -12,6 +12,9 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
 	return (
 		<html lang="es">
+			<head>
+				<meta charSet="utf-8" />
+			</head>
 			<body>
 				<MotionProvider>{children}</MotionProvider>
 			</body>
