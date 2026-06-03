@@ -192,4 +192,20 @@ describe("shadcn/ui redesign foundation contract", () => {
 		assert.doesNotMatch(prompts, /TrashIcon/);
 		assert.doesNotMatch(prompts, /RobotIcon/);
 	});
+
+	it("turns automations into safe saved flows instead of a decorative canvas", () => {
+		const automations = readProjectFile("src/components/AutomationsOverview.tsx");
+		const api = readProjectFile("src/app/api/automations/route.ts");
+
+		assert.match(automations, /fetch\("\/api\/automations"\)/);
+		assert.match(automations, /Bloques seguros, sin SQL libre/);
+		assert.match(automations, /Mensaje entrante/);
+		assert.match(automations, /message_contains/);
+		assert.match(automations, /send_whatsapp/);
+		assert.doesNotMatch(automations, /cursor-grab/);
+		assert.doesNotMatch(automations, /node_01/);
+		assert.match(api, /saveAutomation/);
+		assert.match(api, /listAutomations/);
+		assert.match(api, /setAutomationEnabled/);
+	});
 });

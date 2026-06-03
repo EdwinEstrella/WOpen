@@ -87,6 +87,17 @@ CREATE TABLE IF NOT EXISTS system_prompts (
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS automations (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  trigger_type TEXT CHECK(trigger_type IN ('incoming_message')) NOT NULL,
+  definition JSONB NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_automations_enabled_trigger ON automations(enabled, trigger_type);
+
 CREATE TABLE IF NOT EXISTS connection_state (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   status TEXT CHECK(status IN ('disconnected','qr','connecting','connected')) NOT NULL DEFAULT 'disconnected',

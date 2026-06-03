@@ -1,165 +1,237 @@
-import React from "react";
-import {
-	PlusIcon,
-	MessagesIcon,
-	ClockIcon,
-	RobotIcon,
-	TargetIcon
-} from "./Icons.tsx";
+"use client";
+
+import { useEffect, useState } from "react";
+
+import type {
+	AutomationActionType,
+	AutomationConditionType,
+	AutomationDefinition,
+	AutomationRow,
+} from "@/lib/automations";
+import { PlusIcon } from "./Icons.tsx";
+
+const conditionLabels: Record<AutomationConditionType, string> = {
+	always: "Siempre",
+	message_contains: "Mensaje contiene",
+	conversation_mode: "Modo de conversaci?n",
+};
+
+const actionLabels: Record<AutomationActionType, string> = {
+	send_whatsapp: "Enviar WhatsApp",
+	switch_mode: "Cambiar modo",
+	add_internal_note: "Nota interna",
+};
+
+function buildDefinition(input: {
+	conditionType: AutomationConditionType;
+	conditionValue: string;
+	actionType: AutomationActionType;
+	actionValue: string;
+}): AutomationDefinition {
+	return {
+		trigger: { type: "incoming_message" },
+		conditions: [
+			input.conditionType === "always"
+				? { type: "always" }
+				: { type: input.conditionType, value: input.conditionValue.trim() },
+		],
+		actions: [{ type: input.actionType, value: input.actionValue.trim() }],
+	};
+}
 
 export default function AutomationsOverview() {
+	const [automations, setAutomations] = useState<AutomationRow[]>([]);
+	const [loading, setLoading] = useState(false);
+	const [editingId, setEditingId] = useState<number | null>(null);
+	const [name, setName] = useState("");
+	const [enabled, setEnabled] = useState(true);
+	const [conditionType, setConditionType] = useState<AutomationConditionType>("always");
+	const [conditionValue, setConditionValue] = useState("");
+	const [actionType, setActionType] = useState<AutomationActionType>("send_whatsapp");
+	const [actionValue, setActionValue] = useState("");
+
+	const loadAutomations = async () => {
+		setLoading(true);
+		try {
+			const res = await fetch("/api/automations");
+			if (res.ok) setAutomations(await res.json());
+		} catch (error) {
+			console.error("[automations] Error cargando automatizaciones:", error);
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	useEffect(() => {
+		loadAutomations();
+	}, []);
+
+	const resetForm = () => {
+		setEditingId(null);
+		setName("");
+		setEnabled(true);
+		setConditionType("always");
+		setConditionValue("");
+		setActionType("send_whatsapp");
+		setActionValue("");
+	};
+
+	const startEdit = (automation: AutomationRow) => {
+		const condition = automation.definition.conditions[0] ?? { type: "always" as const };
+		const action = automation.definition.actions[0] ?? { type: "send_whatsapp" as const, value: "" };
+		setEditingId(automation.id);
+		setName(automation.name);
+		setEnabled(automation.enabled);
+		setConditionType(condition.type);
+		setConditionValue(condition.value ?? "");
+		setActionType(action.type);
+		setActionValue(action.value ?? "");
+	};
+
+	const saveAutomation = async (event: React.FormEvent) => {
+		event.preventDefault();
+		const body = {
+			id: editingId ?? undefined,
+			name,
+			enabled,
+			definition: buildDefinition({ conditionType, conditionValue, actionType, actionValue }),
+		};
+		const res = await fetch("/api/automations", {
+			method: editingId ? "PUT" : "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify(body),
+		});
+		if (res.ok) {
+			resetForm();
+			await loadAutomations();
+			return;
+		}
+		const data = await res.json().catch(() => ({}));
+		alert(data.error || "No se pudo guardar la automatizaci?n.");
+	};
+
+	const toggleEnabled = async (automation: AutomationRow) => {
+		await fetch("/api/automations", {
+			method: "PUT",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ id: automation.id, action: "set_enabled", enabled: !automation.enabled }),
+		});
+		await loadAutomations();
+	};
+
+	const deleteAutomation = async (id: number) => {
+		if (!confirm("?Seguro que quer?s borrar esta automatizaci?n?")) return;
+		await fetch(`/api/automations?id=${id}`, { method: "DELETE" });
+		if (editingId === id) resetForm();
+		await loadAutomations();
+	};
+
 	return (
-		<div className="flex-1 flex flex-col h-full overflow-hidden">
-			{/* Canvas Header */}
-			<div className="flex justify-between items-center mb-6 shrink-0">
-				<div>
-					<h2 className="font-display text-lg font-bold text-on-surface">Constructor de Automatizaciones</h2>
-					<p className="text-xs text-on-surface-variant mt-1">Definí secuencias de flujos lógicos guiados por inteligencia artificial</p>
-				</div>
-				<div className="flex gap-2">
-					<button type="button" className="px-4 py-2 rounded-lg bg-surface-container-high border border-outline-variant/30 text-xs font-semibold text-on-surface hover:bg-surface-container-highest transition-colors active:scale-95">
-						📂 Cargar Plantilla
-					</button>
-					<button type="button" className="px-4 py-2.5 rounded-lg bg-primary text-on-primary text-xs font-bold hover:bg-primary-container transition-colors active:scale-95 glow-active flex items-center gap-1.5">
-						<PlusIcon size={12} /> Nuevo Flujo
+		<div className="grid min-h-0 flex-1 grid-cols-1 gap-6 overflow-hidden lg:grid-cols-[minmax(320px,420px)_1fr]">
+			<form onSubmit={saveAutomation} className="glass-panel flex min-h-0 flex-col gap-4 overflow-y-auto rounded-2xl p-5">
+				<div className="flex items-center justify-between gap-3">
+					<div>
+						<h2 className="font-display text-sm font-bold uppercase tracking-wider text-on-surface">
+							{editingId ? "Editar automatizaci?n" : "Nueva automatizaci?n"}
+						</h2>
+						<p className="mt-1 text-xs text-on-surface-variant">Bloques seguros, sin SQL libre.</p>
+					</div>
+					<button type="button" onClick={resetForm} className="text-xs font-bold text-primary hover:underline">
+						Limpiar
 					</button>
 				</div>
-			</div>
 
-			{/* Canvas Body */}
-			<div className="flex-1 glass-panel rounded-2xl overflow-hidden relative flex min-h-[400px]">
-				
-				{/* Nodes Sidebar */}
-				<div className="w-64 border-r border-outline-variant/10 bg-surface-container-low/30 p-4 gap-y-4 flex flex-col">
-					<h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Bloques Disponibles</h3>
-					
-					{/* Block Triggers */}
-					<div className="space-y-2">
-						<span className="text-[10px] font-bold text-primary/80 uppercase">Disparadores</span>
-						<div className="p-3 rounded-xl bg-surface-container-high/60 border border-outline-variant/20 hover:border-primary/40 cursor-grab transition-all flex items-center gap-2.5 group">
-							<MessagesIcon className="text-primary" size={14} />
-							<span className="text-xs text-on-surface group-hover:text-primary font-medium">Mensaje Entrante</span>
-						</div>
-						<div className="p-3 rounded-xl bg-surface-container-high/60 border border-outline-variant/20 hover:border-primary/40 cursor-grab transition-all flex items-center gap-2.5 group">
-							<ClockIcon className="text-primary" size={14} />
-							<span className="text-xs text-on-surface group-hover:text-primary font-medium">Intervalo de Espera</span>
-						</div>
-					</div>
+				<label className="flex flex-col gap-1.5">
+					<span className="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">Nombre</span>
+					<input value={name} onChange={(e) => setName(e.target.value)} required className="rounded-xl border border-outline-variant/30 bg-surface-container-low px-4 py-2 text-xs text-on-surface outline-none focus:border-primary" placeholder="Ej: Responder si pregunta precio" />
+				</label>
 
-					{/* Block Actions */}
-					<div className="space-y-2">
-						<span className="text-[10px] font-bold text-secondary/80 uppercase">Acciones IA & WhatsApp</span>
-						<div className="p-3 rounded-xl bg-surface-container-high/60 border border-outline-variant/20 hover:border-secondary/40 cursor-grab transition-all flex items-center gap-2.5 group">
-							<MessagesIcon className="text-secondary" size={14} />
-							<span className="text-xs text-on-surface group-hover:text-secondary font-medium">Enviar WhatsApp</span>
-						</div>
-						<div className="p-3 rounded-xl bg-surface-container-high/60 border border-outline-variant/20 hover:border-secondary/40 cursor-grab transition-all flex items-center gap-2.5 group">
-							<RobotIcon className="text-secondary" size={14} />
-							<span className="text-xs text-on-surface group-hover:text-secondary font-medium">Preguntar a la IA</span>
-						</div>
-						<div className="p-3 rounded-xl bg-surface-container-high/60 border border-outline-variant/20 hover:border-secondary/40 cursor-grab transition-all flex items-center gap-2.5 group">
-							<TargetIcon className="text-secondary" size={14} />
-							<span className="text-xs text-on-surface group-hover:text-secondary font-medium">Asignar Etiqueta</span>
-						</div>
-					</div>
+				<div className="rounded-xl border border-outline-variant/20 bg-surface-container-low/40 p-4">
+					<p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-primary">Disparador</p>
+					<p className="text-xs font-semibold text-on-surface">Mensaje entrante</p>
+					<p className="mt-1 text-[10px] text-on-surface-variant">Se eval?a cuando llega un WhatsApp del cliente.</p>
 				</div>
 
-				{/* Editor Area */}
-				<div className="flex-1 bg-surface-container-lowest/40 relative overflow-hidden flex items-center justify-center p-8">
-					
-					{/* Grid Background Effect */}
-					<div className="absolute inset-0 bg-[linear-gradient(rgba(78,222,163,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(78,222,163,0.03)_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+				<label className="flex flex-col gap-1.5">
+					<span className="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">Condici?n</span>
+					<select value={conditionType} onChange={(e) => setConditionType(e.target.value as AutomationConditionType)} className="rounded-xl border border-outline-variant/30 bg-surface-container-low px-4 py-2 text-xs text-on-surface outline-none focus:border-primary">
+						<option value="always">Siempre</option>
+						<option value="message_contains">Mensaje contiene</option>
+						<option value="conversation_mode">Modo de conversaci?n</option>
+					</select>
+				</label>
 
-					{/* SVG Connector Lines */}
-					<svg className="absolute inset-0 size-full pointer-events-none z-0">
-						{/* Connection 1 to 2 */}
-						<path
-							d="M 280,180 C 340,180 340,180 400,180"
-							fill="none"
-							stroke="#4edea3"
-							strokeWidth="2"
-							strokeDasharray="4"
-							className="connection-line animate-[dash_20s_linear_infinite]"
-							style={{ strokeDashoffset: 100 }}
-						/>
-						{/* Connection 2 to 3 */}
-						<path
-							d="M 580,180 C 640,180 640,280 700,280"
-							fill="none"
-							stroke="#4edea3"
-							strokeWidth="2"
-							strokeDasharray="4"
-							className="connection-line animate-[dash_20s_linear_infinite]"
-							style={{ strokeDashoffset: 100 }}
-						/>
-					</svg>
+				{conditionType !== "always" && (
+					<label className="flex flex-col gap-1.5">
+						<span className="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">Valor de condici?n</span>
+						<input value={conditionValue} onChange={(e) => setConditionValue(e.target.value)} required className="rounded-xl border border-outline-variant/30 bg-surface-container-low px-4 py-2 text-xs text-on-surface outline-none focus:border-primary" placeholder={conditionType === "conversation_mode" ? "AI o HUMAN" : "Ej: precio"} />
+					</label>
+				)}
 
-					{/* Visual Nodes Canvas Stack */}
-					<div className="relative z-10 flex items-center gap-24 size-full justify-center">
-						
-						{/* Node 1: Trigger */}
-						<div className="w-64 glass-panel rounded-2xl p-5 border-l-4 border-l-primary flex flex-col gap-3 shadow-xl hover:border-primary/50 transition-colors">
-							<div className="flex justify-between items-center">
-								<span className="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-[10px] text-primary font-bold uppercase tracking-wider">
-									Disparador
-								</span>
-								<span className="text-xs text-on-surface-variant font-mono">ID: node_01</span>
-							</div>
-							<div>
-								<h4 className="text-xs font-bold text-on-surface flex items-center gap-2">
-									<MessagesIcon className="text-primary" size={12} /> Mensaje Entrante
-								</h4>
-								<p className="text-[10px] text-on-surface-variant mt-1">Cualquier interacción inicial del cliente</p>
-							</div>
-							<div className="border-t border-outline-variant/10 pt-2 flex items-center gap-1.5">
-								<span className="size-2 rounded-full bg-primary animate-pulse"></span>
-								<span className="text-[10px] text-on-surface-variant">Esperando mensaj…</span>
-							</div>
-						</div>
+				<label className="flex flex-col gap-1.5">
+					<span className="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">Acci?n</span>
+					<select value={actionType} onChange={(e) => setActionType(e.target.value as AutomationActionType)} className="rounded-xl border border-outline-variant/30 bg-surface-container-low px-4 py-2 text-xs text-on-surface outline-none focus:border-primary">
+						<option value="send_whatsapp">Enviar WhatsApp</option>
+						<option value="switch_mode">Cambiar modo</option>
+						<option value="add_internal_note">Nota interna</option>
+					</select>
+				</label>
 
-						{/* Node 2: AI Evaluation */}
-						<div className="w-64 glass-panel rounded-2xl p-5 border-l-4 border-l-primary flex flex-col gap-3 shadow-xl hover:border-primary/50 transition-colors">
-							<div className="flex justify-between items-center">
-								<span className="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-[10px] text-primary font-bold uppercase tracking-wider">
-									Proceso IA
-								</span>
-								<span className="text-xs text-on-surface-variant font-mono">ID: node_02</span>
-							</div>
-							<div>
-								<h4 className="text-xs font-bold text-on-surface flex items-center gap-2">
-									<RobotIcon className="text-primary" size={12} /> Consultar Prompt Base
-								</h4>
-								<p className="text-[10px] text-on-surface-variant mt-1">Evalúa si es consulta de venta o reclamo</p>
-							</div>
-							<div className="border-t border-outline-variant/10 pt-2 flex items-center justify-between">
-								<span className="text-[10px] text-on-surface-variant">System Prompt: Venta Directa</span>
-								<span className="text-primary text-[10px] font-bold">Configurado</span>
-							</div>
-						</div>
+				<label className="flex flex-col gap-1.5">
+					<span className="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">Valor de acci?n</span>
+					<textarea value={actionValue} onChange={(e) => setActionValue(e.target.value)} required rows={5} className="resize-none rounded-xl border border-outline-variant/30 bg-surface-container-low px-4 py-3 text-xs text-on-surface outline-none focus:border-primary" placeholder={actionType === "switch_mode" ? "AI o HUMAN" : "Texto seguro de la acci?n"} />
+				</label>
 
-						{/* Node 3: Custom Action (WhatsApp) */}
-						<div className="w-64 glass-panel rounded-2xl p-5 border-l-4 border-l-secondary flex flex-col gap-3 shadow-xl hover:border-secondary/50 transition-colors">
-							<div className="flex justify-between items-center">
-								<span className="px-2 py-0.5 rounded bg-secondary/10 border border-secondary/20 text-[10px] text-secondary font-bold uppercase tracking-wider">
-									Acción WhatsApp
-								</span>
-								<span className="text-xs text-on-surface-variant font-mono">ID: node_03</span>
-							</div>
-							<div>
-								<h4 className="text-xs font-bold text-on-surface flex items-center gap-2">
-									<MessagesIcon className="text-secondary" size={12} /> Responder WhatsApp
-								</h4>
-								<p className="text-[10px] text-on-surface-variant mt-1">Despacha respuesta del bot al cliente</p>
-							</div>
-							<div className="border-t border-outline-variant/10 pt-2 flex items-center justify-between">
-								<span className="text-[10px] text-on-surface-variant">Mensaje automático</span>
-								<span className="text-secondary text-[10px] font-bold">Activo</span>
-							</div>
-						</div>
+				<label className="flex items-center gap-2 text-xs font-semibold text-on-surface">
+					<input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+					Automatizaci?n activa
+				</label>
 
-					</div>
+				<button type="submit" className="mt-2 flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 font-display text-[10px] font-bold uppercase tracking-wider text-on-primary glow-active">
+					<PlusIcon size={12} /> {editingId ? "Guardar cambios" : "Crear automatizaci?n"}
+				</button>
+			</form>
+
+			<div className="glass-panel flex min-h-0 flex-col overflow-hidden rounded-2xl p-5">
+				<div className="mb-4 shrink-0">
+					<h3 className="font-display text-sm font-bold uppercase tracking-wider text-on-surface">Automatizaciones</h3>
+					<p className="mt-1 text-xs text-on-surface-variant">Flujos guardados con bloques predefinidos.</p>
 				</div>
 
+				<div className="flex-1 overflow-y-auto pr-1">
+					{loading && automations.length === 0 ? (
+						<p className="p-6 text-center text-xs text-on-surface-variant">Cargando automatizaciones?</p>
+					) : automations.length === 0 ? (
+						<p className="rounded-2xl border border-outline-variant/20 p-6 text-center text-xs text-on-surface-variant">Todav?a no hay automatizaciones reales.</p>
+					) : (
+						<div className="flex flex-col gap-3">
+							{automations.map((automation) => {
+								const condition = automation.definition.conditions[0];
+								const action = automation.definition.actions[0];
+								return (
+									<div key={automation.id} className="rounded-2xl border border-outline-variant/20 bg-surface-container-low/30 p-4">
+										<div className="flex items-start justify-between gap-4">
+											<div className="min-w-0">
+												<p className="truncate text-sm font-bold text-on-surface">{automation.name}</p>
+												<p className="mt-1 text-[10px] text-on-surface-variant">
+													{conditionLabels[condition?.type ?? "always"]} ? {actionLabels[action?.type ?? "send_whatsapp"]}
+												</p>
+											</div>
+											<span className={`rounded-full border px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider ${automation.enabled ? "border-primary/30 text-primary" : "border-outline-variant/30 text-on-surface-variant"}`}>
+												{automation.enabled ? "Activa" : "Pausada"}
+											</span>
+										</div>
+										<div className="mt-4 flex flex-wrap gap-2">
+											<button type="button" onClick={() => startEdit(automation)} className="rounded-lg border border-outline-variant/30 px-3 py-1.5 text-[10px] font-bold uppercase text-on-surface-variant hover:text-on-surface">Editar</button>
+											<button type="button" onClick={() => toggleEnabled(automation)} className="rounded-lg border border-primary/40 px-3 py-1.5 text-[10px] font-bold uppercase text-primary hover:bg-primary/10">{automation.enabled ? "Pausar" : "Activar"}</button>
+											<button type="button" onClick={() => deleteAutomation(automation.id)} className="rounded-lg border border-error/40 px-3 py-1.5 text-[10px] font-bold uppercase text-error hover:bg-error/15">Eliminar</button>
+										</div>
+									</div>
+								);
+							})}
+						</div>
+					)}
+				</div>
 			</div>
 		</div>
 	);

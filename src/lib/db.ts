@@ -14,6 +14,11 @@ import {
 import type { ConversationMode } from "../domain/whatsapp-rules.ts";
 import { createPostgresRepository, initializePostgresSchema } from "./postgres-adapter.ts";
 import { createTelegramNotifier } from "./telegram-notifier.ts";
+import {
+	normalizeAutomationInput,
+	type AutomationInput,
+	type AutomationRow,
+} from "./automations.ts";
 
 const { Pool } = pg;
 
@@ -390,5 +395,74 @@ export async function updateConversationNameIfExists(jid: string, name: string):
 		   AND (name IS NULL OR TRIM(name) = '' OR (name <> $1 AND name <> 'Azokia' AND name <> 'Azokiallc'))`,
 		[normalized, phone, jid]
 	);
+}
+
+// 26. Automations CRUD
+export async function listAutomations(): Promise<AutomationRow[]> {
+	await ensureSchemaInitialized();
+	const res = await pool.query<AutomationRow>(
+		`SELECT * FROM automations
+		 ORDER BY enabled DESC, updated_at DESC, id DESC`,
+	);
+	return res.rows;
+}
+
+export async function saveAutomation(input: AutomationInput): Promise<AutomationRow> {
+	await ensureSchemaInitialized();
+	const normalized = normalizeAutomationInput(input);
+	const res = await pool.query<AutomationRow>(
+		`INSERT INTO automations (name, enabled, trigger_type, definition, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, NOW(), NOW())
+		 RETURNING *`,
+		[
+			normalized.name,
+			normalized.enabled,
+			normalized.definition.trigger.type,
+			normalized.definition,
+		],
+	);
+	return res.rows[0];
+}
+
+export async function updateAutomation(
+	id: number,
+	input: AutomationInput,
+): Promise<AutomationRow | null> {
+	await ensureSchemaInitialized();
+	const normalized = normalizeAutomationInput(input);
+	const res = await pool.query<AutomationRow>(
+		`UPDATE automations
+		 SET name = $2, enabled = $3, trigger_type = $4, definition = $5, updated_at = NOW()
+		 WHERE id = $1
+		 RETURNING *`,
+		[
+			id,
+			normalized.name,
+			normalized.enabled,
+			normalized.definition.trigger.type,
+			normalized.definition,
+		],
+	);
+	return res.rows[0] ?? null;
+}
+
+export async function setAutomationEnabled(
+	id: number,
+	enabled: boolean,
+): Promise<AutomationRow | null> {
+	await ensureSchemaInitialized();
+	const res = await pool.query<AutomationRow>(
+		`UPDATE automations
+		 SET enabled = $2, updated_at = NOW()
+		 WHERE id = $1
+		 RETURNING *`,
+		[id, enabled],
+	);
+	return res.rows[0] ?? null;
+}
+
+export async function deleteAutomation(id: number): Promise<void> {
+	await ensureSchemaInitialized();
+	await pool.query("DELETE FROM automations WHERE id = $1", [id]);
 }
 

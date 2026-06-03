@@ -134,7 +134,7 @@ export default function PromptsManager() {
 		<div className="glass-panel mx-auto flex max-h-full w-full max-w-4xl flex-col overflow-hidden rounded-3xl p-6 shadow-2xl">
 			<div className="flex shrink-0 items-center justify-between gap-4 border-b border-outline-variant/10 pb-4 mb-6">
 				<div className="flex min-w-0 flex-col gap-1">
-					<h2 className="truncate font-display text-sm font-bold text-on-surface uppercase tracking-wider">Gesti?n de System Prompts</h2>
+					<h2 className="truncate font-display text-sm font-bold text-on-surface uppercase tracking-wider">Gestión de System Prompts</h2>
 					<span className="text-[10px] text-on-surface-variant/80 font-medium">Configur? el comportamiento de la IA en tiempo real</span>
 				</div>
 
@@ -147,7 +147,7 @@ export default function PromptsManager() {
 				</button>
 			</div>
 
-			<Dialog open={formVisible} onOpenChange={(open) => !open && closeForm()}>
+			<Dialog open={formVisible} onOpenChange={(open: boolean) => !open && closeForm()}>
 				<DialogContent className="flex h-[min(88vh,780px)] w-[min(96vw,1100px)] max-w-none flex-col gap-0 overflow-hidden border-outline-variant bg-surface/95 p-0 text-on-surface">
 					<DialogHeader className="border-b border-outline-variant/20 px-6 py-5">
 						<DialogTitle className="font-display text-sm font-bold uppercase tracking-wider text-on-surface">
