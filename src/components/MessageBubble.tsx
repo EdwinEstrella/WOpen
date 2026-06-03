@@ -1,10 +1,21 @@
 "use client";
 
-import { UserIcon, RobotIcon, ImageIcon, MicIcon } from "./Icons.tsx";
+import { motion } from "framer-motion";
+import { BotIcon, CheckCheckIcon, ExternalLinkIcon, ImageIcon, MicIcon, UserIcon } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import type { MessageRow } from "../lib/db-contract.ts";
 
 interface MessageBubbleProps {
 	message: MessageRow;
+}
+
+function mediaUrlFrom(metadata: Record<string, unknown>): string | null {
+	const mediaUrl = metadata.mediaUrl;
+	return typeof mediaUrl === "string" && mediaUrl.trim() ? mediaUrl : null;
 }
 
 export default function MessageBubble({ message }: MessageBubbleProps) {
@@ -12,9 +23,8 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 
 	const isUser = role === "user";
 	const isAssistant = role === "assistant";
-	const isHuman = role === "human";
+	const mediaUrl = mediaUrlFrom(metadata);
 
-	// Formateador de la hora legible
 	const timeStr = created_at
 		? new Date(created_at).toLocaleTimeString("es-ES", {
 				hour: "2-digit",
@@ -22,81 +32,111 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 			})
 		: "";
 
+	const sender = isUser
+		? { label: "Cliente", icon: UserIcon, badge: "default" as const }
+		: isAssistant
+			? { label: "IA", icon: BotIcon, badge: "secondary" as const }
+			: { label: "Agente", icon: UserIcon, badge: "outline" as const };
+	const SenderIcon = sender.icon;
+
 	return (
-		<div className={`flex w-full ${isUser ? "justify-start" : "justify-end"} mb-4`}>
-			<div
-				className={`max-w-[75%] p-4 rounded-2xl border transition-all duration-300 ${
+		<motion.div
+			layout
+			initial={{ opacity: 0, y: 8 }}
+			animate={{ opacity: 1, y: 0 }}
+			transition={{ duration: 0.18 }}
+			className={cn("flex w-full", isUser ? "justify-start" : "justify-end")}
+		>
+			<Card
+				size="sm"
+				className={cn(
+					"max-w-[min(78%,42rem)] gap-3 border py-3 shadow-sm",
 					isUser
-						? "bg-transparent border-outline-variant text-on-surface rounded-bl-none"
-						: isAssistant
-							? "bg-primary/10 border-primary/20 text-on-surface rounded-br-none"
-							: "bg-secondary/10 border-secondary/20 text-on-surface rounded-br-none"
-				}`}
+						? "rounded-bl-md border-primary/25 bg-card/70"
+						: "rounded-br-md border-border/70 bg-surface-container/80",
+					isAssistant && "border-primary/20 bg-primary/10",
+				)}
 			>
-				{/* Encabezado descriptivo de quién envió el mensaje */}
-				<div className="flex items-center justify-between gap-6 mb-2 pb-1 shrink-0">
-					<span className={`text-[9px] font-bold uppercase tracking-widest flex items-center gap-1.5 ${
-						isUser 
-							? "text-primary" 
-							: isAssistant 
-							? "text-primary" 
-							: "text-secondary"
-					}`}>
-						{isUser ? (
-							<>CLIENTE</>
-						) : isAssistant ? (
-							<><RobotIcon size={10} /> IA</>
-						) : (
-							<><UserIcon size={10} /> Agente</>
-						)}
-					</span>
-					<span className="text-[9px] font-mono text-on-surface-variant/50 flex items-center gap-1">
-						{timeStr}
-						{!isUser && <span className="text-primary tracking-tighter text-[10px]">✓✓</span>}
-					</span>
-				</div>
-
-				{/* Soporte para tipos de medios (Multimedia) */}
-				{media_type === "image" && (
-					<div className="flex flex-col gap-2 mb-2 p-2 bg-background/50 rounded-2xl border border-outline-variant/10">
-						{metadata?.mediaUrl ? (
-							<img
-								src={metadata.mediaUrl as string}
-								alt="Imagen de WhatsApp"
-								className="max-w-full max-h-[200px] rounded-xl object-contain cursor-pointer hover:brightness-95 transition-all"
-								onClick={() => window.open(metadata.mediaUrl as string, '_blank')}
-							/>
-						) : (
-							<div className="flex items-center gap-2 text-[10px] text-on-surface-variant/90 font-medium">
-								<ImageIcon className="text-primary" size={12} />
-								<span>Imagen recibida (Procesada por IA Multimodal)</span>
-							</div>
-						)}
+				<CardContent className="space-y-3 px-3">
+					<div className="flex items-center justify-between gap-4">
+						<Badge variant={sender.badge} className="gap-1.5 uppercase tracking-wider">
+							<SenderIcon className="size-3" />
+							{sender.label}
+						</Badge>
+						<span className="flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground">
+							{timeStr}
+							{!isUser && <CheckCheckIcon className="size-3 text-primary" />}
+						</span>
 					</div>
-				)}
-				{media_type === "audio" && (
-					<div className="flex flex-col gap-2 mb-2 p-3 bg-background/50 rounded-2xl border border-outline-variant/10">
-						<div className="flex items-center gap-2 text-[10px] text-on-surface-variant/90 font-medium">
-							<MicIcon className="text-primary" size={12} />
-							<span>Nota de voz</span>
+
+					{media_type === "image" && (
+						<div className="overflow-hidden rounded-xl border border-border/70 bg-background/70">
+							{mediaUrl ? (
+								<button
+									type="button"
+									className="group relative block w-full"
+									onClick={() => window.open(mediaUrl, "_blank", "noopener,noreferrer")}
+								>
+									<img
+										src={mediaUrl}
+										alt="Imagen de WhatsApp"
+										className="max-h-72 w-full object-contain transition duration-200 group-hover:scale-[1.01]"
+									/>
+									<span className="absolute right-2 top-2 rounded-full bg-black/50 p-1.5 text-white opacity-0 transition-opacity group-hover:opacity-100">
+										<ExternalLinkIcon className="size-3.5" />
+									</span>
+								</button>
+							) : (
+								<div className="flex items-center gap-2 p-3 text-xs text-muted-foreground">
+									<ImageIcon className="size-4 text-primary" />
+									<span>Imagen recibida. El archivo todavía no está disponible.</span>
+								</div>
+							)}
 						</div>
-						{metadata?.mediaUrl ? (
-							<audio
-								src={metadata.mediaUrl as string}
-								controls
-								className="w-full h-8 mt-1 focus:outline-none"
-							/>
-						) : (
-							<span className="text-[10px] text-on-surface-variant/60 italic">
-								Transcribiendo o descargando...
-							</span>
-						)}
-					</div>
-				)}
+					)}
 
-				{/* Contenido del mensaje */}
-				<p className="text-xs leading-relaxed whitespace-pre-wrap break-words m-0 text-on-surface font-medium">{content}</p>
-			</div>
-		</div>
+					{media_type === "audio" && (
+						<div className="rounded-xl border border-primary/20 bg-background/75 p-3">
+							<div className="mb-2 flex items-center justify-between gap-3">
+								<div className="flex items-center gap-2 text-xs font-medium text-foreground">
+									<span className="flex size-8 items-center justify-center rounded-full bg-primary/15 text-primary">
+										<MicIcon className="size-4" />
+									</span>
+									<div>
+										<p className="leading-none">Nota de voz</p>
+										<p className="mt-1 text-[10px] text-muted-foreground">Audio recibido por WhatsApp</p>
+									</div>
+								</div>
+								{mediaUrl && (
+									<Button variant="ghost" size="icon-sm" asChild>
+										<a href={mediaUrl} target="_blank" rel="noreferrer" aria-label="Abrir audio en otra pestaña">
+											<ExternalLinkIcon className="size-4" />
+										</a>
+									</Button>
+								)}
+							</div>
+							{mediaUrl ? (
+								<audio
+									src={mediaUrl}
+									controls
+									preload="metadata"
+									className="h-9 w-full accent-primary"
+								/>
+							) : (
+								<p className="text-xs italic text-muted-foreground">
+									Audio recibido, pero el archivo todavía no está disponible.
+								</p>
+							)}
+						</div>
+					)}
+
+					{content && (
+						<p className="m-0 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
+							{content}
+						</p>
+					)}
+				</CardContent>
+			</Card>
+		</motion.div>
 	);
 }

@@ -100,4 +100,15 @@ describe("shadcn/ui redesign foundation contract", () => {
 		assert.match(dialog, /data-slot="dialog-content"/);
 		assert.match(dialog, /data-open:animate-in/);
 	});
+
+	it("uses the design-system foundation in chat message bubbles", () => {
+		const bubble = readProjectFile("src/components/MessageBubble.tsx");
+
+		assert.match(bubble, /from "@\/components\/ui\/card"/);
+		assert.match(bubble, /from "@\/components\/ui\/badge"/);
+		assert.match(bubble, /from "framer-motion"/);
+		assert.match(bubble, /<audio/);
+		assert.match(bubble, /preload="metadata"/);
+		assert.match(bubble, /Nota de voz/);
+	});
 });

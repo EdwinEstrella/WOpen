@@ -6,12 +6,17 @@ function resolveRuntimePath(
 	fallbackName: string,
 ): string {
 	if (value) return path.resolve(value);
+	if (path.isAbsolute(fallbackName)) return fallbackName;
 	return path.join(/* turbopackIgnore: true */ process.cwd(), fallbackName);
 }
 
 export const runtimePaths = {
 	authDir: resolveRuntimePath(process.env.WHATSAPP_AUTH_DIR, "auth"),
 	dataDir: resolveRuntimePath(process.env.BOT_DATA_DIR, "data"),
+	mediaDir: resolveRuntimePath(
+		process.env.BOT_MEDIA_DIR,
+		path.join(resolveRuntimePath(process.env.BOT_DATA_DIR, "data"), "media"),
+	),
 };
 
 export const destructiveRestartFlagName = ".reset-auth";

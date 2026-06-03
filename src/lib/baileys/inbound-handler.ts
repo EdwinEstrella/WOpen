@@ -15,6 +15,7 @@ import type {
 	ModeChangedBy,
 } from "../db-contract.ts";
 import type { CleanupResult, QueuedTurnMessage } from "../redis-turn-state.ts";
+import { runtimePaths } from "../runtime-paths.ts";
 
 export interface WhatsAppMessage {
 	key: { remoteJid?: string; id?: string; fromMe?: boolean; senderPn?: string };
@@ -325,7 +326,7 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 				if (buffer) {
 					const fs = await import("node:fs");
 					const path = await import("node:path");
-					const mediaDir = path.join(process.cwd(), "public", "media");
+					const mediaDir = runtimePaths.mediaDir;
 					if (!fs.existsSync(mediaDir)) {
 						fs.mkdirSync(mediaDir, { recursive: true });
 					}
