@@ -21,6 +21,7 @@ import {
 	setMode,
 	recordConversationEvent,
 	getSettings,
+	setSetting,
 	getRecentHistory,
 	getActiveSystemPrompt,
 	notifyTelegramHumanNeeded,
@@ -269,6 +270,49 @@ export async function startWASocket() {
 
 			startOutboxProcessor();
 			void refreshAllProfilePictures();
+
+			// Obtener información propia de perfil y guardarla en settings
+			void (async () => {
+				const selfJid = rawId.includes("@") ? rawId.split(":")[0] + "@s.whatsapp.net" : `${numericPhone}@s.whatsapp.net`;
+				let selfPpUrl: string | null = null;
+				try {
+					selfPpUrl = (await sock.profilePictureUrl(selfJid, "image")) || null;
+				} catch (e) {
+					console.log("[bot] No se pudo obtener la foto de perfil propia.");
+				}
+
+				let selfBusinessProfile: any = null;
+				try {
+					selfBusinessProfile = await sock.getBusinessProfile(selfJid);
+				} catch (e) {
+					console.log("[bot] No se pudo obtener el perfil comercial propio.");
+				}
+
+				let selfStatus: string | null = null;
+				try {
+					const statusRes: any = await sock.fetchStatus(selfJid);
+					if (statusRes && Array.isArray(statusRes) && statusRes.length > 0) {
+						selfStatus = statusRes[0]?.status || null;
+					} else if (statusRes) {
+						selfStatus = statusRes.status || null;
+					}
+				} catch (e) {
+					console.log("[bot] No se pudo obtener el estado propio.");
+				}
+
+				await setSetting("bot_profile", {
+					phone: numericPhone,
+					profile_picture_url: selfPpUrl,
+					status: selfStatus,
+					business: selfBusinessProfile ? {
+						description: selfBusinessProfile.description || "",
+						category: selfBusinessProfile.category || "",
+						email: selfBusinessProfile.email || "",
+						website: selfBusinessProfile.website || [],
+						address: selfBusinessProfile.address || "",
+					} : null
+				});
+			})();
 		}
 
 		// 4. Estado de conexión: close (desconectado/caído)

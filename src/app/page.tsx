@@ -33,8 +33,26 @@ export default function Home() {
 	const [activeTab, setActiveTab] = useState<Tab>("dashboard");
 	const [conversations, setConversations] = useState<ConversationListRow[]>([]);
 	const [selectedId, setSelectedId] = useState<number | null>(null);
+	const [quickReplies, setQuickReplies] = useState<Array<{ id: string; shortcut: string; text: string }>>([]);
 
 	const prevConversationsRef = useRef<ConversationListRow[]>([]);
+
+	// Cargar respuestas rápidas
+	const loadQuickReplies = async () => {
+		try {
+			const res = await fetch("/api/settings");
+			if (res.ok) {
+				const settings = await res.json();
+				setQuickReplies(settings.quick_replies || []);
+			}
+		} catch (error) {
+			console.error("[home] Error cargando respuestas rápidas:", error);
+		}
+	};
+
+	useEffect(() => {
+		loadQuickReplies();
+	}, []);
 
 	// Pedir permiso de notificaciones en el navegador
 	useEffect(() => {
@@ -142,7 +160,7 @@ export default function Home() {
 
 	return (
 		<ConnectionGate>
-			{(phone, onDisconnect) => (
+			{(phone, onDisconnect, botProfile) => (
 				<div className="h-screen w-full flex bg-background text-on-surface antialiased font-sans overflow-hidden">
 					{/* Sidebar Lateral Fijo (Stitch Navigation) */}
 					<nav className="fixed left-0 top-0 h-screen w-[280px] bg-surface/95 border-r border-outline-variant/30 flex flex-col py-6 px-4 z-50 shadow-[20px_0_60px_rgba(12,83,58,0.14)] backdrop-blur-xl">
@@ -264,7 +282,13 @@ export default function Home() {
 					{/* Contenedor Principal de Contenido (pl-[280px] para respetar el Sidebar Fijo) */}
 					<div className="pl-[280px] flex-1 h-screen w-full flex flex-col relative overflow-hidden bg-background">
 						{/* Encabezado Superior */}
-						<DashboardHeader phone={phone} onDisconnect={onDisconnect} />
+						<DashboardHeader
+							phone={phone}
+							onDisconnect={onDisconnect}
+							botProfile={botProfile}
+							quickReplies={quickReplies}
+							onQuickRepliesUpdated={loadQuickReplies}
+						/>
 
 						{/* Contenido Dinámico de Pestañas */}
 						<main className="flex-1 p-6 overflow-hidden flex flex-col min-h-0 relative z-10">
@@ -289,6 +313,7 @@ export default function Home() {
 												onModeChanged={handleModeChangeLocal}
 												onDeleted={handleDeleteLocal}
 												onConversationUpdated={handleConversationUpdated}
+												quickReplies={quickReplies}
 											/>
 										) : (
 											<div className="h-full flex flex-col items-center justify-center text-on-surface-variant p-8 text-center bg-surface-container-lowest/5">

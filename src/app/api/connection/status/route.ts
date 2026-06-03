@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import QRCode from "qrcode";
-import { getConnectionState } from "../../../../lib/db.ts";
+import { getConnectionState, getSettings } from "../../../../lib/db.ts";
 
 export async function GET() {
 	try {
 		const state = await getConnectionState();
+		const settings = await getSettings();
+		const botProfile = settings.bot_profile || null;
 		
 		const shouldShowQr =
 			!!state.qr_string &&
@@ -17,6 +19,7 @@ export async function GET() {
 				qrPng,
 				phone: null,
 				updatedAt: state.updated_at,
+				botProfile,
 			});
 		}
 
@@ -25,6 +28,7 @@ export async function GET() {
 			qrPng: null,
 			phone: state.phone,
 			updatedAt: state.updated_at,
+			botProfile,
 		});
 	} catch (error: any) {
 		console.error("[api] Error en GET /api/connection/status:", error);
@@ -34,3 +38,4 @@ export async function GET() {
 		);
 	}
 }
+

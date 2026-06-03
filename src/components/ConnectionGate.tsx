@@ -5,13 +5,14 @@ import QRScreen from "./QRScreen.tsx";
 import DashboardHeader from "./DashboardHeader.tsx";
 
 interface ConnectionGateProps {
-	children: (phone: string | null, onDisconnect: () => void) => React.ReactNode;
+	children: (phone: string | null, onDisconnect: () => void, botProfile: any) => React.ReactNode;
 }
 
 export default function ConnectionGate({ children }: ConnectionGateProps) {
 	const [status, setStatus] = useState<"disconnected" | "qr" | "connecting" | "connected">("disconnected");
 	const [qrPng, setQrPng] = useState<string | null>(null);
 	const [phone, setPhone] = useState<string | null>(null);
+	const [botProfile, setBotProfile] = useState<any>(null);
 	const [updatedAt, setUpdatedAt] = useState<Date | string | null>(null);
 	const [loading, setLoading] = useState(true);
 
@@ -24,6 +25,7 @@ export default function ConnectionGate({ children }: ConnectionGateProps) {
 				setQrPng(data.qrPng);
 				setPhone(data.phone);
 				setUpdatedAt(data.updatedAt);
+				setBotProfile(data.botProfile || null);
 			}
 		} catch (error) {
 			console.error("[gate] Error verificando estado de conexión:", error);
@@ -43,6 +45,7 @@ export default function ConnectionGate({ children }: ConnectionGateProps) {
 		setStatus("disconnected");
 		setQrPng(null);
 		setPhone(null);
+		setBotProfile(null);
 		checkConnection();
 	};
 
@@ -62,7 +65,7 @@ export default function ConnectionGate({ children }: ConnectionGateProps) {
 				<div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl -mr-20 -mt-20"></div>
 				<div className="absolute bottom-0 left-0 w-96 h-96 bg-secondary/5 rounded-full blur-3xl -ml-20 -mb-20"></div>
 
-				<DashboardHeader phone={null} onDisconnect={() => {}} />
+				<DashboardHeader phone={null} onDisconnect={() => {}} botProfile={null} quickReplies={[]} onQuickRepliesUpdated={() => {}} />
 				<main className="flex-1 flex items-center justify-center p-6 z-10">
 					<QRScreen status={status} qrPng={qrPng} updatedAt={updatedAt} />
 				</main>
@@ -70,5 +73,5 @@ export default function ConnectionGate({ children }: ConnectionGateProps) {
 		);
 	}
 
-	return <>{children(phone, handleDisconnectLocal)}</>;
+	return <>{children(phone, handleDisconnectLocal, botProfile)}</>;
 }

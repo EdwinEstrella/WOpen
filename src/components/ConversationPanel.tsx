@@ -12,6 +12,7 @@ interface ConversationPanelProps {
 	onModeChanged: (newMode: "AI" | "HUMAN") => void;
 	onDeleted: () => void;
 	onConversationUpdated?: (conversation: ConversationListRow) => void;
+	quickReplies?: Array<{ id: string; shortcut: string; text: string }>;
 }
 
 export default function ConversationPanel({
@@ -19,6 +20,7 @@ export default function ConversationPanel({
 	onModeChanged,
 	onDeleted,
 	onConversationUpdated,
+	quickReplies = [],
 }: ConversationPanelProps) {
 	const [messages, setMessages] = useState<MessageRow[]>([]);
 	const [text, setText] = useState("");
@@ -34,6 +36,64 @@ export default function ConversationPanel({
 	const chatContainerRef = useRef<HTMLDivElement>(null);
 	const isFirstLoadRef = useRef(true);
 	const prevMessagesLengthRef = useRef(0);
+
+	// Respuestas rápidas (/)
+	const [showRepliesDropdown, setShowRepliesDropdown] = useState(false);
+	const [activeIndex, setActiveIndex] = useState(0);
+	const [filterText, setFilterText] = useState("");
+	const inputRef = useRef<HTMLInputElement>(null);
+
+	// Detectar trigger de /
+	useEffect(() => {
+		const lastSlashIdx = text.lastIndexOf("/");
+		if (lastSlashIdx !== -1) {
+			const charBefore = lastSlashIdx > 0 ? text[lastSlashIdx - 1] : "";
+			if (charBefore === "" || charBefore === " ") {
+				const query = text.slice(lastSlashIdx + 1);
+				if (!query.includes(" ")) {
+					setFilterText(query);
+					setShowRepliesDropdown(true);
+					setActiveIndex(0);
+					return;
+				}
+			}
+		}
+		setShowRepliesDropdown(false);
+	}, [text]);
+
+	const filteredReplies = quickReplies.filter((reply) =>
+		reply.shortcut.toLowerCase().startsWith(filterText.toLowerCase())
+	);
+
+	const handleSelectReply = (replyText: string) => {
+		const lastSlashIdx = text.lastIndexOf("/");
+		if (lastSlashIdx !== -1) {
+			const prefix = text.slice(0, lastSlashIdx);
+			setText(prefix + replyText + " ");
+		}
+		setShowRepliesDropdown(false);
+		setTimeout(() => {
+			inputRef.current?.focus();
+		}, 10);
+	};
+
+	const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+		if (showRepliesDropdown && filteredReplies.length > 0) {
+			if (e.key === "ArrowDown") {
+				e.preventDefault();
+				setActiveIndex((prev) => (prev + 1) % filteredReplies.length);
+			} else if (e.key === "ArrowUp") {
+				e.preventDefault();
+				setActiveIndex((prev) => (prev - 1 + filteredReplies.length) % filteredReplies.length);
+			} else if (e.key === "Enter") {
+				e.preventDefault();
+				handleSelectReply(filteredReplies[activeIndex].text);
+			} else if (e.key === "Escape") {
+				e.preventDefault();
+				setShowRepliesDropdown(false);
+			}
+		}
+	};
 
 	// Resetear flags al cambiar de conversación
 	useEffect(() => {
@@ -351,20 +411,42 @@ export default function ConversationPanel({
 					</div>
 				) : (
 					<form onSubmit={handleSend} className="flex gap-2.5 w-full">
-						<input
-							type="text"
-							value={text}
-
-
-							onChange={(e) => setText(e.target.value)}
-							placeholder="Escribí un mensaje en modo Humano..."
-							disabled={sending}
-							className="flex-1 px-4 py-2.5 bg-surface border border-outline-variant rounded-full text-xs focus:outline-none focus:border-primary/50 transition-all duration-200 disabled:opacity-50 text-on-surface placeholder-on-surface-variant/50"
-						/>
+						<div className="relative flex-1">
+							{showRepliesDropdown && filteredReplies.length > 0 && (
+								<div className="absolute bottom-full mb-2.5 left-0 w-full bg-surface-bright/95 border border-outline-variant/60 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden max-h-[200px] overflow-y-auto z-30 animate-fade-in flex flex-col py-1.5 text-on-surface">
+									{filteredReplies.map((reply, idx) => (
+										<div
+											key={reply.id}
+											onClick={() => handleSelectReply(reply.text)}
+											className={`px-4 py-2 text-xs flex justify-between items-center cursor-pointer transition-colors ${
+												idx === activeIndex
+													? "bg-primary/10 text-primary font-bold"
+													: "text-on-surface-variant hover:bg-surface-bright"
+											}`}
+										>
+											<span className="font-semibold">{reply.text}</span>
+											<span className="text-[10px] font-mono text-primary/70 bg-primary/5 px-2 py-0.5 rounded border border-primary/15 font-bold">
+												/{reply.shortcut}
+											</span>
+										</div>
+									))}
+								</div>
+							)}
+							<input
+								ref={inputRef}
+								type="text"
+								value={text}
+								onChange={(e) => setText(e.target.value)}
+								onKeyDown={handleKeyDown}
+								placeholder="Escribí un mensaje en modo Humano... (usa / para respuestas rápidas)"
+								disabled={sending}
+								className="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-full text-xs focus:outline-none focus:border-primary/50 transition-all duration-200 disabled:opacity-50 text-on-surface placeholder-on-surface-variant/50"
+							/>
+						</div>
 						<button
 							type="submit"
 							disabled={sending || !text.trim()}
-							className="w-10 h-10 flex items-center justify-center bg-transparent text-primary hover:bg-surface rounded-full transition-all duration-200 active:scale-95 disabled:opacity-50"
+							className="w-10 h-10 flex items-center justify-center bg-transparent text-primary hover:bg-surface rounded-full transition-all duration-200 active:scale-95 disabled:opacity-50 cursor-pointer shrink-0"
 						>
 							{sending ? "..." : <ArrowRightIcon size={18} />}
 						</button>
