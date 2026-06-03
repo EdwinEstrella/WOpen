@@ -129,23 +129,7 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
 				</button>
 			</div>
 
-			{/* Footer / Status */}
-			<div className="mt-auto pt-6 border-t border-outline-variant/10 space-y-2 shrink-0">
-				<div className="flex items-center justify-between px-2 py-1">
-					<span className="text-[10px] uppercase font-bold tracking-widest text-on-surface-variant/80">
-						Sistema
-					</span>
-					<div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-transparent border border-outline-variant">
-						<span className="size-2 rounded-full bg-primary animate-pulse"></span>
-						<span className="text-[9px] text-primary font-bold uppercase tracking-wider">
-							Online
-						</span>
-					</div>
-				</div>
-				<div className="text-[9px] text-center text-on-surface-variant/40 font-mono tracking-widest">
-					NEXUS CRM v1.0.0
-				</div>
-			</div>
+			<div className="mt-auto shrink-0" />
 		</nav>
 	);
 }

@@ -137,19 +137,8 @@ export default function DashboardHeader({
 
 	return (
 		<>
-			<header className="bg-background border-b border-outline-variant flex justify-between items-center h-16 px-6 shrink-0 z-40">
+			<header className="bg-background border-b border-outline-variant flex justify-end items-center h-16 px-6 shrink-0 z-40">
 				
-				{/* Título de Sección */}
-				<div className="flex items-center gap-6">
-					<div className="font-display text-sm font-bold text-on-surface uppercase tracking-wider">
-						Consola de Control
-					</div>
-					<span className="flex items-center gap-2 text-[10px] text-primary font-bold uppercase tracking-widest bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
-						<span className="size-2 rounded-full bg-primary animate-pulse"></span>
-						Motor IA Activo
-					</span>
-				</div>
-
 				{/* Status e Interacciones */}
 				<div className="flex items-center gap-4">
 					

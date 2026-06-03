@@ -125,6 +125,16 @@ describe("shadcn/ui redesign foundation contract", () => {
 		assert.doesNotMatch(header, /aria-label="Cerrar Sesión del Panel"/);
 	});
 
+	it("removes decorative sidebar and header status labels", () => {
+		const header = readProjectFile("src/components/DashboardHeader.tsx");
+		const sidebar = readProjectFile("src/components/Sidebar.tsx");
+
+		assert.doesNotMatch(header, /Consola de Control/);
+		assert.doesNotMatch(header, /Motor IA Activo/);
+		assert.doesNotMatch(sidebar, /Sistema/);
+		assert.doesNotMatch(sidebar, /Online/);
+	});
+
 	it("keeps chat contrast readable and image previews high fidelity", () => {
 		const globals = readProjectFile("src/app/globals.css");
 		const panel = readProjectFile("src/components/ConversationPanel.tsx");
