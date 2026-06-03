@@ -447,7 +447,7 @@ describe("postgres adapter", () => {
 	it("returns recent messages chronologically with a limit", async () => {
 		const pg = new FakePg();
 		pg.respondWith((text, values) => {
-			assert.match(text, /ORDER BY created_at ASC/);
+			assert.match(text, /ORDER BY id ASC/);
 			assert.match(text, /LIMIT \$2/);
 			assert.deepEqual(values, [7, 2]);
 			return { rows: [message({ id: 1 }), message({ id: 2 })] };

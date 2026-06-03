@@ -403,10 +403,10 @@ export function createPostgresRepository(pool: PostgresPool) {
 				`SELECT * FROM (
 					SELECT * FROM messages
 					WHERE conversation_id = $1
-					ORDER BY created_at DESC
+					ORDER BY id DESC
 					LIMIT $2
 				) subquery
-				ORDER BY created_at ASC`,
+				ORDER BY id ASC`,
 				[conversationId, limit],
 			);
 			return result.rows;

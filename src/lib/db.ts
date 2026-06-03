@@ -97,7 +97,7 @@ export async function markFollowUpBlocked(conversationId: number, reason: string
 export async function getMessages(conversationId: number, limit = 50): Promise<MessageRow[]> {
 	await ensureSchemaInitialized();
 	const res = await pool.query<MessageRow>(
-		"SELECT * FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC LIMIT $2",
+		"SELECT * FROM messages WHERE conversation_id = $1 ORDER BY id ASC LIMIT $2",
 		[conversationId, limit],
 	);
 	return res.rows;
