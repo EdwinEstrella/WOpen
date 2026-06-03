@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { m } from "framer-motion";
 import { BotIcon, CheckCheckIcon, ExternalLinkIcon, ImageIcon, MicIcon, UserIcon } from "lucide-react";
@@ -128,7 +128,10 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 									controls
 									preload="metadata"
 									className="h-9 w-full accent-primary"
-								/>
+									aria-label="Nota de voz de WhatsApp"
+								>
+									<track kind="captions" />
+								</audio>
 							) : (
 								<p className="text-xs italic text-on-surface-variant">
 									Audio recibido, pero el archivo ya no está disponible en el servidor.

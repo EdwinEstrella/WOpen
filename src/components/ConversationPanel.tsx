@@ -490,6 +490,7 @@ if (conversation.id !== prevConversationId) {
 								onChange={(e) => setText(e.target.value)}
 								onKeyDown={handleKeyDown}
 								placeholder="Escribí un mensaje en modo Humano... (usa / para respuestas rápidas)"
+								aria-label="Escribir mensaje"
 								disabled={sending}
 								className="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-full text-xs focus:outline-none focus:border-primary/50 transition-all duration-200 disabled:opacity-50 text-on-surface placeholder-on-surface-variant/50"
 							/>

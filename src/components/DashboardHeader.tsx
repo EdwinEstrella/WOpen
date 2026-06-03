@@ -34,10 +34,12 @@ export default function DashboardHeader({
 	const [profileModalOpen, setProfileModalOpen] = useState(false);
 	const [zoomImage, setZoomImage] = useState<string | null>(null);
 	const [botAvatarError, setBotAvatarError] = useState(false);
+	const [prevProfilePicUrl, setPrevProfilePicUrl] = useState(botProfile?.profile_picture_url);
 
-	useEffect(() => {
+	if (botProfile?.profile_picture_url !== prevProfilePicUrl) {
+		setPrevProfilePicUrl(botProfile?.profile_picture_url);
 		setBotAvatarError(false);
-	}, [botProfile?.profile_picture_url]);
+	}
 
 	// Estados del gestor de respuestas rápidas
 	const [localQuickReplies, setLocalQuickReplies] = useState<Array<{ id: string; shortcut: string; text: string }>>([]);
@@ -155,6 +157,7 @@ export default function DashboardHeader({
 						<input
 							type="text"
 							placeholder="Buscar en el panel...        Ctrl + K"
+							aria-label="Buscar en el panel"
 							className="bg-surface border border-outline-variant rounded-full pl-8 pr-4 py-1.5 text-xs focus:outline-none focus:border-primary/50 transition-all w-64 placeholder-on-surface-variant/50 text-on-surface"
 							disabled
 						/>

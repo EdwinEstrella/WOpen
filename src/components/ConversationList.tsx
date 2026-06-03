@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useState } from "react";
 import type { ConversationListRow } from "../lib/db.ts";
@@ -101,6 +101,7 @@ export default function ConversationList({
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
 						placeholder="Buscar por nombre o teléfono..."
+						aria-label="Buscar chats"
 						className="w-full rounded-xl border border-outline-variant/40 bg-surface-container-lowest py-1.5 pl-8 pr-8 text-[11px] text-on-surface transition-all placeholder:text-on-surface-variant/60 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/50"
 					/>
 					<span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-on-surface-variant/60">

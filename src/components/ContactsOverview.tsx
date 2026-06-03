@@ -75,6 +75,7 @@ export default function ContactsOverview({
 							value={query}
 							onChange={(event) => setQuery(event.target.value)}
 							placeholder="Buscar por nombre o teléfono..."
+							aria-label="Buscar contactos"
 							className="bg-surface-container-lowest border border-outline-variant/40 rounded-xl px-4 py-1.5 text-xs focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all w-64 placeholder-on-surface-variant/60 text-on-surface"
 						/>
 						<select
@@ -82,6 +83,7 @@ export default function ContactsOverview({
 							onChange={(event) =>
 								setModeFilter(event.target.value as "ALL" | "AI" | "HUMAN")
 							}
+							aria-label="Filtrar por modo de chat"
 							className="bg-surface-container-lowest border border-outline-variant/40 rounded-xl px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary"
 						>
 							<option value="ALL">Todos los modos</option>
