@@ -71,7 +71,7 @@ export default function AutomationsOverview() {
 					<div className="absolute inset-0 bg-[linear-gradient(rgba(78,222,163,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(78,222,163,0.03)_1px,transparent_1px)] bg-[size:24px_24px]"></div>
 
 					{/* SVG Connector Lines */}
-					<svg className="absolute inset-0 size- pointer-events-none z-0">
+					<svg className="absolute inset-0 size-full pointer-events-none z-0">
 						{/* Connection 1 to 2 */}
 						<path
 							d="M 280,180 C 340,180 340,180 400,180"
@@ -95,7 +95,7 @@ export default function AutomationsOverview() {
 					</svg>
 
 					{/* Visual Nodes Canvas Stack */}
-					<div className="relative z-10 flex items-center gap-24 size- justify-center">
+					<div className="relative z-10 flex items-center gap-24 size-full justify-center">
 						
 						{/* Node 1: Trigger */}
 						<div className="w-64 glass-panel rounded-2xl p-5 border-l-4 border-l-primary flex flex-col gap-3 shadow-xl hover:border-primary/50 transition-colors">
@@ -112,7 +112,7 @@ export default function AutomationsOverview() {
 								<p className="text-[10px] text-on-surface-variant mt-1">Cualquier interacción inicial del cliente</p>
 							</div>
 							<div className="border-t border-outline-variant/10 pt-2 flex items-center gap-1.5">
-								<span className="size- rounded-full bg-primary animate-pulse"></span>
+								<span className="size-2 rounded-full bg-primary animate-pulse"></span>
 								<span className="text-[10px] text-on-surface-variant">Esperando mensaj…</span>
 							</div>
 						</div>

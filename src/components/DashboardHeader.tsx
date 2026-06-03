@@ -143,7 +143,7 @@ export default function DashboardHeader({
 						Consola de Control
 					</div>
 					<span className="flex items-center gap-2 text-[10px] text-primary font-bold uppercase tracking-widest bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
-						<span className="size- rounded-full bg-primary animate-pulse"></span>
+						<span className="size-2 rounded-full bg-primary animate-pulse"></span>
 						Motor IA Activo
 					</span>
 				</div>
@@ -167,9 +167,9 @@ export default function DashboardHeader({
 						<div className="flex items-center gap-3">
 							{/* Badge de Conectado */}
 							<div className="flex items-center gap-2 bg-transparent border border-primary text-primary px-4 py-1 rounded-full text-[11px] font-mono shadow-inner">
-								<span className="relative flex size- shrink-0">
-									<span className="animate-ping absolute inline-flex size- rounded-full bg-primary opacity-75"></span>
-									<span className="relative inline-flex rounded-full size- bg-primary"></span>
+								<span className="relative flex size-2 shrink-0">
+									<span className="animate-ping absolute inline-flex size-2 rounded-full bg-primary opacity-75"></span>
+									<span className="relative inline-flex rounded-full size-2 bg-primary"></span>
 								</span>
 								<span>+{phone}</span>
 							</div>
@@ -185,7 +185,7 @@ export default function DashboardHeader({
 										src={botProfile.profile_picture_url}
 										width={20}
 										height={20}
-										className="size- rounded-full object-cover border border-primary/30"
+										className="size-5 rounded-full object-cover border border-primary/30"
 										alt="Bot avatar"
 										onError={() => setBotAvatarError(true)}
 									/>
@@ -208,7 +208,7 @@ export default function DashboardHeader({
 						</div>
 					) : (
 						<div className="flex items-center gap-2 bg-error/10 border border-error/20 px-3 py-1 rounded-full text-[11px] text-error font-semibold">
-							<span className="size- rounded-full bg-error animate-pulse"></span>
+							<span className="size-2 rounded-full bg-error animate-pulse"></span>
 							<span>WhatsApp Desconectado</span>
 						</div>
 					)}
@@ -219,7 +219,7 @@ export default function DashboardHeader({
 						onClick={handleLogout}
 						title="Cerrar Sesión"
 						aria-label="Cerrar Sesión del Panel"
-						className="size- rounded-full overflow-hidden border border-primary hover:bg-primary/10 transition-colors cursor-pointer flex items-center justify-center bg-transparent"
+						className="size-8 rounded-full overflow-hidden border border-primary hover:bg-primary/10 transition-colors cursor-pointer flex items-center justify-center bg-transparent"
 					>
 						<UserIcon className="text-primary hover:text-primary transition-colors" size={14} />
 					</button>
@@ -249,7 +249,7 @@ export default function DashboardHeader({
 									type="button"
 									onClick={() => botProfile?.profile_picture_url && setZoomImage(botProfile.profile_picture_url)}
 									aria-label={botProfile?.profile_picture_url ? "Ampliar foto de perfil" : "Foto de perfil no disponible"}
-									className={`size- rounded-full overflow-hidden border-2 border-primary/50 bg-surface-bright flex items-center justify-center shadow-lg group relative ${botProfile?.profile_picture_url ? "cursor-pointer" : ""}`}
+									className={`size-24 rounded-full overflow-hidden border-2 border-primary/50 bg-surface-bright flex items-center justify-center shadow-lg group relative ${botProfile?.profile_picture_url ? "cursor-pointer" : ""}`}
 								>
 									{botProfile?.profile_picture_url && !botAvatarError ? (
 										<>
@@ -257,7 +257,7 @@ export default function DashboardHeader({
 												src={botProfile.profile_picture_url} 
 												alt="Bot profile" 
 												fill
-												className="size- object-cover transition-transform duration-300 group-hover:scale-105" 
+												className="size-full object-cover transition-transform duration-300 group-hover:scale-105" 
 												onError={() => setBotAvatarError(true)}
 											/>
 											<div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] uppercase font-bold tracking-wider transition-opacity duration-200">
@@ -448,7 +448,7 @@ export default function DashboardHeader({
 							type="button"
 							onClick={() => setProfileModalOpen(false)}
 							aria-label="Cerrar modal"
-							className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface size- rounded-full flex items-center justify-center hover:bg-surface-bright transition-colors cursor-pointer"
+							className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface size-8 rounded-full flex items-center justify-center hover:bg-surface-bright transition-colors cursor-pointer"
 						>
 							×
 						</button>
@@ -470,11 +470,11 @@ export default function DashboardHeader({
 							src={zoomImage} 
 							alt="Bot foto grande" 
 							fill
-							className="size- object-cover rounded-2xl animate-fade-in"
+							className="size-full object-cover rounded-2xl animate-fade-in"
 						/>
 						<button 
 							type="button"
-							className="absolute top-4 right-4 size- flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white font-display text-xl font-bold focus:outline-none transition-all duration-200 hover:scale-105 active:scale-95 shadow-md cursor-pointer"
+							className="absolute top-4 right-4 size-8 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white font-display text-xl font-bold focus:outline-none transition-all duration-200 hover:scale-105 active:scale-95 shadow-md cursor-pointer"
 							onClick={() => setZoomImage(null)}
 							aria-label="Cerrar zoom de imagen"
 						>

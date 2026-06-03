@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { KeyIcon, MailIcon, BellIcon } from "./Icons.tsx";
@@ -113,7 +113,7 @@ export default function SettingsPanel() {
 							onChange={(e) =>
 								handleChange("keyword_case_sensitive", e.target.checked)
 							}
-							className="size- rounded bg-surface-container-low border border-outline-variant/30 text-primary focus:ring-0"
+							className="size-4 rounded bg-surface-container-low border border-outline-variant/30 text-primary focus:ring-0"
 						/>
 						<label
 							htmlFor="keyword_case_sensitive"
@@ -218,7 +218,7 @@ export default function SettingsPanel() {
 							onChange={(e) =>
 								handleChange("block_outside_24h_followups", e.target.checked)
 							}
-							className="size- rounded bg-surface-container-low border border-outline-variant/30 text-primary focus:ring-0"
+							className="size-4 rounded bg-surface-container-low border border-outline-variant/30 text-primary focus:ring-0"
 						/>
 						<label
 							htmlFor="block_outside_24h_followups"

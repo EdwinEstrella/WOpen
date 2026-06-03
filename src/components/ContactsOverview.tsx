@@ -132,13 +132,13 @@ export default function ContactsOverview({
 													alt={contact.name || contact.phone}
 													width={32}
 													height={32}
-													className="size- rounded-full object-cover border border-primary/30 shrink-0 cursor-pointer hover:scale-105 hover:brightness-95 transition-all"
+													className="size-8 rounded-full object-cover border border-primary/30 shrink-0 cursor-pointer hover:scale-105 hover:brightness-95 transition-all"
 													onClick={() => setZoomImage(contact.profile_picture_url)}
 													onError={() => contact.profile_picture_url && handleAvatarError(contact.profile_picture_url)}
 													title="Ver imagen en grande"
 												/>
 											) : (
-												<div className="size- rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center font-display text-primary text-xs font-bold shrink-0">
+												<div className="size-8 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center font-display text-primary text-xs font-bold shrink-0">
 													{(contact.name || contact.phone)
 														.charAt(0)
 														.toLocaleUpperCase()}
@@ -195,11 +195,11 @@ export default function ContactsOverview({
 							src={zoomImage} 
 							alt="Contacto foto" 
 							fill
-							className="size- object-cover rounded-2xl animate-fade-in"
+							className="size-full object-cover rounded-2xl animate-fade-in"
 						/>
 						<button 
 							type="button"
-							className="absolute top-4 right-4 size- flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white font-display text-xl font-bold focus:outline-none transition-all duration-200 hover:scale-105 active:scale-95 shadow-md"
+							className="absolute top-4 right-4 size-8 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white font-display text-xl font-bold focus:outline-none transition-all duration-200 hover:scale-105 active:scale-95 shadow-md"
 							onClick={() => setZoomImage(null)}
 							aria-label="Cerrar zoom de imagen"
 						>

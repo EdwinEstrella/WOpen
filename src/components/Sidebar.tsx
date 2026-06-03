@@ -29,7 +29,7 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
 		<nav className="fixed left-0 top-0 h-screen w-[280px] bg-surface/95 border-r border-outline-variant/30 flex flex-col py-6 px-4 z-50 shadow-[20px_0_60px_rgba(12,83,58,0.14)] backdrop-blur-xl">
 			{/* Header de Marca */}
 			<div className="flex items-center gap-3 mb-10 px-2 shrink-0">
-				<div className="size- rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shrink-0 border border-primary/40 glow-active">
+				<div className="size-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shrink-0 border border-primary/40 glow-active">
 					<RobotIcon className="text-on-primary" size={20} />
 				</div>
 				<div>
@@ -136,7 +136,7 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
 						Sistema
 					</span>
 					<div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-transparent border border-outline-variant">
-						<span className="size- rounded-full bg-primary animate-pulse"></span>
+						<span className="size-2 rounded-full bg-primary animate-pulse"></span>
 						<span className="text-[9px] text-primary font-bold uppercase tracking-wider">
 							Online
 						</span>

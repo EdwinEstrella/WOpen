@@ -286,7 +286,7 @@ if (conversation.id !== prevConversationId) {
 							alt={displayName}
 							width={32}
 							height={32}
-							className="size- rounded-full object-cover border border-primary/30 cursor-zoom-in hover:scale-105 transition-transform"
+							className="size-8 rounded-full object-cover border border-primary/30 cursor-zoom-in hover:scale-105 transition-transform"
 							onClick={(e) => {
 								e.stopPropagation();
 								setZoomImage(profilePictureUrl);
@@ -295,14 +295,14 @@ if (conversation.id !== prevConversationId) {
 							title="Ver imagen en grande"
 						/>
 					) : (
-						<div className="size- rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-primary font-display font-bold">
+						<div className="size-8 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-primary font-display font-bold">
 							{initials || <UserIcon size={16} />}
 						</div>
 					)}
 					<div className="flex flex-col">
 						<span className="font-display text-sm font-bold text-on-surface">{displayName}</span>
 					<span className="flex items-center gap-1.5 text-[10px] font-mono text-on-surface-variant/80 tracking-wider mt-0.5">
-						<span className="size- rounded-full bg-primary"></span>
+						<span className="size-2 rounded-full bg-primary"></span>
 						+{cleanPhone}
 					</span>
 				</div>
@@ -350,7 +350,7 @@ if (conversation.id !== prevConversationId) {
 							<button
 								type="button"
 								onClick={() => setProfileOpen(false)}
-								className="size- rounded-full border border-outline-variant text-on-surface-variant hover:text-on-surface hover:bg-surface-bright"
+								className="size-8 rounded-full border border-outline-variant text-on-surface-variant hover:text-on-surface hover:bg-surface-bright"
 								aria-label="Cerrar perfil"
 							>
 								×
@@ -363,18 +363,18 @@ if (conversation.id !== prevConversationId) {
 									type="button"
 									onClick={() => setZoomImage(profilePictureUrl)}
 									aria-label={`Ver foto de perfil de ${displayName} en grande`}
-									className="size- rounded-full overflow-hidden border border-primary/30 mb-3 cursor-zoom-in hover:scale-105 transition-transform"
+									className="size-24 rounded-full overflow-hidden border border-primary/30 mb-3 cursor-zoom-in hover:scale-105 transition-transform"
 								>
 									<Image
 										src={profilePictureUrl}
 										alt={displayName}
 										fill
-										className="size- object-cover"
+										className="size-full object-cover"
 										onError={() => setDrawerAvatarError(true)}
 									/>
 								</button>
 							) : (
-								<div className="size- rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-primary font-display text-2xl font-bold mb-3">
+								<div className="size-24 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-primary font-display text-2xl font-bold mb-3">
 									{initials || <UserIcon size={28} />}
 								</div>
 							)}
@@ -445,7 +445,7 @@ if (conversation.id !== prevConversationId) {
 				{showScrollDown && (
 					<button type="button"
 						onClick={scrollToBottom}
-						className="absolute bottom-4 right-6 size- rounded-full bg-surface border border-outline-variant text-primary hover:text-primary-bright hover:bg-surface-bright flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 animate-fade-in z-20"
+						className="absolute bottom-4 right-6 size-10 rounded-full bg-surface border border-outline-variant text-primary hover:text-primary-bright hover:bg-surface-bright flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 animate-fade-in z-20"
 						title="Ir al final de la conversación"
 					>
 						<ArrowDownIcon size={18} />
@@ -498,7 +498,7 @@ if (conversation.id !== prevConversationId) {
 						<button
 							type="submit"
 							disabled={sending || !text.trim()}
-							className="size- flex items-center justify-center bg-transparent text-primary hover:bg-surface rounded-full transition-all duration-200 active:scale-95 disabled:opacity-50 cursor-pointer shrink-0"
+							className="size-10 flex items-center justify-center bg-transparent text-primary hover:bg-surface rounded-full transition-all duration-200 active:scale-95 disabled:opacity-50 cursor-pointer shrink-0"
 						>
 							{sending ? "..." : <ArrowRightIcon size={18} />}
 						</button>
@@ -532,7 +532,7 @@ if (conversation.id !== prevConversationId) {
 							Abrir original
 						</a>
 						<button type="button"
-							className="absolute top-4 right-4 flex size- items-center justify-center rounded-full bg-black/60 text-xl font-bold text-white shadow-md ring-1 ring-white/15 transition-all duration-200 hover:scale-105 hover:bg-black/80 focus:outline-none active:scale-95"
+							className="absolute top-4 right-4 flex size-8 items-center justify-center rounded-full bg-black/60 text-xl font-bold text-white shadow-md ring-1 ring-white/15 transition-all duration-200 hover:scale-105 hover:bg-black/80 focus:outline-none active:scale-95"
 							onClick={() => setZoomImage(null)}
 							aria-label="Cerrar imagen"
 						>

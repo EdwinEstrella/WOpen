@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import QRScreen from "./QRScreen.tsx";
@@ -52,7 +52,7 @@ export default function ConnectionGate({ children }: ConnectionGateProps) {
 	if (loading) {
 		return (
 			<div className="min-h-screen flex flex-col items-center justify-center bg-background text-on-surface-variant">
-				<div className="size- border-2 border-primary border-t-transparent rounded-full animate-spin mb-4 glow-active"></div>
+				<div className="size-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-4 glow-active"></div>
 				<span className="text-[10px] font-bold uppercase tracking-widest text-primary animate-pulse">Cargando aplicació…</span>
 			</div>
 		);
@@ -62,8 +62,8 @@ export default function ConnectionGate({ children }: ConnectionGateProps) {
 		return (
 			<div className="min-h-screen flex flex-col bg-background relative overflow-hidden">
 				{/* Ambient Glows */}
-				<div className="absolute top-0 right-0 size- bg-primary/5 rounded-full blur-3xl -mr-20 -mt-20"></div>
-				<div className="absolute bottom-0 left-0 size- bg-secondary/5 rounded-full blur-3xl -ml-20 -mb-20"></div>
+				<div className="absolute top-0 right-0 size-96 bg-primary/5 rounded-full blur-3xl -mr-20 -mt-20"></div>
+				<div className="absolute bottom-0 left-0 size-96 bg-secondary/5 rounded-full blur-3xl -ml-20 -mb-20"></div>
 
 				<DashboardHeader phone={null} onDisconnect={() => {}} botProfile={null} quickReplies={[]} onQuickRepliesUpdated={() => {}} />
 				<main className="flex-1 flex items-center justify-center p-6 z-10">
