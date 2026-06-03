@@ -172,4 +172,20 @@ describe("shadcn/ui redesign foundation contract", () => {
 		assert.match(home, /selectedId/);
 		assert.match(home, /showArchived/);
 	});
+
+	it("keeps active prompts first and edits prompts in a large responsive dialog", () => {
+		const prompts = readProjectFile("src/components/PromptsManager.tsx");
+		const db = readProjectFile("src/lib/db.ts");
+
+		assert.match(db, /ORDER BY is_active DESC, id ASC/);
+		assert.match(prompts, /function sortPrompts/);
+		assert.match(prompts, /<Dialog open=\{formVisible\}/);
+		assert.match(prompts, /<DialogTitle/);
+		assert.match(prompts, /w-\[min\(96vw,1100px\)\]/);
+		assert.match(prompts, /h-\[min\(88vh,780px\)\]/);
+		assert.match(prompts, /min-h-\[360px\] flex-1 resize-none/);
+		assert.doesNotMatch(prompts, /rows=\{8\}/);
+		assert.doesNotMatch(prompts, /\{prompt\.content\}/);
+		assert.doesNotMatch(prompts, /max-h-32 overflow-y-auto whitespace-pre-wrap/);
+	});
 });
