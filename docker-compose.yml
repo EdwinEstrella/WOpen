@@ -40,6 +40,7 @@ services:
     volumes:
       - whatsapp_auth:/app/auth
       - bot_data:/app/data
+      - whatsapp_media:/app/public/media
 
 volumes:
   pgdata:
@@ -49,4 +50,6 @@ volumes:
   whatsapp_auth:
     driver: local
   bot_data:
+    driver: local
+  whatsapp_media:
     driver: local
