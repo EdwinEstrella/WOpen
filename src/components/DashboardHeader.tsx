@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState, useEffect } from "react";
+import { normalizeProfileStatus } from "@/lib/baileys/profile";
 import { SearchIcon, UserIcon, TrashIcon, PlusIcon, PhoneIcon, MailIcon } from "./Icons.tsx";
 
 interface DashboardHeaderProps {
@@ -10,7 +11,7 @@ interface DashboardHeaderProps {
 	botProfile: {
 		phone: string;
 		profile_picture_url: string | null;
-		status: string | null;
+		status: unknown;
 		business: {
 			description: string;
 			category: string;
@@ -35,6 +36,7 @@ export default function DashboardHeader({
 	const [zoomImage, setZoomImage] = useState<string | null>(null);
 	const [botAvatarError, setBotAvatarError] = useState(false);
 	const [prevProfilePicUrl, setPrevProfilePicUrl] = useState(botProfile?.profile_picture_url);
+	const profileStatus = normalizeProfileStatus(botProfile?.status);
 
 	if (botProfile?.profile_picture_url !== prevProfilePicUrl) {
 		setPrevProfilePicUrl(botProfile?.profile_picture_url);
@@ -261,9 +263,9 @@ export default function DashboardHeader({
 								
 								<div className="text-center">
 									<p className="font-mono text-sm font-semibold">+{phone}</p>
-									{botProfile?.status && (
+									{profileStatus && (
 										<p className="text-[11px] text-on-surface-variant italic mt-1 bg-surface-bright px-3 py-1 rounded-full border border-outline-variant/35 inline-block">
-											"{botProfile.status}"
+											"{profileStatus}"
 										</p>
 									)}
 								</div>

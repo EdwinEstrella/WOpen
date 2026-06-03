@@ -118,6 +118,9 @@ describe("shadcn/ui redesign foundation contract", () => {
 		const header = readProjectFile("src/components/DashboardHeader.tsx");
 
 		assert.match(header, /aria-label="Abrir perfil de WhatsApp"/);
+		assert.match(header, /normalizeProfileStatus/);
+		assert.match(header, /\{profileStatus\}/);
+		assert.doesNotMatch(header, /\{botProfile\.status\}/);
 		assert.doesNotMatch(header, />\s*Perfil\s*<\/button>/);
 		assert.doesNotMatch(header, /aria-label="Cerrar Sesión del Panel"/);
 	});

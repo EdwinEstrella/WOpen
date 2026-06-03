@@ -11,6 +11,7 @@ import fs from "node:fs";
 import { Redis } from "ioredis";
 import { createIoredisTurnState } from "../redis-adapter.ts";
 import { createInboundHandler } from "./inbound-handler.ts";
+import { normalizeProfileStatus } from "./profile.ts";
 import { runtimePaths, clearDirectoryContents } from "../runtime-paths.ts";
 import {
 	getConnectionState,
@@ -334,11 +335,7 @@ export async function startWASocket() {
 				let selfStatus: string | null = null;
 				try {
 					const statusRes: any = await sock.fetchStatus(selfJid);
-					if (statusRes && Array.isArray(statusRes) && statusRes.length > 0) {
-						selfStatus = statusRes[0]?.status || null;
-					} else if (statusRes) {
-						selfStatus = statusRes.status || null;
-					}
+					selfStatus = normalizeProfileStatus(statusRes);
 				} catch (e) {
 					console.log("[bot] No se pudo obtener el estado propio.");
 				}
