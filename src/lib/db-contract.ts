@@ -36,6 +36,18 @@ export const DEFAULT_SETTINGS = {
 	followup_max_attempts: 2,
 	whatsapp_freeform_window_hours: 24,
 	block_outside_24h_followups: true,
+	chat_ai_provider: "deepseek",
+	chat_ai_base_url: "https://api.deepseek.com",
+	chat_ai_api_key: "",
+	chat_ai_model: "deepseek-v4-pro",
+	audio_ai_provider: "openai",
+	audio_ai_base_url: "https://api.openai.com/v1",
+	audio_ai_api_key: "",
+	audio_ai_model: "gpt-4o-transcribe",
+	image_ai_provider: "openai",
+	image_ai_base_url: "https://api.openai.com/v1",
+	image_ai_api_key: "",
+	image_ai_model: "gpt-4o-mini",
 } as const;
 
 export const DATABASE_SCHEMA_SQL = `
@@ -70,7 +82,10 @@ INSERT INTO settings (key, value) VALUES
   ('keyword_case_sensitive', 'false'::jsonb), ('debounce_ms', '30000'::jsonb),
   ('processing_lock_ttl_ms', '90000'::jsonb), ('dedupe_ttl_seconds', '86400'::jsonb), ('conversation_queue_ttl_seconds', '300'::jsonb),
   ('followup_interval_hours', '12'::jsonb), ('followup_min_hours_after_assistant', '12'::jsonb), ('followup_max_attempts', '2'::jsonb),
-  ('whatsapp_freeform_window_hours', '24'::jsonb), ('block_outside_24h_followups', 'true'::jsonb)
+  ('whatsapp_freeform_window_hours', '24'::jsonb), ('block_outside_24h_followups', 'true'::jsonb),
+  ('chat_ai_provider', '"deepseek"'::jsonb), ('chat_ai_base_url', '"https://api.deepseek.com"'::jsonb), ('chat_ai_api_key', '""'::jsonb), ('chat_ai_model', '"deepseek-v4-pro"'::jsonb),
+  ('audio_ai_provider', '"openai"'::jsonb), ('audio_ai_base_url', '"https://api.openai.com/v1"'::jsonb), ('audio_ai_api_key', '""'::jsonb), ('audio_ai_model', '"gpt-4o-transcribe"'::jsonb),
+  ('image_ai_provider', '"openai"'::jsonb), ('image_ai_base_url', '"https://api.openai.com/v1"'::jsonb), ('image_ai_api_key', '""'::jsonb), ('image_ai_model', '"gpt-4o-mini"'::jsonb)
 ON CONFLICT (key) DO NOTHING;
 CREATE TABLE IF NOT EXISTS conversation_events (
   id SERIAL PRIMARY KEY, conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE, event_type TEXT NOT NULL,

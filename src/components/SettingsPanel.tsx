@@ -3,6 +3,64 @@
 import { useState, useEffect } from "react";
 import { KeyIcon, MailIcon, BellIcon } from "./Icons.tsx";
 
+
+function CapabilityProviderFields({
+	title,
+	description,
+	prefix,
+	providers,
+	settings,
+	onChange,
+}: {
+	title: string;
+	description: string;
+	prefix: "chat_ai" | "audio_ai" | "image_ai";
+	providers: Array<{ value: string; label: string }>;
+	settings: Record<string, any>;
+	onChange: (key: string, value: any) => void;
+}) {
+	const providerKey = `${prefix}_provider`;
+	const baseUrlKey = `${prefix}_base_url`;
+	const apiKeyKey = `${prefix}_api_key`;
+	const modelKey = `${prefix}_model`;
+
+	return (
+		<div className="rounded-2xl border border-outline-variant/20 bg-surface-container-low/60 p-4 space-y-3">
+			<div>
+				<h4 className="text-[10px] font-bold uppercase tracking-wider text-on-surface">{title}</h4>
+				<p className="text-[9px] text-on-surface-variant/80">{description}</p>
+			</div>
+			<div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+				<div className="flex flex-col gap-1.5">
+					<label htmlFor={providerKey} className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Proveedor</label>
+					<select
+						id={providerKey}
+						value={settings[providerKey] || providers[0]?.value || ""}
+						onChange={(e) => onChange(providerKey, e.target.value)}
+						className="px-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
+					>
+						{providers.map((provider) => (
+							<option key={provider.value} value={provider.value}>{provider.label}</option>
+						))}
+					</select>
+				</div>
+				<div className="flex flex-col gap-1.5">
+					<label htmlFor={baseUrlKey} className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Base URL</label>
+					<input id={baseUrlKey} type="url" value={settings[baseUrlKey] || ""} onChange={(e) => onChange(baseUrlKey, e.target.value)} placeholder="https://api.openai.com/v1" className="px-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all" />
+				</div>
+				<div className="flex flex-col gap-1.5">
+					<label htmlFor={apiKeyKey} className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">API Key</label>
+					<input id={apiKeyKey} type="password" value={settings[apiKeyKey] || ""} onChange={(e) => onChange(apiKeyKey, e.target.value)} placeholder="sk-..." autoComplete="off" className="px-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all" />
+				</div>
+				<div className="flex flex-col gap-1.5">
+					<label htmlFor={modelKey} className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Modelo</label>
+					<input id={modelKey} type="text" value={settings[modelKey] || ""} onChange={(e) => onChange(modelKey, e.target.value)} placeholder="gpt-4o-mini" className="px-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all" />
+				</div>
+			</div>
+		</div>
+	);
+}
+
 export default function SettingsPanel() {
 	const [settings, setSettings] = useState<Record<string, any>>({});
 	const [loading, setLoading] = useState(false);
@@ -122,6 +180,51 @@ export default function SettingsPanel() {
 							Sensible a mayúsculas/minúsculas para coincidencia exacta
 						</label>
 					</div>
+				</div>
+
+
+				{/* Grupo 2: Proveedores de IA */}
+				<div className="bg-surface/80 border border-outline-variant/20 p-5 rounded-2xl space-y-4">
+					<h3 className="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-2">
+						<KeyIcon className="text-primary" size={14} /> Proveedores de IA
+					</h3>
+					<p className="text-[9px] text-on-surface-variant/80">
+						Elegir el proveedor correcto para cada capacidad. DeepSeek queda fuera de audio e imagenes porque su documentacion actual muestra chat/completions, no transcripcion ni vision general.
+					</p>
+					<CapabilityProviderFields
+						title="Responder mensajes"
+						description="Modelo conversacional para chats y follow-ups."
+						prefix="chat_ai"
+						providers={[
+							{ value: "openai", label: "ChatGPT / OpenAI" },
+							{ value: "google", label: "Google Gemini" },
+							{ value: "deepseek", label: "DeepSeek" },
+						]}
+						settings={settings}
+						onChange={handleChange}
+					/>
+					<CapabilityProviderFields
+						title="Transcribir audios"
+						description="Convierte notas de voz en texto antes de responder."
+						prefix="audio_ai"
+						providers={[
+							{ value: "openai", label: "ChatGPT / OpenAI" },
+							{ value: "google", label: "Google Gemini" },
+						]}
+						settings={settings}
+						onChange={handleChange}
+					/>
+					<CapabilityProviderFields
+						title="Describir imagenes"
+						description="Interpreta imagenes recibidas por WhatsApp para darle contexto al bot."
+						prefix="image_ai"
+						providers={[
+							{ value: "openai", label: "ChatGPT / OpenAI" },
+							{ value: "google", label: "Google Gemini" },
+						]}
+						settings={settings}
+						onChange={handleChange}
+					/>
 				</div>
 
 				{/* Grupo 3: Seguimientos Automáticos */}

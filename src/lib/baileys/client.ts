@@ -14,6 +14,11 @@ import { createInboundHandler } from "./inbound-handler.ts";
 import { normalizeProfileStatus } from "./profile.ts";
 import { runtimePaths, clearDirectoryContents } from "../runtime-paths.ts";
 import {
+	createConfiguredChatClient,
+	describeImage,
+	transcribeAudio,
+} from "../ai-providers.ts";
+import {
 	getConnectionState,
 	setConnectionState,
 	getOrCreateConversation,
@@ -72,8 +77,9 @@ export const inboundHandler = createInboundHandler({
 	getRecentHistory,
 	getActiveSystemPrompt,
 	callDeepSeek: async (input) => {
-		const { deepseek } = await import("../Deepseek.ts");
-		const res = await deepseek.generateNormalReply({
+		const settings = await getSettings();
+		const chatClient = createConfiguredChatClient(settings);
+		const res = await chatClient.generateNormalReply({
 			systemPrompt: input.systemPrompt,
 			history: input.history,
 			queuedMessages: input.queuedMessages,
@@ -142,6 +148,8 @@ export const inboundHandler = createInboundHandler({
 			return null;
 		}
 	},
+	transcribeAudio: async (input) => transcribeAudio(input),
+	describeImage: async (input) => describeImage(input),
 });
 
 // Loop que procesa la cola de salida (Outbox) cada 2 segundos

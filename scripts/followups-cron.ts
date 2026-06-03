@@ -1,7 +1,7 @@
 import "./env-loader";
 import { createFollowUpScheduler } from "../src/lib/followup-scheduler.ts";
 import { createIoredisTurnState } from "../src/lib/redis-adapter.ts";
-import { deepseek } from "../src/lib/Deepseek.ts";
+import { createConfiguredChatClient } from "../src/lib/ai-providers.ts";
 import { createTelegramNotifier } from "../src/lib/telegram-notifier.ts";
 import {
 	getSettings,
@@ -40,7 +40,9 @@ const scheduler = createFollowUpScheduler({
 	turnState,
 	getRecentHistory,
 	decideFollowUp: async (history) => {
-		const res = await deepseek.generateFollowUpDecision({ history });
+		const settings = await getSettings();
+		const chatClient = createConfiguredChatClient(settings);
+		const res = await chatClient.generateFollowUpDecision({ history });
 		if (!res.ok) {
 			return { ok: false, reason: res.reason };
 		}

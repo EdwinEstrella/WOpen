@@ -142,6 +142,14 @@ export interface InboundHandlerDeps {
 	) => Promise<void>;
 	fetchProfilePictureUrl?: (jid: string) => Promise<string | null>;
 	downloadMedia?: (message: WhatsAppMessage) => Promise<Buffer | null>;
+	transcribeAudio?: (input: {
+		buffer: Buffer;
+		settings: Record<string, unknown>;
+	}) => Promise<string>;
+	describeImage?: (input: {
+		buffer: Buffer;
+		settings: Record<string, unknown>;
+	}) => Promise<string>;
 }
 
 export interface MessageProcessResult {
@@ -300,7 +308,8 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 		const debounceMs = Number(rawSettings.debounce_ms ?? 30000);
 		const role: MessageRole = fromMe ? "human" : "user";
 		const createdAt = timestampFrom(message, now);
-		const { mediaType, content: text } = detectMediaTypeAndContent(message);
+		const { mediaType, content: detectedText } = detectMediaTypeAndContent(message);
+		let text = detectedText;
 
 		if (mediaType === "unknown" && (!text || text.trim() === "")) {
 			return { status: "ignored" };
@@ -336,6 +345,40 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 					fs.writeFileSync(filePath, buffer);
 					messageMetadata.mediaUrl = `/media/${filename}`;
 					console.log(`[bot] Guardado archivo multimedia (${mediaType}) en ${filePath}`);
+
+					if (mediaType === "audio" && deps.transcribeAudio) {
+						try {
+							const transcript = await deps.transcribeAudio({
+								buffer,
+								settings: rawSettings,
+							});
+							if (transcript.trim()) {
+								text = transcript.trim();
+								messageMetadata.transcript = text;
+							}
+						} catch (error) {
+							messageMetadata.transcriptionError =
+								error instanceof Error ? error.message : String(error);
+							console.warn("[bot] No se pudo transcribir el audio:", error);
+						}
+					}
+
+					if (mediaType === "image" && deps.describeImage) {
+						try {
+							const description = await deps.describeImage({
+								buffer,
+								settings: rawSettings,
+							});
+							if (description.trim()) {
+								text = description.trim();
+								messageMetadata.imageDescription = text;
+							}
+						} catch (error) {
+							messageMetadata.imageDescriptionError =
+								error instanceof Error ? error.message : String(error);
+							console.warn("[bot] No se pudo describir la imagen:", error);
+						}
+					}
 				}
 			} catch (err) {
 				console.error(`[bot-error] Falló al descargar/guardar archivo de ${mediaType}:`, err);
@@ -484,7 +527,10 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 			const systemPrompt = await deps.getActiveSystemPrompt();
 
 			const mappedHistory = history.map((msg) => {
-				if (msg.content === "Nota de voz" || msg.content === "[Audio: Nota de voz]") {
+				if (
+					msg.content === "Nota de voz" ||
+					msg.content === "[Audio: Nota de voz]"
+				) {
 					return {
 						...msg,
 						content:
@@ -502,13 +548,22 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 			});
 
 			const mappedQueuedMessages = queuedMessages.map((msg) => {
-				if (msg.mediaType === "audio" || msg.text === "Nota de voz" || msg.text === "[Audio: Nota de voz]") {
+				if (
+					(msg.mediaType === "audio" &&
+						(msg.text === "Nota de voz" ||
+							msg.text === "[Audio: Nota de voz]")) ||
+					msg.text === "Nota de voz" ||
+					msg.text === "[Audio: Nota de voz]"
+				) {
 					return {
 						...msg,
 						text: "Nota de voz recibida. Nota de sistema: El usuario te envió una nota de voz/audio. Respondé de forma amable explicándole que por el momento no podés escuchar audios, y pedile por favor que te escriba su consulta por texto para que lo puedas ayudar.",
 					};
 				}
-				if (msg.mediaType === "image" || msg.text === "[Imagen]") {
+				if (
+					(msg.mediaType === "image" && msg.text === "[Imagen]") ||
+					msg.text === "[Imagen]"
+				) {
 					return {
 						...msg,
 						text: "[Imagen] (Nota de sistema: El usuario te envió una imagen. Respondé de forma amable explicándole que por el momento no podés ver imágenes, y pedile por favor que te la describa por texto para que lo puedas ayudar.)",
