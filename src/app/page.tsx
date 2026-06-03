@@ -130,6 +130,16 @@ export default function Home() {
 		loadConversations();
 	};
 
+	const handleConversationUpdated = (updated: ConversationListRow) => {
+		setConversations((prev) =>
+			prev.map((conversation) =>
+				conversation.id === updated.id
+					? { ...conversation, ...updated }
+					: conversation,
+			),
+		);
+	};
+
 	return (
 		<ConnectionGate>
 			{(phone, onDisconnect) => (
@@ -278,6 +288,7 @@ export default function Home() {
 												conversation={selectedConversation}
 												onModeChanged={handleModeChangeLocal}
 												onDeleted={handleDeleteLocal}
+												onConversationUpdated={handleConversationUpdated}
 											/>
 										) : (
 											<div className="h-full flex flex-col items-center justify-center text-on-surface-variant p-8 text-center bg-surface-container-lowest/5">

@@ -46,6 +46,7 @@ function valueOrNull(value: unknown) {
 }
 
 const UPDATE_CONVERSATION_COLUMNS = new Set([
+	"name",
 	"mode",
 	"mode_reason",
 	"mode_changed_at",
@@ -137,10 +138,18 @@ export function createPostgresRepository(pool: PostgresPool) {
 			);
 			if (existing.rows[0]) {
 				const row = existing.rows[0];
-				if (input.jid && row.jid !== input.jid) {
+				const nextName = input.name?.trim();
+				const shouldUpdateJid = !!input.jid && row.jid !== input.jid;
+				const shouldUpdateName = !!nextName && !row.name?.trim();
+				if (shouldUpdateJid || shouldUpdateName) {
 					const updated = await pool.query<ConversationRow>(
-						`UPDATE conversations SET jid = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
-						[input.jid, row.id],
+						`UPDATE conversations
+						 SET jid = CASE WHEN $1::text IS NULL THEN jid ELSE $1::text END,
+						     name = CASE WHEN $2::text IS NULL OR NULLIF(TRIM(name), '') IS NOT NULL THEN name ELSE $2::text END,
+						     updated_at = NOW()
+						 WHERE id = $3
+						 RETURNING *`,
+						[input.jid ?? null, nextName ?? null, row.id],
 					);
 					return updated.rows[0];
 				}

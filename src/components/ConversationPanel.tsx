@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { TrashIcon, MessagesIcon, RobotIcon, ArrowRightIcon, ArrowDownIcon } from "./Icons.tsx";
+import { TrashIcon, MessagesIcon, RobotIcon, ArrowRightIcon, ArrowDownIcon, UserIcon, PhoneIcon, EditIcon } from "./Icons.tsx";
 import type { ConversationListRow } from "../lib/db.ts";
 import type { MessageRow } from "../lib/db-contract.ts";
 import MessageBubble from "./MessageBubble.tsx";
@@ -11,18 +11,23 @@ interface ConversationPanelProps {
 	conversation: ConversationListRow;
 	onModeChanged: (newMode: "AI" | "HUMAN") => void;
 	onDeleted: () => void;
+	onConversationUpdated?: (conversation: ConversationListRow) => void;
 }
 
 export default function ConversationPanel({
 	conversation,
 	onModeChanged,
 	onDeleted,
+	onConversationUpdated,
 }: ConversationPanelProps) {
 	const [messages, setMessages] = useState<MessageRow[]>([]);
 	const [text, setText] = useState("");
 	const [sending, setSending] = useState(false);
 	const [deleting, setDeleting] = useState(false);
 	const [showScrollDown, setShowScrollDown] = useState(false);
+	const [profileOpen, setProfileOpen] = useState(false);
+	const [profileName, setProfileName] = useState(conversation.name?.trim() || "");
+	const [savingProfile, setSavingProfile] = useState(false);
 
 	const chatEndRef = useRef<HTMLDivElement>(null);
 	const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -34,6 +39,7 @@ export default function ConversationPanel({
 		isFirstLoadRef.current = true;
 		prevMessagesLengthRef.current = 0;
 		setShowScrollDown(false);
+		setProfileName(conversation.name?.trim() || "");
 	}, [conversation.id]);
 
 	// Endpoint para recargar el historial de mensajes
@@ -141,20 +147,56 @@ export default function ConversationPanel({
 	};
 
 	const isAi = conversation.mode === "AI";
-	const displayName = conversation.name?.trim() || `+${conversation.phone}`;
+	const cleanPhone = conversation.phone.replace(/@.*/, "");
+	const displayName = conversation.name?.trim() || `+${cleanPhone}`;
+	const technicalJid = conversation.jid || `${cleanPhone}@s.whatsapp.net`;
+	const initials = (conversation.name?.trim() || cleanPhone).slice(0, 1).toLocaleUpperCase();
+
+	const handleSaveProfile = async (e: React.FormEvent) => {
+		e.preventDefault();
+		if (savingProfile) return;
+		setSavingProfile(true);
+		try {
+			const res = await fetch(`/api/conversations/${conversation.id}`, {
+				method: "PATCH",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ name: profileName }),
+			});
+			if (res.ok) {
+				const updated = await res.json();
+				onConversationUpdated?.(updated);
+			} else {
+				console.error("[profile] Error guardando perfil del contacto.");
+			}
+		} catch (error) {
+			console.error("[profile] Error de red guardando perfil:", error);
+		} finally {
+			setSavingProfile(false);
+		}
+	};
 
 	return (
-		<div className="flex flex-col h-full bg-background rounded-r-3xl overflow-hidden">
+		<div className="relative flex flex-col h-full bg-background rounded-r-3xl overflow-hidden">
 			
 			{/* Cabecera del Panel de Conversación */}
 			<div className="p-4 bg-background border-b border-outline-variant flex items-center justify-between shrink-0">
-				<div className="flex flex-col">
-					<span className="font-display text-sm font-bold text-on-surface">{displayName}</span>
+				<button
+					type="button"
+					onClick={() => setProfileOpen(true)}
+					className="flex items-center gap-3 text-left rounded-2xl hover:bg-surface px-2 py-1 transition-colors"
+					title="Abrir perfil del contacto"
+				>
+					<div className="w-10 h-10 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-primary font-display font-bold">
+						{initials || <UserIcon size={16} />}
+					</div>
+					<div className="flex flex-col">
+						<span className="font-display text-sm font-bold text-on-surface">{displayName}</span>
 					<span className="flex items-center gap-1.5 text-[10px] font-mono text-on-surface-variant/80 tracking-wider mt-0.5">
 						<span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-						{conversation.phone}@s.whatsapp.net
+						+{cleanPhone}
 					</span>
 				</div>
+				</button>
 				
 				<div className="flex items-center gap-4">
 					<ModeToggle
@@ -173,6 +215,78 @@ export default function ConversationPanel({
 					</button>
 				</div>
 			</div>
+
+			{profileOpen && (
+				<div className="absolute inset-0 z-40 flex justify-end bg-black/20">
+					<aside className="h-full w-[360px] bg-surface border-l border-outline-variant/30 shadow-2xl p-6 flex flex-col animate-fade-in">
+						<div className="flex items-start justify-between mb-8">
+							<div>
+								<p className="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">
+									Perfil del cliente
+								</p>
+								<h3 className="font-display text-lg font-bold text-on-surface mt-1">
+									{displayName}
+								</h3>
+							</div>
+							<button
+								type="button"
+								onClick={() => setProfileOpen(false)}
+								className="w-8 h-8 rounded-full border border-outline-variant text-on-surface-variant hover:text-on-surface hover:bg-surface-bright"
+								aria-label="Cerrar perfil"
+							>
+								×
+							</button>
+						</div>
+
+						<div className="flex flex-col items-center mb-8">
+							<div className="w-20 h-20 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-primary font-display text-2xl font-bold mb-3">
+								{initials || <UserIcon size={28} />}
+							</div>
+							<p className="font-semibold text-on-surface">{displayName}</p>
+							<p className="font-mono text-xs text-on-surface-variant mt-1">+{cleanPhone}</p>
+						</div>
+
+						<form onSubmit={handleSaveProfile} className="space-y-5">
+							<label className="block">
+								<span className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-bold text-on-surface-variant mb-2">
+									<EditIcon size={12} /> Nombre personalizado
+								</span>
+								<input
+									value={profileName}
+									onChange={(event) => setProfileName(event.target.value)}
+									placeholder="Ej: Cliente mayorista Santo Domingo"
+									className="w-full px-4 py-2.5 rounded-xl bg-surface-container-lowest border border-outline-variant/40 text-sm text-on-surface focus:outline-none focus:border-primary"
+								/>
+							</label>
+
+							<div className="rounded-2xl border border-outline-variant/30 bg-background/60 p-4 space-y-3 text-xs">
+								<div>
+									<span className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-bold text-on-surface-variant mb-1">
+										<PhoneIcon size={12} /> Teléfono
+									</span>
+									<p className="font-mono text-on-surface">+{cleanPhone}</p>
+								</div>
+								<div>
+									<span className="text-[10px] uppercase tracking-widest font-bold text-on-surface-variant">
+										ID técnico
+									</span>
+									<p className="font-mono text-on-surface-variant break-all mt-1">
+										{technicalJid}
+									</p>
+								</div>
+							</div>
+
+							<button
+								type="submit"
+								disabled={savingProfile}
+								className="w-full py-2.5 rounded-full bg-primary text-on-primary text-xs font-bold uppercase tracking-wider hover:brightness-110 disabled:opacity-50"
+							>
+								{savingProfile ? "Guardando..." : "Guardar cliente"}
+							</button>
+						</form>
+					</aside>
+				</div>
+			)}
 
 			{/* Contenedor de Mensajes con Scroll y Botón Flotante */}
 			<div className="flex-1 min-h-0 relative">
