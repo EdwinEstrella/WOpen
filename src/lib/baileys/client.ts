@@ -425,7 +425,7 @@ export async function startWASocket() {
 	});
 
 	sock.ev.on("contacts.upsert", async (contacts: any[]) => {
-		for (const contact of contacts) {
+		await Promise.all(contacts.map(async (contact) => {
 			if (contact.id && !contact.id.endsWith("@g.us")) {
 				const name = contact.name?.trim() || contact.notify?.trim() || contact.verifiedName?.trim();
 				if (name && name !== "Azokia" && name !== "Azokiallc") {
@@ -437,11 +437,11 @@ export async function startWASocket() {
 					}
 				}
 			}
-		}
+		}));
 	});
 
 	sock.ev.on("contacts.update", async (contacts: any[]) => {
-		for (const contact of contacts) {
+		await Promise.all(contacts.map(async (contact) => {
 			if (contact.id && !contact.id.endsWith("@g.us")) {
 				const name = contact.name?.trim() || contact.notify?.trim() || contact.verifiedName?.trim();
 				if (name && name !== "Azokia" && name !== "Azokiallc") {
@@ -453,7 +453,7 @@ export async function startWASocket() {
 					}
 				}
 			}
-		}
+		}));
 	});
 }
 

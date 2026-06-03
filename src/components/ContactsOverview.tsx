@@ -116,12 +116,12 @@ export default function ContactsOverview({
 												<img
 													src={contact.profile_picture_url}
 													alt={contact.name || contact.phone}
-													className="w-8 h-8 rounded-full object-cover border border-primary/30 shrink-0 cursor-pointer hover:scale-105 hover:brightness-95 transition-all"
+													className="size- rounded-full object-cover border border-primary/30 shrink-0 cursor-pointer hover:scale-105 hover:brightness-95 transition-all"
 													onClick={() => setZoomImage(contact.profile_picture_url)}
 													title="Ver imagen en grande"
 												/>
 											) : (
-												<div className="w-8 h-8 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center font-display text-primary text-xs font-bold shrink-0">
+												<div className="size- rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center font-display text-primary text-xs font-bold shrink-0">
 													{(contact.name || contact.phone)
 														.charAt(0)
 														.toLocaleUpperCase()}
@@ -171,17 +171,17 @@ export default function ContactsOverview({
 					onClick={() => setZoomImage(null)}
 				>
 					<div 
-						className="relative w-[90vw] h-[90vw] max-w-[480px] max-h-[480px] p-1.5 bg-surface-container border border-outline-variant/40 rounded-3xl overflow-hidden shadow-2xl flex items-center justify-center animate-[scaleIn_0.2s_ease-out]"
+						className="relative size-[90vw] max-w-[480px] max-h-[480px] p-1.5 bg-surface-container border border-outline-variant/40 rounded-3xl overflow-hidden shadow-2xl flex items-center justify-center animate-[scaleIn_0.2s_ease-out]"
 						onClick={(e) => e.stopPropagation()}
 					>
 						<img 
 							src={zoomImage} 
 							alt="Contacto foto" 
-							className="w-full h-full object-cover rounded-2xl animate-fade-in"
+							className="size- object-cover rounded-2xl animate-fade-in"
 						/>
 						<button 
 							type="button"
-							className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white font-display text-xl font-bold focus:outline-none transition-all duration-200 hover:scale-105 active:scale-95 shadow-md"
+							className="absolute top-4 right-4 size- flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white font-display text-xl font-bold focus:outline-none transition-all duration-200 hover:scale-105 active:scale-95 shadow-md"
 							onClick={() => setZoomImage(null)}
 						>
 							×

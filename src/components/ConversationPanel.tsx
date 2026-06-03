@@ -275,7 +275,7 @@ export default function ConversationPanel({
 						<img
 							src={profilePictureUrl}
 							alt={displayName}
-							className="w-10 h-10 rounded-full object-cover border border-primary/30 cursor-zoom-in hover:scale-105 transition-transform"
+							className="size- rounded-full object-cover border border-primary/30 cursor-zoom-in hover:scale-105 transition-transform"
 							onClick={(e) => {
 								e.stopPropagation();
 								setZoomImage(profilePictureUrl);
@@ -283,14 +283,14 @@ export default function ConversationPanel({
 							title="Ver imagen en grande"
 						/>
 					) : (
-						<div className="w-10 h-10 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-primary font-display font-bold">
+						<div className="size- rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-primary font-display font-bold">
 							{initials || <UserIcon size={16} />}
 						</div>
 					)}
 					<div className="flex flex-col">
 						<span className="font-display text-sm font-bold text-on-surface">{displayName}</span>
 					<span className="flex items-center gap-1.5 text-[10px] font-mono text-on-surface-variant/80 tracking-wider mt-0.5">
-						<span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+						<span className="size- rounded-full bg-primary"></span>
 						+{cleanPhone}
 					</span>
 				</div>
@@ -338,7 +338,7 @@ export default function ConversationPanel({
 							<button
 								type="button"
 								onClick={() => setProfileOpen(false)}
-								className="w-8 h-8 rounded-full border border-outline-variant text-on-surface-variant hover:text-on-surface hover:bg-surface-bright"
+								className="size- rounded-full border border-outline-variant text-on-surface-variant hover:text-on-surface hover:bg-surface-bright"
 								aria-label="Cerrar perfil"
 							>
 								×
@@ -350,12 +350,12 @@ export default function ConversationPanel({
 								<img
 									src={profilePictureUrl}
 									alt={displayName}
-									className="w-20 h-20 rounded-full object-cover border border-primary/30 mb-3 cursor-zoom-in hover:scale-105 transition-transform"
+									className="size- rounded-full object-cover border border-primary/30 mb-3 cursor-zoom-in hover:scale-105 transition-transform"
 									onClick={() => setZoomImage(profilePictureUrl)}
 									title="Ver imagen en grande"
 								/>
 							) : (
-								<div className="w-20 h-20 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-primary font-display text-2xl font-bold mb-3">
+								<div className="size- rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-primary font-display text-2xl font-bold mb-3">
 									{initials || <UserIcon size={28} />}
 								</div>
 							)}
@@ -426,7 +426,7 @@ export default function ConversationPanel({
 				{showScrollDown && (
 					<button type="button"
 						onClick={scrollToBottom}
-						className="absolute bottom-4 right-6 w-10 h-10 rounded-full bg-surface border border-outline-variant text-primary hover:text-primary-bright hover:bg-surface-bright flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 animate-fade-in z-20"
+						className="absolute bottom-4 right-6 size- rounded-full bg-surface border border-outline-variant text-primary hover:text-primary-bright hover:bg-surface-bright flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 animate-fade-in z-20"
 						title="Ir al final de la conversación"
 					>
 						<ArrowDownIcon size={18} />
@@ -478,7 +478,7 @@ export default function ConversationPanel({
 						<button
 							type="submit"
 							disabled={sending || !text.trim()}
-							className="w-10 h-10 flex items-center justify-center bg-transparent text-primary hover:bg-surface rounded-full transition-all duration-200 active:scale-95 disabled:opacity-50 cursor-pointer shrink-0"
+							className="size- flex items-center justify-center bg-transparent text-primary hover:bg-surface rounded-full transition-all duration-200 active:scale-95 disabled:opacity-50 cursor-pointer shrink-0"
 						>
 							{sending ? "..." : <ArrowRightIcon size={18} />}
 						</button>
@@ -509,7 +509,7 @@ export default function ConversationPanel({
 							Abrir original
 						</a>
 						<button type="button"
-							className="absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-xl font-bold text-white shadow-md ring-1 ring-white/15 transition-all duration-200 hover:scale-105 hover:bg-black/80 focus:outline-none active:scale-95"
+							className="absolute top-4 right-4 flex size- items-center justify-center rounded-full bg-black/60 text-xl font-bold text-white shadow-md ring-1 ring-white/15 transition-all duration-200 hover:scale-105 hover:bg-black/80 focus:outline-none active:scale-95"
 							onClick={() => setZoomImage(null)}
 							aria-label="Cerrar imagen"
 						>

@@ -24,9 +24,9 @@ export async function PUT(req: Request) {
 			return NextResponse.json({ error: "Invalid body" }, { status: 400 });
 		}
 
-		for (const [key, value] of Object.entries(body)) {
-			await setSetting(key, value);
-		}
+		await Promise.all(
+			Object.entries(body).map(([key, value]) => setSetting(key, value))
+		);
 
 		const updatedSettings = await getSettings();
 		return NextResponse.json({ ok: true, settings: updatedSettings });

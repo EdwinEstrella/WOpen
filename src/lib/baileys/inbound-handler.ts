@@ -547,8 +547,7 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 			}
 
 			const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-			for (let i = 0; i < parsed.parts.length; i++) {
-				const part = parsed.parts[i];
+			for await (const [i, part] of parsed.parts.entries()) {
 				if (i > 0) {
 					// Simular escritura humana: delay proporcional al largo de la siguiente parte (50ms por carácter, min 1s, max 3.5s)
 					const delayMs = Math.min(Math.max(part.length * 50, 1000), 3500);

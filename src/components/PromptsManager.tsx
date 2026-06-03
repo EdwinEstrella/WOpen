@@ -149,8 +149,9 @@ export default function PromptsManager() {
 						</h3>
 						<div className="flex flex-col gap-4">
 							<div className="flex flex-col gap-1.5">
-								<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Título Descriptivo</label>
+								<label htmlFor="prompt_title" className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Título Descriptivo</label>
 								<input
+									id="prompt_title"
 									type="text"
 									value={title}
 									onChange={(e) => setTitle(e.target.value)}
@@ -160,11 +161,12 @@ export default function PromptsManager() {
 								/>
 							</div>
 							<div className="flex flex-col gap-1.5">
-								<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Instrucciones del Sistema (System Prompt)</label>
+								<label htmlFor="prompt_content" className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Instrucciones del Sistema (System Prompt)</label>
 								<textarea
+									id="prompt_content"
 									value={content}
 									onChange={(e) => setContent(e.target.value)}
-									placeholder="Ej: Eres un asistente virtual que responde de forma amable..."
+									placeholder="Ej: Eres un asistente virtual que responde de forma amabl…"
 									rows={8}
 									className="px-4 py-3 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs font-mono focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all text-on-surface leading-relaxed"
 									required
@@ -192,7 +194,7 @@ export default function PromptsManager() {
 				{/* Listado de Prompts */}
 				{loading && prompts.length === 0 ? (
 					<div className="flex items-center justify-center p-8 text-xs text-on-surface-variant/70 font-medium">
-						Cargando prompts...
+						Cargando prompt…
 					</div>
 				) : (
 					<div className="flex flex-col gap-4">

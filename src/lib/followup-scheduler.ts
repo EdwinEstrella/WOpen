@@ -290,8 +290,11 @@ export function createFollowUpScheduler(deps: FollowUpSchedulerDeps) {
 				};
 				const candidates = await deps.repo.getPendingFollowUps(query);
 				run.candidates = candidates.length;
-				for (const candidate of candidates)
+				
+				await Promise.all(candidates.map(async (candidate) => {
 					await processCandidate(candidate, query, run, now);
+				}));
+
 				run.processed =
 					run.sent +
 					run.blocked24h +

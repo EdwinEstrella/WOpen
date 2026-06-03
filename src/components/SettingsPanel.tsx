@@ -60,7 +60,7 @@ export default function SettingsPanel() {
 	if (loading && Object.keys(settings).length === 0) {
 		return (
 			<div className="flex items-center justify-center p-8 text-xs text-on-surface-variant/70 font-semibold">
-				Cargando ajustes...
+				Cargando ajuste…
 			</div>
 		);
 	}
@@ -90,10 +90,11 @@ export default function SettingsPanel() {
 					</h3>
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 						<div className="flex flex-col gap-1.5">
-							<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">
+							<label htmlFor="bot_on_keyword" className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">
 								Prender Bot (Keyword)
 							</label>
 							<input
+								id="bot_on_keyword"
 								type="text"
 								value={settings.bot_on_keyword || ""}
 								onChange={(e) => handleChange("bot_on_keyword", e.target.value)}
@@ -112,7 +113,7 @@ export default function SettingsPanel() {
 							onChange={(e) =>
 								handleChange("keyword_case_sensitive", e.target.checked)
 							}
-							className="w-4 h-4 rounded bg-surface-container-low border border-outline-variant/30 text-primary focus:ring-0"
+							className="size- rounded bg-surface-container-low border border-outline-variant/30 text-primary focus:ring-0"
 						/>
 						<label
 							htmlFor="keyword_case_sensitive"
@@ -186,10 +187,11 @@ export default function SettingsPanel() {
 							/>
 						</div>
 						<div className="flex flex-col gap-1.5">
-							<label className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">
+							<label htmlFor="whatsapp_freeform_window_hours" className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">
 								Ventana libre de WhatsApp (horas)
 							</label>
 							<input
+								id="whatsapp_freeform_window_hours"
 								type="number"
 								min="1"
 								value={settings.whatsapp_freeform_window_hours || 24}
@@ -213,7 +215,7 @@ export default function SettingsPanel() {
 							onChange={(e) =>
 								handleChange("block_outside_24h_followups", e.target.checked)
 							}
-							className="w-4 h-4 rounded bg-surface-container-low border border-outline-variant/30 text-primary focus:ring-0"
+							className="size- rounded bg-surface-container-low border border-outline-variant/30 text-primary focus:ring-0"
 						/>
 						<label
 							htmlFor="block_outside_24h_followups"
@@ -251,10 +253,18 @@ export default function SettingsPanel() {
 						disabled={saving}
 						className="px-8 py-2.5 bg-primary text-on-primary rounded-xl font-display text-[10px] font-bold uppercase tracking-wider transition-all duration-200 active:scale-95 disabled:opacity-50 glow-active"
 					>
-						{saving ? "Guardando..." : "Guardar Cambios"}
+						{saving ? "Guardand…" : "Guardar Cambios"}
 					</button>
 				</div>
 			</form>
+		</div>
+	);
+}
+m>
+		</div>
+	);
+}
+/form>
 		</div>
 	);
 }

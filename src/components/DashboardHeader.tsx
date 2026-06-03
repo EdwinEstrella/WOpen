@@ -135,7 +135,7 @@ export default function DashboardHeader({
 						Consola de Control
 					</div>
 					<span className="flex items-center gap-2 text-[10px] text-primary font-bold uppercase tracking-widest bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
-						<span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+						<span className="size- rounded-full bg-primary animate-pulse"></span>
 						Motor IA Activo
 					</span>
 				</div>
@@ -158,9 +158,9 @@ export default function DashboardHeader({
 						<div className="flex items-center gap-3">
 							{/* Badge de Conectado */}
 							<div className="flex items-center gap-2 bg-transparent border border-primary text-primary px-4 py-1 rounded-full text-[11px] font-mono shadow-inner">
-								<span className="relative flex h-1.5 w-1.5 shrink-0">
-									<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-									<span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary"></span>
+								<span className="relative flex size- shrink-0">
+									<span className="animate-ping absolute inline-flex size- rounded-full bg-primary opacity-75"></span>
+									<span className="relative inline-flex rounded-full size- bg-primary"></span>
 								</span>
 								<span>+{phone}</span>
 							</div>
@@ -174,7 +174,7 @@ export default function DashboardHeader({
 								{botProfile?.profile_picture_url ? (
 									<img
 										src={botProfile.profile_picture_url}
-										className="w-3.5 h-3.5 rounded-full object-cover border border-primary/30"
+										className="size- rounded-full object-cover border border-primary/30"
 										alt="Bot avatar"
 									/>
 								) : (
@@ -195,7 +195,7 @@ export default function DashboardHeader({
 						</div>
 					) : (
 						<div className="flex items-center gap-2 bg-error/10 border border-error/20 px-3 py-1 rounded-full text-[11px] text-error font-semibold">
-							<span className="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></span>
+							<span className="size- rounded-full bg-error animate-pulse"></span>
 							<span>WhatsApp Desconectado</span>
 						</div>
 					)}
@@ -205,7 +205,7 @@ export default function DashboardHeader({
 						type="button"
 						onClick={handleLogout}
 						title="Cerrar Sesión"
-						className="w-8 h-8 rounded-full overflow-hidden border border-primary hover:bg-primary/10 transition-colors cursor-pointer flex items-center justify-center bg-transparent"
+						className="size- rounded-full overflow-hidden border border-primary hover:bg-primary/10 transition-colors cursor-pointer flex items-center justify-center bg-transparent"
 					>
 						<UserIcon className="text-primary hover:text-primary transition-colors" size={14} />
 					</button>
@@ -233,14 +233,14 @@ export default function DashboardHeader({
 							<div className="flex flex-col items-center gap-3">
 								<div 
 									onClick={() => botProfile?.profile_picture_url && setZoomImage(botProfile.profile_picture_url)}
-									className={`w-28 h-28 rounded-full overflow-hidden border-2 border-primary/50 bg-surface-bright flex items-center justify-center shadow-lg group relative ${botProfile?.profile_picture_url ? "cursor-pointer" : ""}`}
+									className={`size- rounded-full overflow-hidden border-2 border-primary/50 bg-surface-bright flex items-center justify-center shadow-lg group relative ${botProfile?.profile_picture_url ? "cursor-pointer" : ""}`}
 								>
 									{botProfile?.profile_picture_url ? (
 										<>
 											<img 
 												src={botProfile.profile_picture_url} 
 												alt="Bot profile" 
-												className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
+												className="size- object-cover transition-transform duration-300 group-hover:scale-105" 
 											/>
 											<div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] uppercase font-bold tracking-wider transition-opacity duration-200">
 												Ampliar
@@ -426,7 +426,7 @@ export default function DashboardHeader({
 						<button 
 							type="button"
 							onClick={() => setProfileModalOpen(false)}
-							className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-bright transition-colors cursor-pointer"
+							className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface size- rounded-full flex items-center justify-center hover:bg-surface-bright transition-colors cursor-pointer"
 						>
 							×
 						</button>
@@ -441,17 +441,17 @@ export default function DashboardHeader({
 					onClick={() => setZoomImage(null)}
 				>
 					<div 
-						className="relative w-[90vw] h-[90vw] max-w-[480px] max-h-[480px] p-1.5 bg-surface-container border border-outline-variant/40 rounded-3xl overflow-hidden shadow-2xl flex items-center justify-center animate-[scaleIn_0.2s_ease-out]"
+						className="relative size-[90vw] max-w-[480px] max-h-[480px] p-1.5 bg-surface-container border border-outline-variant/40 rounded-3xl overflow-hidden shadow-2xl flex items-center justify-center animate-[scaleIn_0.2s_ease-out]"
 						onClick={(e) => e.stopPropagation()}
 					>
 						<img 
 							src={zoomImage} 
 							alt="Bot foto grande" 
-							className="w-full h-full object-cover rounded-2xl animate-fade-in"
+							className="size- object-cover rounded-2xl animate-fade-in"
 						/>
 						<button 
 							type="button"
-							className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white font-display text-xl font-bold focus:outline-none transition-all duration-200 hover:scale-105 active:scale-95 shadow-md cursor-pointer"
+							className="absolute top-4 right-4 size- flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white font-display text-xl font-bold focus:outline-none transition-all duration-200 hover:scale-105 active:scale-95 shadow-md cursor-pointer"
 							onClick={() => setZoomImage(null)}
 						>
 							×

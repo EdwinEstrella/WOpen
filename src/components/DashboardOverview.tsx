@@ -44,7 +44,7 @@ export default function DashboardOverview({ conversations = [] }: DashboardOverv
 					
 					{/* KPI 1: Active Conversations */}
 					<div className="glass-panel rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden group hover:border-primary/40 transition-all duration-300">
-						<div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10 group-hover:bg-primary/10 transition-colors"></div>
+						<div className="absolute top-0 right-0 size- bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10 group-hover:bg-primary/10 transition-colors"></div>
 						<div className="flex justify-between items-start mb-4">
 							<span className="font-display text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Conversaciones Activas</span>
 							<MessagesIcon className="text-primary" size={18} />
@@ -72,7 +72,7 @@ export default function DashboardOverview({ conversations = [] }: DashboardOverv
 
 					{/* KPI 2: AI Resolution Rate */}
 					<div className="glass-panel rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden group hover:border-primary/40 transition-all duration-300">
-						<div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10 group-hover:bg-primary/10 transition-colors"></div>
+						<div className="absolute top-0 right-0 size- bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10 group-hover:bg-primary/10 transition-colors"></div>
 						<div className="flex justify-between items-start mb-4">
 							<span className="font-display text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Resolución de IA</span>
 							<ZapIcon className="text-primary" size={18} />
@@ -200,7 +200,7 @@ export default function DashboardOverview({ conversations = [] }: DashboardOverv
 											{idx < sortedForActivity.length - 1 && (
 												<div className="absolute left-[15px] top-8 bottom-[-24px] w-px bg-outline-variant/20"></div>
 											)}
-											<div className={`w-8 h-8 rounded-full border flex items-center justify-center shrink-0 z-10 ${iconColorClass}`}>
+											<div className={`size- rounded-full border flex items-center justify-center shrink-0 z-10 ${iconColorClass}`}>
 												<Icon size={14} />
 											</div>
 											<div className="min-w-0 flex-1">
@@ -225,18 +225,18 @@ export default function DashboardOverview({ conversations = [] }: DashboardOverv
 							<h2 className="font-display text-sm font-bold text-on-surface">Métricas de Rendimiento de IA</h2>
 							<div className="flex items-center gap-4">
 								<div className="flex items-center gap-1.5">
-									<span className="w-2 h-2 rounded-full bg-primary"></span>
+									<span className="size- rounded-full bg-primary"></span>
 									<span className="text-xs text-on-surface-variant font-medium">Volumen</span>
 								</div>
 								<div className="flex items-center gap-1.5">
-									<span className="w-2 h-2 rounded-full bg-secondary"></span>
+									<span className="size- rounded-full bg-secondary"></span>
 									<span className="text-xs text-on-surface-variant font-medium">Precisión</span>
 								</div>
 							</div>
 						</div>
 						<div className="p-6 flex-1 flex flex-col justify-center min-h-[280px]">
 							<div className="flex flex-col items-center justify-center text-center text-on-surface-variant space-y-3">
-								<div className="w-12 h-12 bg-primary/10 rounded-2xl border border-primary/20 flex items-center justify-center glow-active">
+								<div className="size- bg-primary/10 rounded-2xl border border-primary/20 flex items-center justify-center glow-active">
 									<TrendingUpIcon className="text-primary" size={24} />
 								</div>
 								<h3 className="text-sm font-bold text-on-surface">Panel de Analíticas Activo</h3>
