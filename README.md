@@ -6,7 +6,7 @@ Este es un agente de WhatsApp local de nivel empresarial estructurado bajo **Cle
 
 ## 🛠️ Stack Tecnológico
 
-- **Core**: Next.js 16 (App Router) + TypeScript + React 19 (con Turbopack).
+- **Core**: Next.js 15+ (App Router) + TypeScript + React 19 (con Turbopack).
 - **Styling**: Tailwind CSS v4 Vanilla (diseño minimalista de alta gama, micro-interacciones responsivas).
 - **WhatsApp Web API**: `@whiskeysockets/baileys` v6.7+ (conexión estable a nivel protocolo, sin APIs oficiales costosas).
 - **Base de Datos**: PostgreSQL (`pg` node-postgres para persistencia robusta de conversaciones, mensajes y configuración).
@@ -18,13 +18,14 @@ Este es un agente de WhatsApp local de nivel empresarial estructurado bajo **Cle
 
 ## 💡 Características Principales
 
-1. **Gestión de Turnos y Lock Concurrente**: Redis controla atómicamente que el bot no procese mensajes duplicados ni colisione con intervenciones manuales del operador humano.
-2. **Control por Palabras Clave del Dueño (Owner Control)**: Envía desde tu WhatsApp personal palabras clave configuradas como `bot off` (para pasar a modo `HUMAN` y suspender la IA) u `ok.` (para reactivar el modo `AI`).
-3. **Reactivación Automática tras Inactividad**: Si un operador humano interviene en una conversación y esta permanece inactiva por más de 3 días, el bot se reactivará automáticamente a modo `AI`.
-4. **Respuestas Humanizadas Segmentadas**: La IA responde en partes, aplicando retrasos inteligentes proporcionales a la longitud del texto para simular la escritura de un ser humano.
-5. **Detección Automática de Handoff**: DeepSeek analiza la conversación y delega el chat a atención humana si detecta frustración, preguntas fuera del alcance, intenciones de compra o solicitud explícita de un asesor, notificando inmediatamente al dueño por Telegram.
-6. **Seguimientos Programados (Follow-Ups)**: Tarea cron periódica inteligente que evalúa usuarios inactivos en modo `AI` tras el último mensaje de la IA, aplicando controles estrictos (evita enviar mensajes free-form fuera de la ventana de 24 horas para cumplir las políticas de WhatsApp).
-7. **CRUD de System Prompts**: Dashboard visual para alternar en tiempo real qué prompt del sistema guiará a la IA.
+1. **Autenticación Integrada**: Dashboard protegido mediante credenciales de administrador (variables de entorno `ADMIN_EMAIL` y `ADMIN_PASSWORD`) gestionadas mediante cookies HTTP-Only.
+2. **Gestión de Turnos y Lock Concurrente**: Redis controla atómicamente que el bot no procese mensajes duplicados ni colisione con intervenciones manuales del operador humano.
+3. **Control por Palabras Clave del Dueño (Owner Control)**: Envía desde tu WhatsApp personal palabras clave configuradas como `bot off` (para pasar a modo `HUMAN` y suspender la IA) u `ok.` (para reactivar el modo `AI`).
+4. **Reactivación Automática tras Inactividad**: Si un operador humano interviene en una conversación y esta permanece inactiva por más de 3 días, el bot se reactivará automáticamente a modo `AI`.
+5. **Respuestas Humanizadas Segmentadas**: La IA responde en partes, aplicando retrasos inteligentes proporcionales a la longitud del texto para simular la escritura de un ser humano.
+6. **Detección Automática de Handoff**: DeepSeek analiza la conversación y delega el chat a atención humana si detecta frustración, preguntas fuera del alcance, intenciones de compra o solicitud explícita de un asesor, notificando inmediatamente al dueño por Telegram.
+7. **Seguimientos Programados (Follow-Ups)**: Tarea cron periódica inteligente que evalúa usuarios inactivos en modo `AI` tras el último mensaje de la IA, aplicando controles estrictos (evita enviar mensajes free-form fuera de la ventana de 24 horas para cumplir las políticas de WhatsApp).
+8. **CRUD de System Prompts**: Dashboard visual para alternar en tiempo real qué prompt del sistema guiará a la IA.
 
 ---
 
@@ -48,6 +49,8 @@ DATABASE_URL=postgresql://user:password@db:5432/whatsapp_bot
 REDIS_URL=redis://redis:6379
 TELEGRAM_BOT_TOKEN=tu-bot-token-de-telegram # Opcional
 TELEGRAM_CHAT_ID=tu-chat-id-de-telegram # Opcional
+ADMIN_EMAIL=tu-email-de-admin
+ADMIN_PASSWORD=tu-contrasena-segura
 ```
 
 ### 3. Levantar la Aplicación
@@ -109,18 +112,21 @@ El comportamiento de la inteligencia artificial puede configurarse de dos formas
 
 ---
 
-## 🔒 Seguridad Crítica Obligatoria
+## 🛡️ Seguridad
 
-> [!WARNING]
-> **DASHBOARD SIN AUTENTICACIÓN INTEGRADA**
->
-> Por diseño y simplicidad del stack, el dashboard no incluye un sistema de Login integrado. Si vas a desplegar esta aplicación a internet (fuera de `localhost`), **ES OBLIGATORIO** colocar una capa de autenticación a nivel de red antes de exponerla.
-> 
-> Si no lo hacés, cualquiera que encuentre la URL podrá leer el historial completo de tus mensajes de WhatsApp y enviar mensajes haciéndose pasar por vos.
->
-> **Soluciones Recomendadas**:
-> - Colocar **Basic Auth** a nivel Proxy (Nginx, Caddy o EasyPanel).
-> - Configurar **Cloudflare Access** (Zero Trust) delante de tu dominio para restringir el acceso únicamente a correos autorizados.
+A diferencia de versiones anteriores, este proyecto ya cuenta con **autenticación nativa integrada**. Sin embargo, en entornos de producción se recomienda estrictamente el uso de HTTPS (mediante un proxy inverso como Nginx, Caddy o servicios de CDN como Cloudflare) para proteger la transmisión de credenciales y cookies de sesión.
+
+---
+
+## 🤝 Código Abierto y Contribución
+
+Este proyecto es Open Source bajo la **Licencia MIT**. Nos encanta recibir ayuda de la comunidad. 
+
+Si deseas colaborar, reportar fallos o proponer nuevas funcionalidades, por favor revisa nuestras guías:
+
+* [Guía de Contribución](CONTRIBUTING.md): Pasos para hacer un fork, crear PRs y pautas de código.
+* [Política de Seguridad](SECURITY.md): Procedimiento para reportar vulnerabilidades de manera segura.
+* [Licencia](LICENSE): Condiciones de uso del proyecto.
 
 ---
 
@@ -155,4 +161,3 @@ npx tsc --noEmit
 Se aplican dos capas de seguridad concurrentes:
 - **Protección a Nivel Prompt (DeepSeek)**: El system prompt de seguimientos prohíbe repetir mensajes de seguimiento que ya aparezcan en el historial, forzando a la IA a cambiar de enfoque (por ejemplo, ofrecer una demo gratis de 3 días, preguntar por precios de planes o consultar por el equipo físico) en lugar de insistir con el mismo texto.
 - **Guardia de Duplicados Programática**: El planificador limpia y normaliza el mensaje generado (eliminando acentos, mayúsculas, espacios y caracteres especiales) y lo compara con todos los mensajes salientes previos del asistente. Si detecta una repetición literal, bloquea el envío, registra un evento de omisión por duplicado y no satura al cliente.
-
