@@ -4,6 +4,7 @@ import {
 	useMultiFileAuthState,
 	fetchLatestBaileysVersion,
 	Browsers,
+	downloadMediaMessage,
 } from "@whiskeysockets/baileys";
 import pino from "pino";
 import fs from "node:fs";
@@ -114,6 +115,28 @@ export const inboundHandler = createInboundHandler({
 		try {
 			return (await globalSock.profilePictureUrl(jid, "image")) ?? null;
 		} catch {
+			return null;
+		}
+	},
+	downloadMedia: async (message) => {
+		try {
+			const buffer = await downloadMediaMessage(
+				message as any,
+				"buffer",
+				{},
+				{
+					logger,
+					reuploadRequest: (msg) => {
+						if (globalSock?.updateMediaMessage) {
+							return globalSock.updateMediaMessage(msg);
+						}
+						return Promise.reject(new Error("Socket or updateMediaMessage not available"));
+					},
+				}
+			);
+			return buffer;
+		} catch (error) {
+			console.error("[bot-error] Falló al descargar mensaje multimedia:", error);
 			return null;
 		}
 	},

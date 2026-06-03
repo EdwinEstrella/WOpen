@@ -140,6 +140,7 @@ export interface InboundHandlerDeps {
 		jid: string,
 	) => Promise<void>;
 	fetchProfilePictureUrl?: (jid: string) => Promise<string | null>;
+	downloadMedia?: (message: WhatsAppMessage) => Promise<Buffer | null>;
 }
 
 export interface MessageProcessResult {
@@ -317,6 +318,29 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 			return result;
 		};
 
+		let messageMetadata: Record<string, any> = {};
+		if ((mediaType === "audio" || mediaType === "image") && deps.downloadMedia && whatsappMessageId) {
+			try {
+				const buffer = await deps.downloadMedia(message);
+				if (buffer) {
+					const fs = await import("node:fs");
+					const path = await import("node:path");
+					const mediaDir = path.join(process.cwd(), "public", "media");
+					if (!fs.existsSync(mediaDir)) {
+						fs.mkdirSync(mediaDir, { recursive: true });
+					}
+					const extension = mediaType === "audio" ? "ogg" : "jpg";
+					const filename = `${whatsappMessageId}.${extension}`;
+					const filePath = path.join(mediaDir, filename);
+					fs.writeFileSync(filePath, buffer);
+					messageMetadata.mediaUrl = `/media/${filename}`;
+					console.log(`[bot] Guardado archivo multimedia (${mediaType}) en ${filePath}`);
+				}
+			} catch (err) {
+				console.error(`[bot-error] Falló al descargar/guardar archivo de ${mediaType}:`, err);
+			}
+		}
+
 		try {
 			const inboundMessage = await deps.repo.insertMessageAndTouchConversation({
 				conversation_id: beforeConversation.id,
@@ -329,6 +353,7 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 				from_me: fromMe,
 				raw_timestamp: createdAt,
 				created_at: createdAt,
+				metadata: messageMetadata,
 			});
 
 			if (role === "human") {

@@ -8,7 +8,7 @@ interface MessageBubbleProps {
 }
 
 export default function MessageBubble({ message }: MessageBubbleProps) {
-	const { role, content, media_type, created_at } = message;
+	const { role, content, media_type, created_at, metadata } = message;
 
 	const isUser = role === "user";
 	const isAssistant = role === "assistant";
@@ -58,15 +58,39 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 
 				{/* Soporte para tipos de medios (Multimedia) */}
 				{media_type === "image" && (
-					<div className="flex items-center gap-2 mb-2 p-2 bg-background/50 rounded-lg border border-outline-variant/10 text-[10px] text-on-surface-variant/90 font-medium">
-						<ImageIcon className="text-primary" size={12} />
-						<span>Imagen recibida (Procesada por IA Multimodal)</span>
+					<div className="flex flex-col gap-2 mb-2 p-2 bg-background/50 rounded-2xl border border-outline-variant/10">
+						{metadata?.mediaUrl ? (
+							<img
+								src={metadata.mediaUrl as string}
+								alt="Imagen de WhatsApp"
+								className="max-w-full max-h-[200px] rounded-xl object-contain cursor-pointer hover:brightness-95 transition-all"
+								onClick={() => window.open(metadata.mediaUrl as string, '_blank')}
+							/>
+						) : (
+							<div className="flex items-center gap-2 text-[10px] text-on-surface-variant/90 font-medium">
+								<ImageIcon className="text-primary" size={12} />
+								<span>Imagen recibida (Procesada por IA Multimodal)</span>
+							</div>
+						)}
 					</div>
 				)}
 				{media_type === "audio" && (
-					<div className="flex items-center gap-2 mb-2 p-2 bg-background/50 rounded-lg border border-outline-variant/10 text-[10px] text-on-surface-variant/90 font-medium">
-						<MicIcon className="text-primary" size={12} />
-						<span>Nota de voz recibida (Transcribiendo...)</span>
+					<div className="flex flex-col gap-2 mb-2 p-3 bg-background/50 rounded-2xl border border-outline-variant/10">
+						<div className="flex items-center gap-2 text-[10px] text-on-surface-variant/90 font-medium">
+							<MicIcon className="text-primary" size={12} />
+							<span>Nota de voz</span>
+						</div>
+						{metadata?.mediaUrl ? (
+							<audio
+								src={metadata.mediaUrl as string}
+								controls
+								className="w-full h-8 mt-1 focus:outline-none"
+							/>
+						) : (
+							<span className="text-[10px] text-on-surface-variant/60 italic">
+								Transcribiendo o descargando...
+							</span>
+						)}
 					</div>
 				)}
 
