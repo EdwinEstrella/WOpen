@@ -11,6 +11,16 @@ interface QRScreenProps {
 
 export default function QRScreen({ status, qrPng, updatedAt }: QRScreenProps) {
 	const [secondsDisconnected, setSecondsDisconnected] = useState(0);
+	const [prevStatus, setPrevStatus] = useState(status);
+	const [prevQrPng, setPrevQrPng] = useState(qrPng);
+
+	if (status !== prevStatus || qrPng !== prevQrPng) {
+		setPrevStatus(status);
+		setPrevQrPng(qrPng);
+		if (status !== "disconnected" || !!qrPng) {
+			setSecondsDisconnected(0);
+		}
+	}
 
 	// Contador para detectar inactividad prolongada en la DB
 	useEffect(() => {
@@ -20,8 +30,6 @@ export default function QRScreen({ status, qrPng, updatedAt }: QRScreenProps) {
 			interval = setInterval(() => {
 				setSecondsDisconnected((prev) => prev + 1);
 			}, 1000);
-		} else {
-			setSecondsDisconnected(0);
 		}
 
 		return () => {

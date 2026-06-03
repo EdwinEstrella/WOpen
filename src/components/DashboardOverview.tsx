@@ -235,7 +235,7 @@ export default function DashboardOverview({ conversations = [] }: DashboardOverv
 							</div>
 						</div>
 						<div className="p-6 flex-1 flex flex-col justify-center min-h-[280px]">
-							<div className="flex flex-col items-center justify-center text-center text-on-surface-variant space-y-3">
+							<div className="flex flex-col items-center justify-center text-center text-on-surface-variant gap-y-3">
 								<div className="size- bg-primary/10 rounded-2xl border border-primary/20 flex items-center justify-center glow-active">
 									<TrendingUpIcon className="text-primary" size={24} />
 								</div>

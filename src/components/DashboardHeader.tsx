@@ -302,7 +302,7 @@ export default function DashboardHeader({
 											<div className="flex flex-col gap-1">
 												{botProfile.business.website.map((web, idx) => (
 													<a 
-														key={idx} 
+														key={web} 
 														href={web.startsWith("http") ? web : `https://${web}`} 
 														target="_blank" 
 														rel="noreferrer" 

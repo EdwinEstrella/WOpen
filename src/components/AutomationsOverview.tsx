@@ -30,7 +30,7 @@ export default function AutomationsOverview() {
 			<div className="flex-1 glass-panel rounded-2xl overflow-hidden relative flex min-h-[400px]">
 				
 				{/* Nodes Sidebar */}
-				<div className="w-64 border-r border-outline-variant/10 bg-surface-container-low/30 p-4 space-y-4 flex flex-col">
+				<div className="w-64 border-r border-outline-variant/10 bg-surface-container-low/30 p-4 gap-y-4 flex flex-col">
 					<h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Bloques Disponibles</h3>
 					
 					{/* Block Triggers */}
@@ -79,8 +79,8 @@ export default function AutomationsOverview() {
 							stroke="#4edea3"
 							strokeWidth="2"
 							strokeDasharray="4"
-							className="connection-line"
-							style={{ strokeDashoffset: 100, animation: "dash 20s linear infinite" }}
+							className="connection-line animate-[dash_20s_linear_infinite]"
+							style={{ strokeDashoffset: 100 }}
 						/>
 						{/* Connection 2 to 3 */}
 						<path
@@ -89,8 +89,8 @@ export default function AutomationsOverview() {
 							stroke="#4edea3"
 							strokeWidth="2"
 							strokeDasharray="4"
-							className="connection-line"
-							style={{ strokeDashoffset: 100, animation: "dash 20s linear infinite" }}
+							className="connection-line animate-[dash_20s_linear_infinite]"
+							style={{ strokeDashoffset: 100 }}
 						/>
 					</svg>
 

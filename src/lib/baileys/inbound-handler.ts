@@ -464,7 +464,7 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 				{ ttlMs: 95_000 },
 			);
 
-			// 1. Marcar los mensajes encolados como leídos
+			// 1. Marcar los mensajes encolados como leídos y Mostrar estado "escribiendo" en paralelo
 			const messageKeys = queuedMessages
 				.filter((msg) => msg.messageId && !msg.messageId.startsWith("db-"))
 				.map((msg) => ({
@@ -472,14 +472,13 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 					id: msg.messageId,
 					fromMe: false,
 				}));
-			if (messageKeys.length > 0) {
-				await deps.readMessages(messageKeys).catch(() => {});
-			}
 
-			// 2. Mostrar estado "escribiendo" (composing)
-			await deps.sendPresenceUpdate("composing", chatJid).catch((error) => {
-				console.warn("[bot] No se pudo enviar presencia composing:", error);
-			});
+			await Promise.all([
+				messageKeys.length > 0 ? deps.readMessages(messageKeys).catch(() => {}) : Promise.resolve(),
+				deps.sendPresenceUpdate("composing", chatJid).catch((error) => {
+					console.warn("[bot] No se pudo enviar presencia composing:", error);
+				})
+			]);
 
 			const history = await deps.getRecentHistory(beforeConversation.id);
 			const systemPrompt = await deps.getActiveSystemPrompt();

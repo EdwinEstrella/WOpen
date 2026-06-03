@@ -232,33 +232,36 @@ export function createFollowUpScheduler(deps: FollowUpSchedulerDeps) {
 
 			console.log(`[scheduler-debug] Decisión DeepSeek: SI enviar seguimiento. Mensaje: "${message}"`);
 
-			await deps.sendWhatsAppMessage(
-				fresh.jid ?? `${fresh.phone}@s.whatsapp.net`,
-				message,
-			);
-			await deps.repo.insertMessageAndTouchConversation({
-				conversation_id: fresh.id,
-				direction: "outbound",
-				role: "assistant",
-				content: message,
-				media_type: "text",
-				source: "scheduler",
-				from_me: false,
-				created_at: now,
-			});
-			await deps.repo.updateConversation(fresh.id, {
-				followup_attempts: fresh.followup_attempts + 1,
-				last_followup_at: now,
-				last_assistant_message_at: now,
-				updated_at: now,
-			});
-			await deps.repo.recordConversationEvent({
-				conversation_id: fresh.id,
-				event_type: "followup_sent",
-				actor_role: "assistant",
-				reason: "deepseek_decision_si",
-				created_at: now,
-			});
+			await Promise.all([
+				deps.sendWhatsAppMessage(
+					fresh.jid ?? `${fresh.phone}@s.whatsapp.net`,
+					message,
+				),
+				deps.repo.insertMessageAndTouchConversation({
+					conversation_id: fresh.id,
+					direction: "outbound",
+					role: "assistant",
+					content: message,
+					media_type: "text",
+					source: "scheduler",
+					from_me: false,
+					created_at: now,
+				}),
+				deps.repo.updateConversation(fresh.id, {
+					followup_attempts: fresh.followup_attempts + 1,
+					last_followup_at: now,
+					last_assistant_message_at: now,
+					updated_at: now,
+				}),
+				deps.repo.recordConversationEvent({
+					conversation_id: fresh.id,
+					event_type: "followup_sent",
+					actor_role: "assistant",
+					reason: "deepseek_decision_si",
+					created_at: now,
+				})
+			]);
+
 			run.sent += 1;
 		} finally {
 			await deps.turnState.releaseFollowupConversationLock(candidate.id, token);

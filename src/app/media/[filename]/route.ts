@@ -53,7 +53,7 @@ export async function GET(_req: Request, { params }: Ctx) {
 		return NextResponse.json({ error: "Media not found" }, { status: 404 });
 	}
 
-	const buffer = fs.readFileSync(filePath);
+	const buffer = await fs.promises.readFile(filePath);
 	const ext = path.extname(filename).toLowerCase();
 
 	return new Response(buffer, {

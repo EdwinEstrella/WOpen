@@ -260,11 +260,3 @@ export default function SettingsPanel() {
 		</div>
 	);
 }
-m>
-		</div>
-	);
-}
-/form>
-		</div>
-	);
-}
