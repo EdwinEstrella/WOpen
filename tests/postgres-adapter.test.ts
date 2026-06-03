@@ -141,6 +141,50 @@ describe("postgres adapter", () => {
 		assert.equal(pg.calls.length, 1);
 	});
 
+	it("repairs an existing LID conversation phone when senderPn later provides the real phone", async () => {
+		const pg = new FakePg();
+		pg.respondWith((text, values) => {
+			assert.match(text, /WHERE phone = \$1 OR jid = \$2/);
+			assert.deepEqual(values, ["18299727934", "239917074530322@lid"]);
+			return {
+				rows: [
+					conversation({
+						phone: "239917074530322",
+						jid: "239917074530322@lid",
+						name: "Azokiallc",
+					}),
+				],
+			};
+		});
+		pg.respondWith((text, values) => {
+			assert.match(text, /SET phone = CASE/);
+			assert.deepEqual(values, [
+				"18299727934",
+				"239917074530322@lid",
+				null,
+				7,
+			]);
+			return {
+				rows: [
+					conversation({
+						phone: "18299727934",
+						jid: "239917074530322@lid",
+						name: "Azokiallc",
+					}),
+				],
+			};
+		});
+		const repo = createPostgresRepository(pg);
+
+		const row = await repo.getOrCreateConversation({
+			phone: "18299727934",
+			jid: "239917074530322@lid",
+		});
+
+		assert.equal(row.phone, "18299727934");
+		assert.equal(row.jid, "239917074530322@lid");
+	});
+
 	it("inserts conversation when no existing phone or jid matches", async () => {
 		const pg = new FakePg();
 		pg.respondWith(() => ({ rows: [] }));

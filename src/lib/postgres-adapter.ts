@@ -139,17 +139,25 @@ export function createPostgresRepository(pool: PostgresPool) {
 			if (existing.rows[0]) {
 				const row = existing.rows[0];
 				const nextName = input.name?.trim();
+				const shouldUpdatePhone =
+					!!input.phone && !!input.jid && row.jid === input.jid && row.phone !== input.phone;
 				const shouldUpdateJid = !!input.jid && row.jid !== input.jid;
 				const shouldUpdateName = !!nextName && !row.name?.trim();
-				if (shouldUpdateJid || shouldUpdateName) {
+				if (shouldUpdatePhone || shouldUpdateJid || shouldUpdateName) {
 					const updated = await pool.query<ConversationRow>(
 						`UPDATE conversations
-						 SET jid = CASE WHEN $1::text IS NULL THEN jid ELSE $1::text END,
-						     name = CASE WHEN $2::text IS NULL OR NULLIF(TRIM(name), '') IS NOT NULL THEN name ELSE $2::text END,
+						 SET phone = CASE WHEN $1::text IS NULL THEN phone ELSE $1::text END,
+						     jid = CASE WHEN $2::text IS NULL THEN jid ELSE $2::text END,
+						     name = CASE WHEN $3::text IS NULL OR NULLIF(TRIM(name), '') IS NOT NULL THEN name ELSE $3::text END,
 						     updated_at = NOW()
-						 WHERE id = $3
+						 WHERE id = $4
 						 RETURNING *`,
-						[input.jid ?? null, nextName ?? null, row.id],
+						[
+							shouldUpdatePhone ? input.phone : null,
+							input.jid ?? null,
+							nextName ?? null,
+							row.id,
+						],
 					);
 					return updated.rows[0];
 				}

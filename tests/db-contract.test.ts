@@ -54,6 +54,25 @@ describe("database schema contract", () => {
 });
 
 describe("in-memory repository contract", () => {
+	it("repairs a LID-stored phone when the real sender phone arrives later", () => {
+		const repo = createInMemoryRepository();
+		const original = repo.getOrCreateConversation({
+			phone: "239917074530322",
+			jid: "239917074530322@lid",
+			name: "Azokiallc",
+		});
+
+		const repaired = repo.getOrCreateConversation({
+			phone: "18299727934",
+			jid: "239917074530322@lid",
+			name: "Azokiallc",
+		});
+
+		assert.equal(repaired.id, original.id);
+		assert.equal(repo.getConversationById(original.id)?.phone, "18299727934");
+		assert.equal(repo.getConversationById(original.id)?.jid, "239917074530322@lid");
+	});
+
 	it("touches source-specific timestamps and resets follow-ups when messages are inserted", () => {
 		const repo = createInMemoryRepository();
 		const convo = repo.getOrCreateConversation({

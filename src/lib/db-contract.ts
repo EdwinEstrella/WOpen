@@ -204,6 +204,15 @@ export function createInMemoryRepository() {
 					row.phone === input.phone || (input.jid && row.jid === input.jid),
 			);
 			if (existing) {
+				if (
+					input.phone &&
+					existing.phone !== input.phone &&
+					input.jid &&
+					existing.jid === input.jid
+				) {
+					existing.phone = input.phone;
+					existing.updated_at = nowDate();
+				}
 				if (input.jid && existing.jid !== input.jid) {
 					existing.jid = input.jid;
 					existing.updated_at = nowDate();
