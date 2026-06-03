@@ -10,6 +10,10 @@ interface QRScreenProps {
 	updatedAt: Date | string | null;
 }
 
+const timeFormatter = new Intl.DateTimeFormat("es-AR", {
+	timeStyle: "medium",
+});
+
 export default function QRScreen({ status, qrPng, updatedAt }: QRScreenProps) {
 	const [secondsDisconnected, setSecondsDisconnected] = useState(0);
 	const [prevStatus, setPrevStatus] = useState(status);
@@ -41,9 +45,7 @@ export default function QRScreen({ status, qrPng, updatedAt }: QRScreenProps) {
 	const showWarning =
 		status === "disconnected" && !qrPng && secondsDisconnected >= 10;
 	const lastUpdatedLabel = updatedAt
-		? new Intl.DateTimeFormat("es-AR", {
-				timeStyle: "medium",
-			}).format(new Date(updatedAt))
+		? timeFormatter.format(new Date(updatedAt))
 		: null;
 
 	return (

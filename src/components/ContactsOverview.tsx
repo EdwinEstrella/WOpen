@@ -7,16 +7,18 @@ interface ContactsOverviewProps {
 	conversations: ConversationListRow[];
 }
 
+const lastInteractionFormatter = new Intl.DateTimeFormat("es-AR", {
+	dateStyle: "medium",
+	timeStyle: "short",
+});
+
 function formatLastInteraction(
 	value: Date | string | null | undefined,
 ): string {
 	if (!value) return "Sin mensajes";
 	const date = value instanceof Date ? value : new Date(value);
 	if (Number.isNaN(date.getTime())) return "Sin fecha válida";
-	return new Intl.DateTimeFormat("es-AR", {
-		dateStyle: "medium",
-		timeStyle: "short",
-	}).format(date);
+	return lastInteractionFormatter.format(date);
 }
 
 export default function ContactsOverview({
