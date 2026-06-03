@@ -1,7 +1,7 @@
 # Local Pi runtime state
 .atl/
 .pi/
-
+.env
 # Dependencies and build output
 node_modules/
 .next/
