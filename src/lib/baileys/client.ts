@@ -26,6 +26,7 @@ import {
 	notifyTelegramHumanNeeded,
 	getPendingOutbox,
 	markOutboxSent,
+	listConversations,
 } from "../db.ts";
 
 const logger = pino({ level: "silent" });
