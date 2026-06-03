@@ -405,9 +405,10 @@ export async function startWASocket() {
 		for (const contact of contacts) {
 			if (contact.id && !contact.id.endsWith("@g.us")) {
 				const name = contact.name?.trim() || contact.notify?.trim() || contact.verifiedName?.trim();
-				if (name) {
+				if (name && name !== "Azokia" && name !== "Azokiallc") {
 					try {
-						await updateConversationNameIfExists(contact.id, name);
+						const phone = contact.id.replace(/@.*/, "");
+						await getOrCreateConversation(phone, contact.id, name);
 					} catch (err) {
 						console.error("[bot-error] Falló al procesar contacts.upsert para el JID " + contact.id + ":", err);
 					}
@@ -420,9 +421,10 @@ export async function startWASocket() {
 		for (const contact of contacts) {
 			if (contact.id && !contact.id.endsWith("@g.us")) {
 				const name = contact.name?.trim() || contact.notify?.trim() || contact.verifiedName?.trim();
-				if (name) {
+				if (name && name !== "Azokia" && name !== "Azokiallc") {
 					try {
-						await updateConversationNameIfExists(contact.id, name);
+						const phone = contact.id.replace(/@.*/, "");
+						await getOrCreateConversation(phone, contact.id, name);
 					} catch (err) {
 						console.error("[bot-error] Falló al procesar contacts.update para el JID " + contact.id + ":", err);
 					}

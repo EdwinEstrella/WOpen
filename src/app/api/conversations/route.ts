@@ -5,7 +5,8 @@ export async function GET(req: Request) {
 	try {
 		const { searchParams } = new URL(req.url);
 		const archived = searchParams.get("archived") === "true";
-		const conversations = await listConversations({ archived });
+		const hasMessages = searchParams.get("hasMessages") === "true";
+		const conversations = await listConversations({ archived, hasMessages });
 		return NextResponse.json(conversations);
 	} catch (error: any) {
 		console.error("[api] Error en GET /api/conversations:", error);

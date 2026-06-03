@@ -159,11 +159,11 @@ export interface ConversationListRow extends ConversationRow {
 	last_message_content?: string | null;
 	last_message_role?: string | null;
 }
-export async function listConversations(options: { archived?: boolean } = {}): Promise<ConversationListRow[]> {
+export async function listConversations(options: { archived?: boolean; hasMessages?: boolean } = {}): Promise<ConversationListRow[]> {
 	await ensureSchemaInitialized();
 	const isArchived = options.archived === true;
-	const res = await pool.query<ConversationListRow>(
-		`SELECT c.*, 
+	
+	let sql = `SELECT c.*, 
 		        m.content AS last_message_content, 
 		        m.role AS last_message_role
 		 FROM conversations c
@@ -175,10 +175,15 @@ export async function listConversations(options: { archived?: boolean } = {}): P
 		   ORDER BY created_at DESC
 		   LIMIT 1
 		 ) m ON TRUE
-		 WHERE (c.phone <> cs.phone OR cs.phone IS NULL) AND c.is_archived = $1
-		 ORDER BY c.last_message_at DESC NULLS LAST, c.id DESC`,
-		[isArchived]
-	);
+		 WHERE (c.phone <> cs.phone OR cs.phone IS NULL) AND c.is_archived = $1`;
+		 
+	if (options.hasMessages === true) {
+		sql += ` AND (c.last_message_at IS NOT NULL OR c.unread_count > 0)`;
+	}
+	
+	sql += ` ORDER BY c.last_message_at DESC NULLS LAST, c.id DESC`;
+
+	const res = await pool.query<ConversationListRow>(sql, [isArchived]);
 	return res.rows;
 }
 

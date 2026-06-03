@@ -35,6 +35,8 @@ export default function Home() {
 	const [selectedId, setSelectedId] = useState<number | null>(null);
 	const [showArchived, setShowArchived] = useState(false);
 	const [quickReplies, setQuickReplies] = useState<Array<{ id: string; shortcut: string; text: string }>>([]);
+	const [contactsList, setContactsList] = useState<ConversationListRow[]>([]);
+	const [loadingContacts, setLoadingContacts] = useState(false);
 
 	const prevConversationsRef = useRef<ConversationListRow[]>([]);
 
@@ -67,7 +69,7 @@ export default function Home() {
 	// Función para cargar conversaciones desde el endpoint
 	const loadConversations = async (archived = showArchived) => {
 		try {
-			const res = await fetch(`/api/conversations?archived=${archived}`);
+			const res = await fetch(`/api/conversations?archived=${archived}&hasMessages=true`);
 			if (res.ok) {
 				const data = await res.json();
 				setConversations(data);
@@ -76,6 +78,27 @@ export default function Home() {
 			console.error("[home] Error cargando conversaciones:", error);
 		}
 	};
+
+	const loadAllContacts = async () => {
+		setLoadingContacts(true);
+		try {
+			const res = await fetch(`/api/conversations?archived=false`);
+			if (res.ok) {
+				const data = await res.json();
+				setContactsList(data);
+			}
+		} catch (error) {
+			console.error("[home] Error cargando contactos crm:", error);
+		} finally {
+			setLoadingContacts(false);
+		}
+	};
+
+	useEffect(() => {
+		if (activeTab === "contacts") {
+			loadAllContacts();
+		}
+	}, [activeTab]);
 
 	// Polling continuo cada 2s para mantener la lista actualizada
 	useEffect(() => {
@@ -346,7 +369,7 @@ export default function Home() {
 							{activeTab === "automations" && <AutomationsOverview />}
 
 							{activeTab === "contacts" && (
-								<ContactsOverview conversations={conversations} />
+								<ContactsOverview conversations={contactsList} />
 							)}
 
 							{activeTab === "settings" && <SettingsPanel />}
