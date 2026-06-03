@@ -75,7 +75,7 @@ export function normalizeAutomationInput(input: AutomationInput): AutomationInpu
 		throw new Error("invalid_automation_trigger");
 	}
 
-	const conditions = Array.isArray(definition.conditions)
+	const conditions: AutomationCondition[] = Array.isArray(definition.conditions)
 		? definition.conditions.map((condition) => {
 				if (!isOneOf(condition?.type, AUTOMATION_CONDITION_TYPES)) {
 					throw new Error("invalid_automation_condition");
