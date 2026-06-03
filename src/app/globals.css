@@ -66,8 +66,8 @@
   color-scheme: dark;
   --radius: 0.75rem;
 
-  --background: #0B1014;
-  --foreground: #E9EDEF;
+  --background: #0F171D;
+  --foreground: #F4F7F8;
 
   --primary: #00A884;
   --primary-foreground: #111B21;
@@ -75,10 +75,10 @@
   --primary-container: #00A884;
   --on-primary-container: #ffffff;
 
-  --secondary: #202C33;
+  --secondary: #273842;
   --secondary-foreground: #ffffff;
   --on-secondary: #ffffff;
-  --secondary-container: #2A3942;
+  --secondary-container: #334650;
   --on-secondary-container: #ffffff;
 
   --tertiary: #ffb3af;
@@ -86,36 +86,36 @@
   --tertiary-container: #fc7c78;
   --on-tertiary-container: #711419;
 
-  --surface: #111B21;
-  --surface-dim: #0B1014;
-  --surface-bright: #202C33;
-  --surface-container-lowest: #0B1014;
-  --surface-container-low: #111B21;
-  --surface-container: #202C33;
-  --surface-container-high: #2A3942;
-  --surface-container-highest: #3B4A54;
-  --on-surface: #E9EDEF;
-  --on-surface-variant: #8696A0;
+  --surface: #17232B;
+  --surface-dim: #0C1419;
+  --surface-bright: #263842;
+  --surface-container-lowest: #111B21;
+  --surface-container-low: #17232B;
+  --surface-container: #1F3039;
+  --surface-container-high: #2B3F49;
+  --surface-container-highest: #3A515D;
+  --on-surface: #F4F7F8;
+  --on-surface-variant: #A7B4BD;
 
-  --outline: #202C33;
-  --outline-variant: #2A3942;
+  --outline: #31424D;
+  --outline-variant: #3B515E;
   --error: #EF4444;
   --on-error: #ffffff;
   --error-container: #7f1d1d;
   --on-error-container: #fca5a5;
 
-  --card: #111B21;
-  --card-foreground: #E9EDEF;
-  --popover: #111B21;
-  --popover-foreground: #E9EDEF;
-  --muted: #202C33;
-  --muted-foreground: #8696A0;
-  --accent: #2A3942;
-  --accent-foreground: #E9EDEF;
+  --card: #17232B;
+  --card-foreground: #F4F7F8;
+  --popover: #17232B;
+  --popover-foreground: #F4F7F8;
+  --muted: #243640;
+  --muted-foreground: #A7B4BD;
+  --accent: #334650;
+  --accent-foreground: #F4F7F8;
   --destructive: #EF4444;
   --destructive-foreground: #ffffff;
-  --border: #202C33;
-  --input: #2A3942;
+  --border: #31424D;
+  --input: #334650;
   --ring: #00A884;
 }
 
@@ -126,8 +126,8 @@ body {
 }
 
 .glass-panel {
-  background: #111B21;
-  border: 1px solid #202C33;
+  background: #17232B;
+  border: 1px solid #31424D;
   border-radius: 12px;
 }
 

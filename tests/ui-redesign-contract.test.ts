@@ -111,4 +111,16 @@ describe("shadcn/ui redesign foundation contract", () => {
 		assert.match(bubble, /preload="metadata"/);
 		assert.match(bubble, /Nota de voz/);
 	});
+
+	it("keeps chat contrast readable and image previews high fidelity", () => {
+		const globals = readProjectFile("src/app/globals.css");
+		const panel = readProjectFile("src/components/ConversationPanel.tsx");
+
+		assert.match(globals, /--on-surface-variant: #A7B4BD;/);
+		assert.match(globals, /--border: #31424D;/);
+		assert.doesNotMatch(panel, /max-w-\[480px\]/);
+		assert.doesNotMatch(panel, /max-h-\[480px\]/);
+		assert.match(panel, /object-contain/);
+		assert.match(panel, /Abrir original/);
+	});
 });

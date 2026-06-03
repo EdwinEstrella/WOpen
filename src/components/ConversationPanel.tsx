@@ -488,21 +488,30 @@ export default function ConversationPanel({
 
 			{zoomImage && (
 				<div 
-					className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md transition-opacity duration-300"
+					className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 transition-opacity duration-300"
 					onClick={() => setZoomImage(null)}
 				>
 					<div 
-						className="relative w-[90vw] h-[90vw] max-w-[480px] max-h-[480px] p-1.5 bg-surface-container border border-outline-variant/40 rounded-3xl overflow-hidden shadow-2xl flex items-center justify-center animate-[scaleIn_0.2s_ease-out]"
+						className="relative flex max-h-[94vh] w-full max-w-6xl items-center justify-center overflow-hidden rounded-3xl border border-outline-variant/60 bg-surface-container-lowest p-3 shadow-2xl animate-[scaleIn_0.2s_ease-out]"
 						onClick={(e) => e.stopPropagation()}
 					>
 						<img 
 							src={zoomImage} 
 							alt="Contacto foto" 
-							className="w-full h-full object-cover rounded-2xl animate-fade-in"
+							className="max-h-[88vh] max-w-full rounded-2xl object-contain animate-fade-in"
 						/>
+						<a
+							href={zoomImage}
+							target="_blank"
+							rel="noreferrer"
+							className="absolute left-4 top-4 rounded-full bg-black/60 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white ring-1 ring-white/15 transition-colors hover:bg-black/80"
+						>
+							Abrir original
+						</a>
 						<button 
-							className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white font-display text-xl font-bold focus:outline-none transition-all duration-200 hover:scale-105 active:scale-95 shadow-md"
+							className="absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-xl font-bold text-white shadow-md ring-1 ring-white/15 transition-all duration-200 hover:scale-105 hover:bg-black/80 focus:outline-none active:scale-95"
 							onClick={() => setZoomImage(null)}
+							aria-label="Cerrar imagen"
 						>
 							×
 						</button>

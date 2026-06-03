@@ -51,11 +51,11 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 			<Card
 				size="sm"
 				className={cn(
-					"max-w-[min(78%,42rem)] gap-3 border py-3 shadow-sm",
+					"max-w-[min(78%,42rem)] gap-3 border py-3 shadow-md",
 					isUser
-						? "rounded-bl-md border-primary/25 bg-card/70"
-						: "rounded-br-md border-border/70 bg-surface-container/80",
-					isAssistant && "border-primary/20 bg-primary/10",
+						? "rounded-bl-md border-primary/35 bg-card/95"
+						: "rounded-br-md border-border/80 bg-surface-container-high/90",
+					isAssistant && "border-primary/25 bg-primary/15",
 				)}
 			>
 				<CardContent className="space-y-3 px-3">
@@ -124,7 +124,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 									className="h-9 w-full accent-primary"
 								/>
 							) : (
-								<p className="text-xs italic text-muted-foreground">
+								<p className="text-xs italic text-on-surface-variant">
 									Audio recibido, pero el archivo ya no está disponible en el servidor.
 								</p>
 							)}
@@ -132,7 +132,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 					)}
 
 					{content && (
-						<p className="m-0 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
+						<p className="m-0 whitespace-pre-wrap break-words text-sm font-medium leading-relaxed text-foreground">
 							{content}
 						</p>
 					)}
