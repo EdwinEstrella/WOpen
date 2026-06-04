@@ -404,6 +404,8 @@ export async function startWASocket() {
 					);
 				}
 				globalSock = null;
+				console.log("[bot] Reiniciando conexión para generar nuevo código QR...");
+				scheduleReconnect(1000);
 			} else {
 				// Reconexión con backoff
 				const delay = status === 440 ? 15000 : 5000;
