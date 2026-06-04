@@ -57,9 +57,7 @@ interface SidebarProps {
 	activeTab: Tab;
 	setActiveTab: (tab: Tab) => void;
 	phone?: string | null;
-	botProfile?: {
-		profile_picture_url: string | null;
-	} | null;
+	botProfile?: SidebarBotProfile | null;
 	onDisconnect?: () => void;
 }
 
@@ -69,6 +67,17 @@ type WhatsAppInstance = {
 	phone: string | null;
 	status: "disconnected" | "qr" | "connecting" | "connected";
 	is_active: boolean;
+};
+
+type SidebarBotProfile = {
+	profile_picture_url: string | null;
+	business?: {
+		description?: string | null;
+		name?: string | null;
+		category?: string | null;
+	} | null;
+	phone?: string | null;
+	name?: string | null;
 };
 
 type ExistingNavItem = {
@@ -238,7 +247,14 @@ export default function Sidebar({
 	const [newInstanceName, setNewInstanceName] = useState("");
 	const [instanceBusy, setInstanceBusy] = useState(false);
 	const [instanceError, setInstanceError] = useState<string | null>(null);
-	const accountLabel = phone ? `+${phone}` : "Account";
+	const activeInstance = instances.find((instance) => instance.is_active) ?? null;
+	const configuredPhone = phone || botProfile?.phone || activeInstance?.phone || null;
+	const accountLabel = configuredPhone ? `+${configuredPhone}` : "Sin WhatsApp conectado";
+	const companyLabel =
+		botProfile?.business?.name?.trim() ||
+		botProfile?.name?.trim() ||
+		activeInstance?.name?.trim() ||
+		accountLabel;
 
 	const loadInstances = async () => {
 		try {
@@ -352,7 +368,7 @@ export default function Sidebar({
 											<motion.span variants={labelVariants} className="flex w-fit items-center gap-2">
 												{!isCollapsed && (
 													<>
-														<span className="text-sm font-medium">WOpen</span>
+														<span className="text-sm font-medium">{companyLabel}</span>
 														<ChevronsUpDown className="size-4 text-muted-foreground/50" />
 													</>
 												)}
@@ -492,7 +508,7 @@ export default function Sidebar({
 												</AvatarFallback>
 											</Avatar>
 											<div className="flex flex-col text-left">
-												<span className="text-sm font-medium">WOpen</span>
+												<span className="text-sm font-medium">{companyLabel}</span>
 												<span className="line-clamp-1 text-xs text-muted-foreground">{accountLabel}</span>
 											</div>
 										</div>
