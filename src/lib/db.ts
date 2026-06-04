@@ -1,4 +1,4 @@
-﻿import pg from "pg";
+import pg from "pg";
 import {
 	DATABASE_SCHEMA_SQL,
 	DEFAULT_SETTINGS,
@@ -263,6 +263,12 @@ export async function getPendingOutbox(limit = 20): Promise<any[]> {
 export async function markOutboxSent(id: number): Promise<void> {
 	await ensureSchemaInitialized();
 	await pool.query("UPDATE outbox SET sent = 1 WHERE id = $1", [id]);
+}
+
+// 19b. markOutboxFailed(id)
+export async function markOutboxFailed(id: number): Promise<void> {
+	await ensureSchemaInitialized();
+	await pool.query("UPDATE outbox SET sent = 2 WHERE id = $1", [id]);
 }
 
 // 20. deleteConversation(id)

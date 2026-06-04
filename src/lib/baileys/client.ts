@@ -35,6 +35,7 @@ import {
 	notifyTelegramHumanNeeded,
 	getPendingOutbox,
 	markOutboxSent,
+	markOutboxFailed,
 	deleteConversation,
 	enqueueOutbox,
 	listConversations,
@@ -152,11 +153,15 @@ export const inboundHandler = createInboundHandler({
 	describeImage: async (input) => describeImage(input),
 });
 
+let isProcessingOutbox = false;
+const outboxAttempts = new Map<number, number>();
+
 // Loop que procesa la cola de salida (Outbox) cada 2 segundos
 function startOutboxProcessor() {
 	if (outboxInterval) return;
 	outboxInterval = setInterval(async () => {
-		if (!globalSock) return;
+		if (!globalSock || isProcessingOutbox) return;
+		isProcessingOutbox = true;
 		try {
 			const pending = await getPendingOutbox(20);
 			for (const item of pending) {
@@ -169,16 +174,28 @@ function startOutboxProcessor() {
 				try {
 					await globalSock.sendMessage(jid, { text: item.content });
 					await markOutboxSent(item.id);
+					outboxAttempts.delete(item.id);
 					console.log(`[bot] Mensaje de Outbox id ${item.id} enviado exitosamente.`);
 				} catch (sendError: any) {
+					const attempts = outboxAttempts.get(item.id) || 0;
+					const newAttempts = attempts + 1;
 					console.error(
-						`[bot-error] Falló el envío del mensaje de Outbox id ${item.id} a ${jid}. Error:`,
+						`[bot-error] Falló el envío del mensaje de Outbox id ${item.id} a ${jid} (intento ${newAttempts}/3). Error:`,
 						sendError?.message || sendError
 					);
+					if (newAttempts >= 3) {
+						await markOutboxFailed(item.id);
+						outboxAttempts.delete(item.id);
+						console.error(`[bot-error] Mensaje de Outbox id ${item.id} marcado como fallido de forma definitiva.`);
+					} else {
+						outboxAttempts.set(item.id, newAttempts);
+					}
 				}
 			}
 		} catch (error) {
 			console.error("[bot] Error en el procesador de Outbox:", error);
+		} finally {
+			isProcessingOutbox = false;
 		}
 	}, 2000);
 }
@@ -407,8 +424,31 @@ export async function startWASocket() {
 			);
 
 			// Detectar si el mensaje no pudo ser desencriptado (Bad MAC / Ciphertext stub / MessageCounterError)
-			const hasNoMessage = !msg.message || Object.keys(msg.message).length === 0;
-			const isDecryptionFailure = hasNoMessage && (!msg.messageStubType || msg.messageStubType === 0 || msg.messageStubType === 1);
+			// Un mensaje ha fallado en desencriptarse si no tiene contenido legible de texto ni multimedia,
+			// no es de nosotros mismos, y no representa un stub/actualización del sistema de WhatsApp.
+			const hasContent = !!(
+				msg.message?.conversation ||
+				msg.message?.extendedTextMessage?.text ||
+				msg.message?.audioMessage ||
+				msg.message?.imageMessage ||
+				msg.message?.videoMessage ||
+				msg.message?.documentMessage ||
+				msg.message?.stickerMessage ||
+				msg.message?.contactMessage ||
+				msg.message?.contactsArrayMessage ||
+				msg.message?.locationMessage ||
+				msg.message?.liveLocationMessage ||
+				msg.message?.viewOnceMessage ||
+				msg.message?.viewOnceMessageV2 ||
+				msg.message?.ephemeralMessage ||
+				msg.message?.reactionMessage ||
+				msg.message?.protocolMessage
+			);
+			const isDecryptionFailure = !msg.key.fromMe && !hasContent && (
+				!msg.messageStubType || 
+				msg.messageStubType === 0 || 
+				msg.messageStubType === 1
+			);
 			if (isDecryptionFailure && msg.key.remoteJid) {
 				const remoteJid = msg.key.remoteJid;
 				// Aplicar solo para chats 1:1
