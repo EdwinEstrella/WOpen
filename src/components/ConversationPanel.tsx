@@ -297,11 +297,11 @@ if (conversation.id !== prevConversationId) {
 		<div className="relative flex flex-col h-full bg-background rounded-r-3xl overflow-hidden">
 			
 			{/* Cabecera del Panel de Conversación */}
-			<div className="p-4 bg-background border-b border-outline-variant flex items-center justify-between shrink-0">
+			<div className="p-3 sm:p-4 bg-background border-b border-outline-variant flex flex-wrap items-center justify-between gap-3 shrink-0">
 				<button
 					type="button"
 					onClick={() => setProfileOpen(true)}
-					className="flex items-center gap-3 text-left rounded-2xl hover:bg-surface px-2 py-1 transition-colors"
+					className="flex min-w-0 flex-1 items-center gap-3 text-left rounded-2xl hover:bg-surface px-2 py-1 transition-colors"
 					title="Abrir perfil del contacto"
 					aria-label={`Perfil de ${displayName}`}
 				>
@@ -324,8 +324,8 @@ if (conversation.id !== prevConversationId) {
 							{initials || <UserIcon size={16} />}
 						</div>
 					)}
-					<div className="flex flex-col">
-						<span className="font-display text-sm font-bold text-on-surface">{displayName}</span>
+					<div className="flex min-w-0 flex-col">
+						<span className="truncate font-display text-sm font-bold text-on-surface">{displayName}</span>
 					<span className="flex items-center gap-1.5 text-[10px] font-mono text-on-surface-variant/80 tracking-wider mt-0.5">
 						<span className="size-2 rounded-full bg-primary"></span>
 						+{cleanPhone}
@@ -350,7 +350,7 @@ if (conversation.id !== prevConversationId) {
 				</div>
 				</button>
 				
-				<div className="flex items-center gap-4">
+				<div className="flex shrink-0 flex-wrap items-center justify-end gap-2 sm:gap-4">
 					<ModeToggle
 						conversationId={conversation.id}
 						currentMode={conversation.mode}
@@ -379,13 +379,13 @@ if (conversation.id !== prevConversationId) {
 
 			{profileOpen && (
 				<div className="absolute inset-0 z-40 flex justify-end bg-black/20">
-					<aside className="h-full w-[360px] bg-surface border-l border-outline-variant/30 shadow-2xl p-6 flex flex-col animate-fade-in">
-						<div className="flex items-start justify-between mb-8">
-							<div>
+					<aside className="flex h-full w-full max-w-[min(360px,100%)] min-h-0 flex-col overflow-hidden border-l border-outline-variant/30 bg-surface p-4 shadow-2xl animate-fade-in sm:p-6">
+						<div className="mb-5 flex shrink-0 items-start justify-between gap-3 sm:mb-8">
+							<div className="min-w-0">
 								<p className="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">
 									Perfil del cliente
 								</p>
-								<h3 className="font-display text-lg font-bold text-on-surface mt-1">
+								<h3 className="mt-1 truncate font-display text-lg font-bold text-on-surface">
 									{displayName}
 								</h3>
 							</div>
@@ -399,7 +399,7 @@ if (conversation.id !== prevConversationId) {
 							</button>
 						</div>
 
-						<div className="flex flex-col items-center mb-8">
+						<div className="mb-5 flex shrink-0 flex-col items-center sm:mb-8">
 							{profilePictureUrl && !drawerAvatarError ? (
 								<button 
 									type="button"
@@ -424,7 +424,7 @@ if (conversation.id !== prevConversationId) {
 							<p className="font-mono text-xs text-on-surface-variant mt-1">+{cleanPhone}</p>
 						</div>
 
-						<form onSubmit={handleSaveProfile} className="space-y-5">
+						<form onSubmit={handleSaveProfile} className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto pr-1">
 							<label className="block">
 								<span className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-bold text-on-surface-variant mb-2">
 									<EditIcon size={12} /> Nombre personalizado
@@ -506,7 +506,7 @@ if (conversation.id !== prevConversationId) {
 							<button
 								type="submit"
 								disabled={savingProfile}
-								className="w-full py-2.5 rounded-full bg-primary text-on-primary text-xs font-bold uppercase tracking-wider hover:brightness-110 disabled:opacity-50"
+								className="sticky bottom-0 w-full rounded-full bg-primary py-2.5 text-xs font-bold uppercase tracking-wider text-on-primary shadow-lg hover:brightness-110 disabled:opacity-50"
 							>
 								{savingProfile ? "Guardando..." : "Guardar cliente"}
 							</button>

@@ -1,0 +1,398 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import {
+	CalendarClock,
+	Check,
+	Phone,
+	Plus,
+	Tag,
+	Trash2,
+} from "lucide-react";
+
+import { LEAD_LABELS, type LeadLabel } from "@/domain/whatsapp-rules.ts";
+import type { ConversationListRow } from "@/lib/db.ts";
+import type {
+	CrmTaskListRow,
+	CrmTaskPriority,
+	CrmTaskStatus,
+	CrmTaskType,
+} from "@/lib/crm-tasks.ts";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
+
+const COLUMNS: Array<{ status: CrmTaskStatus; title: string; description: string }> = [
+	{ status: "pending", title: "Pendientes", description: "Próximas acciones" },
+	{ status: "in_progress", title: "En progreso", description: "Ya están en gestión" },
+	{ status: "done", title: "Hechas", description: "Cerradas o resueltas" },
+];
+
+const TASK_TYPES: Array<{ value: CrmTaskType; label: string }> = [
+	{ value: "call_client", label: "Llamar cliente" },
+	{ value: "follow_up", label: "Seguimiento" },
+	{ value: "evaluate_lead", label: "Evaluar lead" },
+	{ value: "set_label", label: "Poner etiqueta" },
+	{ value: "custom", label: "Personalizada" },
+];
+
+const PRIORITIES: Array<{ value: CrmTaskPriority; label: string }> = [
+	{ value: "low", label: "Baja" },
+	{ value: "medium", label: "Media" },
+	{ value: "high", label: "Alta" },
+];
+
+const priorityLabel: Record<CrmTaskPriority, string> = {
+	low: "Baja",
+	medium: "Media",
+	high: "Alta",
+};
+
+const typeLabel = Object.fromEntries(
+	TASK_TYPES.map((type) => [type.value, type.label]),
+) as Record<CrmTaskType, string>;
+
+interface TasksBoardProps {
+	conversations: ConversationListRow[];
+	onConversationUpdated: (conversation: ConversationListRow) => void;
+}
+
+function selectClassName() {
+	return "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+}
+
+function formatDate(value: string | Date | null) {
+	if (!value) return null;
+	const date = value instanceof Date ? value : new Date(value);
+	if (Number.isNaN(date.getTime())) return null;
+	return new Intl.DateTimeFormat("es", {
+		day: "2-digit",
+		month: "short",
+		hour: "2-digit",
+		minute: "2-digit",
+	}).format(date);
+}
+
+function conversationLabel(conversation: ConversationListRow) {
+	return conversation.name?.trim() || `+${conversation.phone}`;
+}
+
+export default function TasksBoard({
+	conversations,
+	onConversationUpdated,
+}: TasksBoardProps) {
+	const [tasks, setTasks] = useState<CrmTaskListRow[]>([]);
+	const [isLoading, setIsLoading] = useState(true);
+	const [isSaving, setIsSaving] = useState(false);
+	const [title, setTitle] = useState("");
+	const [description, setDescription] = useState("");
+	const [conversationId, setConversationId] = useState("");
+	const [taskType, setTaskType] = useState<CrmTaskType>("call_client");
+	const [leadLabel, setLeadLabel] = useState<"" | LeadLabel>("");
+	const [priority, setPriority] = useState<CrmTaskPriority>("medium");
+	const [dueAt, setDueAt] = useState("");
+	const [error, setError] = useState<string | null>(null);
+
+	const conversationById = useMemo(
+		() => new Map(conversations.map((conversation) => [conversation.id, conversation])),
+		[conversations],
+	);
+
+	const loadTasks = async () => {
+		setError(null);
+		try {
+			const res = await fetch("/api/tasks");
+			if (!res.ok) throw new Error("No se pudieron cargar las tareas");
+			setTasks(await res.json());
+		} catch (loadError: any) {
+			setError(loadError.message || "No se pudieron cargar las tareas");
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	useEffect(() => {
+		loadTasks();
+	}, []);
+
+	const createTask = async () => {
+		setIsSaving(true);
+		setError(null);
+		try {
+			const res = await fetch("/api/tasks", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					title,
+					description,
+					conversation_id: conversationId || null,
+					task_type: taskType,
+					lead_label: leadLabel || null,
+					priority,
+					due_at: dueAt || null,
+				}),
+			});
+			if (!res.ok) {
+				const body = await res.json().catch(() => ({}));
+				throw new Error(body.error || "No se pudo crear la tarea");
+			}
+			setTitle("");
+			setDescription("");
+			setConversationId("");
+			setTaskType("call_client");
+			setLeadLabel("");
+			setPriority("medium");
+			setDueAt("");
+			await loadTasks();
+		} catch (saveError: any) {
+			setError(saveError.message || "No se pudo crear la tarea");
+		} finally {
+			setIsSaving(false);
+		}
+	};
+
+	const updateTask = async (taskId: number, patch: Record<string, unknown>) => {
+		const res = await fetch(`/api/tasks/${taskId}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(patch),
+		});
+		if (!res.ok) throw new Error("No se pudo actualizar la tarea");
+		const updated = await res.json();
+		setTasks((current) =>
+			current.map((task) => (task.id === taskId ? { ...task, ...updated } : task)),
+		);
+	};
+
+	const deleteTask = async (taskId: number) => {
+		const res = await fetch(`/api/tasks/${taskId}`, { method: "DELETE" });
+		if (!res.ok) throw new Error("No se pudo eliminar la tarea");
+		setTasks((current) => current.filter((task) => task.id !== taskId));
+	};
+
+	const applyLeadLabel = async (task: CrmTaskListRow) => {
+		if (!task.conversation_id || !task.lead_label) return;
+		const conversation = conversationById.get(task.conversation_id);
+		if (!conversation) return;
+		const labels = [...new Set([...conversation.lead_labels, task.lead_label])];
+		const res = await fetch(`/api/conversations/${task.conversation_id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ lead_labels: labels }),
+		});
+		if (!res.ok) throw new Error("No se pudo aplicar la etiqueta");
+		const updatedConversation = await res.json();
+		onConversationUpdated(updatedConversation);
+		await updateTask(task.id, { status: "done" });
+	};
+
+	return (
+		<div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+			<div className="flex flex-col gap-1">
+				<h2 className="font-display text-2xl font-bold text-on-surface">
+					Tareas CRM
+				</h2>
+				<p className="text-sm text-on-surface-variant">
+					Organizá llamadas, seguimientos y evaluación de clientes como un tablero Trello.
+				</p>
+			</div>
+
+			<Card className="shrink-0 border-outline-variant/20 bg-surface-container-low/70">
+				<CardHeader>
+					<CardTitle>Nueva tarea</CardTitle>
+					<CardDescription>
+						Creá acciones concretas vinculadas a contactos o conversaciones.
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<div className="grid gap-3 xl:grid-cols-[1.2fr_1fr_0.8fr_0.8fr_0.8fr]">
+						<Input
+							value={title}
+							onChange={(event) => setTitle(event.target.value)}
+							placeholder="Ej: llamar para cerrar presupuesto"
+						/>
+						<select
+							className={selectClassName()}
+							value={conversationId}
+							onChange={(event) => setConversationId(event.target.value)}
+							aria-label="Cliente"
+						>
+							<option value="">Sin cliente</option>
+							{conversations.map((conversation) => (
+								<option key={conversation.id} value={conversation.id}>
+									{conversationLabel(conversation)}
+								</option>
+							))}
+						</select>
+						<select
+							className={selectClassName()}
+							value={taskType}
+							onChange={(event) => setTaskType(event.target.value as CrmTaskType)}
+							aria-label="Tipo de tarea"
+						>
+							{TASK_TYPES.map((type) => (
+								<option key={type.value} value={type.value}>
+									{type.label}
+								</option>
+							))}
+						</select>
+						<select
+							className={selectClassName()}
+							value={leadLabel}
+							onChange={(event) => setLeadLabel(event.target.value as "" | LeadLabel)}
+							aria-label="Etiqueta de evaluación"
+						>
+							<option value="">Sin etiqueta</option>
+							{LEAD_LABELS.map((label) => (
+								<option key={label} value={label}>
+									{label.replace("_", " ")}
+								</option>
+							))}
+						</select>
+						<Button onClick={createTask} disabled={isSaving || !title.trim()}>
+							<Plus data-icon="inline-start" />
+							Crear
+						</Button>
+					</div>
+					<div className="mt-3 grid gap-3 lg:grid-cols-[1fr_0.35fr_0.35fr]">
+						<Textarea
+							value={description}
+							onChange={(event) => setDescription(event.target.value)}
+							placeholder="Notas internas para ejecutar la tarea..."
+						/>
+						<select
+							className={selectClassName()}
+							value={priority}
+							onChange={(event) => setPriority(event.target.value as CrmTaskPriority)}
+							aria-label="Prioridad"
+						>
+							{PRIORITIES.map((item) => (
+								<option key={item.value} value={item.value}>
+									{item.label}
+								</option>
+							))}
+						</select>
+						<Input
+							type="datetime-local"
+							value={dueAt}
+							onChange={(event) => setDueAt(event.target.value)}
+						/>
+					</div>
+					{error && <p className="mt-3 text-sm text-destructive">{error}</p>}
+				</CardContent>
+			</Card>
+
+			<div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-3">
+				{COLUMNS.map((column) => {
+					const columnTasks = tasks.filter((task) => task.status === column.status);
+					return (
+						<Card key={column.status} className="min-h-0 border-outline-variant/20 bg-surface-container-low/60">
+							<CardHeader>
+								<CardTitle className="flex items-center justify-between gap-2">
+									<span>{column.title}</span>
+									<Badge variant="secondary">{columnTasks.length}</Badge>
+								</CardTitle>
+								<CardDescription>{column.description}</CardDescription>
+							</CardHeader>
+							<CardContent className="min-h-0">
+								<ScrollArea className="h-[calc(100vh-29rem)] pr-2">
+									<div className="flex flex-col gap-3">
+										{isLoading && (
+											<p className="text-sm text-muted-foreground">Cargando tareas...</p>
+										)}
+										{!isLoading && columnTasks.length === 0 && (
+											<p className="rounded-lg border border-dashed border-outline-variant/30 p-4 text-sm text-muted-foreground">
+												No hay tareas en esta columna.
+											</p>
+										)}
+										{columnTasks.map((task) => (
+											<Card key={task.id} size="sm" className="bg-card/90">
+												<CardHeader>
+													<CardTitle className="text-sm">{task.title}</CardTitle>
+													<CardDescription className="flex flex-wrap gap-2">
+														<Badge variant="outline">{typeLabel[task.task_type]}</Badge>
+														<Badge
+															variant={task.priority === "high" ? "destructive" : "secondary"}
+														>
+															{priorityLabel[task.priority]}
+														</Badge>
+														{task.lead_label && (
+															<Badge variant="outline">
+																<Tag data-icon="inline-start" />
+																{task.lead_label.replace("_", " ")}
+															</Badge>
+														)}
+													</CardDescription>
+												</CardHeader>
+												<CardContent className="flex flex-col gap-3">
+													{task.description && (
+														<p className="text-sm text-muted-foreground">{task.description}</p>
+													)}
+													<div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+														{task.conversation_phone && (
+															<span className="inline-flex items-center gap-1">
+																<Phone className="size-3" />
+																{task.conversation_name || `+${task.conversation_phone}`}
+															</span>
+														)}
+														{formatDate(task.due_at) && (
+															<span className="inline-flex items-center gap-1">
+																<CalendarClock className="size-3" />
+																{formatDate(task.due_at)}
+															</span>
+														)}
+													</div>
+													<div className="flex flex-wrap gap-2">
+														{COLUMNS.filter((item) => item.status !== task.status).map((item) => (
+															<Button
+																key={item.status}
+																size="sm"
+																variant="outline"
+																onClick={() => updateTask(task.id, { status: item.status })}
+															>
+																{item.title}
+															</Button>
+														))}
+														{task.lead_label && task.conversation_id && task.status !== "done" && (
+															<Button
+																size="sm"
+																variant="secondary"
+																onClick={() => applyLeadLabel(task)}
+															>
+																<Check data-icon="inline-start" />
+																Aplicar etiqueta
+															</Button>
+														)}
+														<Button
+															size="sm"
+															variant="ghost"
+															className={cn("ml-auto")}
+															onClick={() => deleteTask(task.id)}
+															aria-label="Eliminar tarea"
+														>
+															<Trash2 data-icon="inline-start" />
+														</Button>
+													</div>
+												</CardContent>
+											</Card>
+										))}
+									</div>
+								</ScrollArea>
+							</CardContent>
+						</Card>
+					);
+				})}
+			</div>
+		</div>
+	);
+}

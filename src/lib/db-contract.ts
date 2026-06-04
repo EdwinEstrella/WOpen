@@ -3,6 +3,11 @@ import type {
 	MessageRole,
 	LeadLabel,
 } from "../domain/whatsapp-rules.ts";
+import type {
+	CrmTaskPriority,
+	CrmTaskStatus,
+	CrmTaskType,
+} from "./crm-tasks.ts";
 
 export type MessageDirection = "inbound" | "outbound";
 export type MessageSource =
@@ -119,6 +124,22 @@ CREATE TABLE IF NOT EXISTS automations (
 );
 CREATE INDEX IF NOT EXISTS idx_automations_enabled_trigger ON automations(enabled, trigger_type);
 
+CREATE TABLE IF NOT EXISTS crm_tasks (
+  id SERIAL PRIMARY KEY,
+  conversation_id INTEGER REFERENCES conversations(id) ON DELETE SET NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  status TEXT CHECK(status IN ('pending','in_progress','done')) NOT NULL DEFAULT 'pending',
+  task_type TEXT CHECK(task_type IN ('call_client','follow_up','evaluate_lead','set_label','custom')) NOT NULL DEFAULT 'custom',
+  lead_label TEXT CHECK(lead_label IS NULL OR lead_label IN ('frio','neutro','caliente','cliente_potencial')),
+  priority TEXT CHECK(priority IN ('low','medium','high')) NOT NULL DEFAULT 'medium',
+  due_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_crm_tasks_status_due ON crm_tasks(status, due_at NULLS LAST, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_crm_tasks_conversation ON crm_tasks(conversation_id);
+
 CREATE TABLE IF NOT EXISTS connection_state (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   status TEXT CHECK(status IN ('disconnected','qr','connecting','connected')) NOT NULL DEFAULT 'disconnected',
@@ -171,6 +192,19 @@ export interface ConversationRow {
 	lead_score_reason: string | null;
 	lead_updated_at: Date | null;
 	lead_updated_by: "assistant" | "dashboard" | null;
+	created_at: Date;
+	updated_at: Date;
+}
+export interface CrmTaskDbRow {
+	id: number;
+	conversation_id: number | null;
+	title: string;
+	description: string | null;
+	status: CrmTaskStatus;
+	task_type: CrmTaskType;
+	lead_label: LeadLabel | null;
+	priority: CrmTaskPriority;
+	due_at: Date | null;
 	created_at: Date;
 	updated_at: Date;
 }

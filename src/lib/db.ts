@@ -19,6 +19,14 @@ import {
 	type AutomationInput,
 	type AutomationRow,
 } from "./automations.ts";
+import {
+	normalizeCrmTaskInput,
+	normalizeCrmTaskPatch,
+	type CrmTaskInput,
+	type CrmTaskListRow,
+	type CrmTaskPatch,
+	type CrmTaskRow,
+} from "./crm-tasks.ts";
 
 const { Pool } = pg;
 
@@ -470,5 +478,83 @@ export async function setAutomationEnabled(
 export async function deleteAutomation(id: number): Promise<void> {
 	await ensureSchemaInitialized();
 	await pool.query("DELETE FROM automations WHERE id = $1", [id]);
+}
+
+// 27. CRM Tasks CRUD
+export async function listCrmTasks(): Promise<CrmTaskListRow[]> {
+	await ensureSchemaInitialized();
+	const res = await pool.query<CrmTaskListRow>(
+		`SELECT t.*,
+		        c.name AS conversation_name,
+		        c.phone AS conversation_phone,
+		        c.lead_labels AS conversation_lead_labels
+		 FROM crm_tasks t
+		 LEFT JOIN conversations c ON c.id = t.conversation_id
+		 ORDER BY
+		   CASE t.status
+		     WHEN 'pending' THEN 1
+		     WHEN 'in_progress' THEN 2
+		     ELSE 3
+		   END ASC,
+		   t.due_at ASC NULLS LAST,
+		   t.updated_at DESC,
+		   t.id DESC`,
+	);
+	return res.rows;
+}
+
+export async function saveCrmTask(input: Record<string, unknown>): Promise<CrmTaskRow> {
+	await ensureSchemaInitialized();
+	const normalized: CrmTaskInput = normalizeCrmTaskInput(input);
+	const res = await pool.query<CrmTaskRow>(
+		`INSERT INTO crm_tasks (
+		   conversation_id, title, description, status, task_type,
+		   lead_label, priority, due_at, created_at, updated_at
+		 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+		 RETURNING *`,
+		[
+			normalized.conversation_id,
+			normalized.title,
+			normalized.description,
+			normalized.status,
+			normalized.task_type,
+			normalized.lead_label,
+			normalized.priority,
+			normalized.due_at,
+		],
+	);
+	return res.rows[0];
+}
+
+export async function updateCrmTask(
+	id: number,
+	input: Record<string, unknown>,
+): Promise<CrmTaskRow | null> {
+	await ensureSchemaInitialized();
+	const patch: CrmTaskPatch = normalizeCrmTaskPatch(input);
+	const entries = Object.entries(patch).filter(([, value]) => value !== undefined);
+	if (entries.length === 0) {
+		const existing = await pool.query<CrmTaskRow>(
+			"SELECT * FROM crm_tasks WHERE id = $1 LIMIT 1",
+			[id],
+		);
+		return existing.rows[0] ?? null;
+	}
+
+	const assignments = entries.map(([key], index) => `${key} = $${index + 2}`);
+	const values = entries.map(([, value]) => value);
+	const res = await pool.query<CrmTaskRow>(
+		`UPDATE crm_tasks
+		 SET ${assignments.join(", ")}, updated_at = NOW()
+		 WHERE id = $1
+		 RETURNING *`,
+		[id, ...values],
+	);
+	return res.rows[0] ?? null;
+}
+
+export async function deleteCrmTask(id: number): Promise<void> {
+	await ensureSchemaInitialized();
+	await pool.query("DELETE FROM crm_tasks WHERE id = $1", [id]);
 }
 
