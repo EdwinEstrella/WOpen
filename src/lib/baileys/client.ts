@@ -440,14 +440,15 @@ export async function startWASocket() {
 				msg.message?.liveLocationMessage ||
 				msg.message?.viewOnceMessage ||
 				msg.message?.viewOnceMessageV2 ||
-				msg.message?.ephemeralMessage ||
-				msg.message?.reactionMessage ||
-				msg.message?.protocolMessage
+				msg.message?.ephemeralMessage
 			);
 			const isDecryptionFailure = !msg.key.fromMe && !hasContent && (
 				!msg.messageStubType || 
 				msg.messageStubType === 0 || 
 				msg.messageStubType === 1
+			);
+			console.log(
+				`[bot-debug] Evaluando mensaje: fromMe=${msg.key.fromMe}, remoteJid=${msg.key.remoteJid}, messageKeys=${msg.message ? Object.keys(msg.message).join(", ") : "none"}, stubType=${msg.messageStubType}, hasContent=${hasContent}, isDecryptionFailure=${isDecryptionFailure}`
 			);
 			if (isDecryptionFailure && msg.key.remoteJid) {
 				const remoteJid = msg.key.remoteJid;
