@@ -3,8 +3,13 @@ import { MotionProvider } from "@/components/MotionProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-	title: "Bot Personal - WhatsApp CRM",
+	title: "WOpen",
 	description: "Administrá tus conversaciones de WhatsApp y automatizaciones con IA.",
+	icons: {
+		icon: "/favicon.ico",
+		shortcut: "/favicon.ico",
+		apple: "/logoWOPEN.png",
+	},
 };
 
 export default function RootLayout({

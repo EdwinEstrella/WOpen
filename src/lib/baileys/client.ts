@@ -8,6 +8,7 @@ import {
 } from "@whiskeysockets/baileys";
 import pino from "pino";
 import fs from "node:fs";
+import path from "node:path";
 import { Redis } from "ioredis";
 import { createIoredisTurnState } from "../redis-adapter.ts";
 import { createInboundHandler } from "./inbound-handler.ts";
@@ -157,6 +158,43 @@ export const inboundHandler = createInboundHandler({
 let isProcessingOutbox = false;
 const outboxAttempts = new Map<number, number>();
 
+function mediaPathFromUrl(mediaUrl: string | null | undefined) {
+	if (!mediaUrl) return null;
+	const filename = path.basename(mediaUrl);
+	if (!filename || filename !== mediaUrl.split("/").pop()) return null;
+	return path.join(runtimePaths.mediaDir, filename);
+}
+
+function outboxMetadata(item: any): Record<string, unknown> {
+	return item.metadata && typeof item.metadata === "object" ? item.metadata : {};
+}
+
+function outboxMimeType(item: any) {
+	const metadata = outboxMetadata(item);
+	return typeof metadata.mimeType === "string" ? metadata.mimeType : undefined;
+}
+
+function outboxSendPayload(item: any) {
+	const mediaType = item.media_type ?? "text";
+	if (mediaType === "image" || mediaType === "audio") {
+		const mediaPath = mediaPathFromUrl(item.media_url);
+		if (!mediaPath || !fs.existsSync(mediaPath)) {
+			throw new Error(`Archivo multimedia no disponible para outbox ${item.id}: ${item.media_url || "sin ruta"}`);
+		}
+		const buffer = fs.readFileSync(mediaPath);
+		if (mediaType === "image") {
+			const caption = item.content && item.content !== "Imagen enviada" ? item.content : undefined;
+			return { image: buffer, caption, mimetype: outboxMimeType(item) };
+		}
+		return {
+			audio: buffer,
+			mimetype: outboxMimeType(item) ?? "audio/ogg; codecs=opus",
+			ptt: true,
+		};
+	}
+	return { text: item.content };
+}
+
 // Loop que procesa la cola de salida (Outbox) cada 2 segundos
 function startOutboxProcessor() {
 	if (outboxInterval) return;
@@ -171,10 +209,10 @@ function startOutboxProcessor() {
 					jid: item.conversation_jid ?? null,
 				});
 				console.log(
-					`[bot] Enviando mensaje de Outbox a ${jid}: "${item.content.substring(0, 30)}..."`,
+					`[bot] Enviando ${item.media_type ?? "text"} de Outbox a ${jid}: "${item.content.substring(0, 30)}..."`,
 				);
 				try {
-					await globalSock.sendMessage(jid, { text: item.content });
+					await globalSock.sendMessage(jid, outboxSendPayload(item));
 					await markOutboxSent(item.id);
 					outboxAttempts.delete(item.id);
 					console.log(`[bot] Mensaje de Outbox id ${item.id} enviado exitosamente.`);
@@ -484,7 +522,7 @@ export async function startWASocket() {
 		await Promise.all(contacts.map(async (contact) => {
 			if (contact.id && !contact.id.endsWith("@g.us")) {
 				const name = contact.name?.trim() || contact.notify?.trim() || contact.verifiedName?.trim();
-				if (name && name !== "Azokia" && name !== "Azokiallc") {
+				if (name && name !== "WOpen" && name !== "Azokia" && name !== "Azokiallc") {
 					try {
 						const phone = contact.id.replace(/@.*/, "");
 						await getOrCreateConversation(phone, contact.id, name);
@@ -500,7 +538,7 @@ export async function startWASocket() {
 		await Promise.all(contacts.map(async (contact) => {
 			if (contact.id && !contact.id.endsWith("@g.us")) {
 				const name = contact.name?.trim() || contact.notify?.trim() || contact.verifiedName?.trim();
-				if (name && name !== "Azokia" && name !== "Azokiallc") {
+				if (name && name !== "WOpen" && name !== "Azokia" && name !== "Azokiallc") {
 					try {
 						const phone = contact.id.replace(/@.*/, "");
 						await getOrCreateConversation(phone, contact.id, name);

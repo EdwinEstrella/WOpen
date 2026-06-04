@@ -264,14 +264,15 @@ export default function Sidebar({
 									<DropdownMenuTrigger className="w-full" asChild>
 										<Button variant="ghost" size="sm" className="flex w-fit items-center gap-2 px-2">
 											<Avatar className="size-4 rounded">
+												<AvatarImage src="/logoWOPEN.png" alt="WOpen" />
 												<AvatarFallback className="rounded bg-primary text-[10px] text-on-primary">
-													B
+													W
 												</AvatarFallback>
 											</Avatar>
 											<motion.span variants={labelVariants} className="flex w-fit items-center gap-2">
 												{!isCollapsed && (
 													<>
-														<span className="text-sm font-medium">Bot Personal</span>
+														<span className="text-sm font-medium">WOpen</span>
 														<ChevronsUpDown className="size-4 text-muted-foreground/50" />
 													</>
 												)}
@@ -353,7 +354,7 @@ export default function Sidebar({
 													/>
 												)}
 												<AvatarFallback className="text-[10px]">
-													<Bot className="size-3" />
+													W
 												</AvatarFallback>
 											</Avatar>
 											<motion.span variants={labelVariants} className="flex w-full min-w-0 items-center gap-2">
@@ -373,11 +374,11 @@ export default function Sidebar({
 													<AvatarImage src={botProfile.profile_picture_url} alt="Bot avatar" />
 												)}
 												<AvatarFallback>
-													<Bot className="size-3" />
+													W
 												</AvatarFallback>
 											</Avatar>
 											<div className="flex flex-col text-left">
-												<span className="text-sm font-medium">Bot Personal</span>
+												<span className="text-sm font-medium">WOpen</span>
 												<span className="line-clamp-1 text-xs text-muted-foreground">{accountLabel}</span>
 											</div>
 										</div>

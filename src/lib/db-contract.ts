@@ -159,6 +159,9 @@ CREATE TABLE IF NOT EXISTS outbox (
   conversation_id INTEGER NOT NULL,
   phone TEXT NOT NULL,
   content TEXT NOT NULL,
+  media_type TEXT CHECK(media_type IN ('text','image','audio','unknown')) NOT NULL DEFAULT 'text',
+  media_url TEXT,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
   sent INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );

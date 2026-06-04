@@ -138,14 +138,14 @@ describe("shadcn/ui redesign foundation contract", () => {
 
 	it("keeps chat contrast readable and image previews high fidelity", () => {
 		const globals = readProjectFile("src/app/globals.css");
-		const panel = readProjectFile("src/components/ConversationPanel.tsx");
+		const bubble = readProjectFile("src/components/MessageBubble.tsx");
 
 		assert.match(globals, /--on-surface-variant: #A7B4BD;/);
 		assert.match(globals, /--border: #31424D;/);
-		assert.doesNotMatch(panel, /max-w-\[480px\]/);
-		assert.doesNotMatch(panel, /max-h-\[480px\]/);
-		assert.match(panel, /object-contain/);
-		assert.match(panel, /Abrir original/);
+		assert.doesNotMatch(bubble, /max-w-\[480px\]/);
+		assert.doesNotMatch(bubble, /max-h-\[480px\]/);
+		assert.match(bubble, /object-contain/);
+		assert.match(bubble, /Ver imagen completa de WhatsApp/);
 	});
 
 	it("uses a stable latest-message order for sidebar previews", () => {

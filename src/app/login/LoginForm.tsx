@@ -44,7 +44,7 @@ export default function LoginForm() {
 						Acceso al Sistema
 					</h1>
 					<p className="text-sm text-zinc-400">
-						Panel de Administración - WhatsApp Bot
+						Panel de Administración - WOpen
 					</p>
 				</div>
 

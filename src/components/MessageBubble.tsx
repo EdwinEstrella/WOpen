@@ -30,6 +30,8 @@ function isMediaPlaceholder(content: string, mediaType: MessageRow["media_type"]
 	return false;
 }
 
+const waveformBars = [28, 46, 34, 60, 42, 76, 54, 38, 64, 44, 70, 52, 32, 58, 40, 74, 48, 36];
+
 export default function MessageBubble({ message }: MessageBubbleProps) {
 	const { role, content, media_type, created_at, metadata } = message;
 
@@ -114,10 +116,10 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 					)}
 
 					{media_type === "audio" && (
-						<div className="rounded-xl border border-primary/20 bg-background/75 p-3">
-							<div className="mb-2 flex items-center justify-between gap-3">
+						<div className="rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/15 via-background/85 to-secondary/10 p-3 shadow-inner">
+							<div className="mb-3 flex items-center justify-between gap-3">
 								<div className="flex items-center gap-2 text-xs font-medium text-foreground">
-									<span className="flex size-8 items-center justify-center rounded-full bg-primary/15 text-primary">
+									<span className="flex size-9 items-center justify-center rounded-full bg-primary text-on-primary shadow-[0_0_24px_rgba(0,200,160,0.35)]">
 										<MicIcon className="size-4" />
 									</span>
 									<div>
@@ -133,12 +135,21 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 									</Button>
 								)}
 							</div>
+							<div className="mb-3 flex h-9 items-center gap-1 rounded-full border border-primary/15 bg-black/15 px-3">
+								{waveformBars.map((height, index) => (
+									<span
+										key={`${height}-${index}`}
+										className="w-1 rounded-full bg-primary/80"
+										style={{ height: `${height}%` }}
+									/>
+								))}
+							</div>
 							{mediaUrl && mediaAvailable ? (
 								<audio
 									src={mediaUrl}
 									controls
 									preload="metadata"
-									className="h-9 w-full accent-primary"
+									className="h-9 w-full accent-primary opacity-95"
 									aria-label="Nota de voz de WhatsApp"
 								>
 									<track kind="captions" />

@@ -246,13 +246,29 @@ export async function setConnectionState(input: {
 }
 
 // 17. enqueueOutbox(conversationId, phone, content)
-export async function enqueueOutbox(conversationId: number, phone: string, content: string): Promise<any> {
+export async function enqueueOutbox(
+	conversationId: number,
+	phone: string,
+	content: string,
+	options: {
+		media_type?: "text" | "image" | "audio" | "unknown";
+		media_url?: string | null;
+		metadata?: Record<string, unknown>;
+	} = {},
+): Promise<any> {
 	await ensureSchemaInitialized();
 	const res = await pool.query(
-		`INSERT INTO outbox (conversation_id, phone, content, created_at)
-		 VALUES ($1, $2, $3, NOW())
+		`INSERT INTO outbox (conversation_id, phone, content, media_type, media_url, metadata, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6::jsonb, NOW())
 		 RETURNING *`,
-		[conversationId, phone, content]
+		[
+			conversationId,
+			phone,
+			content,
+			options.media_type ?? "text",
+			options.media_url ?? null,
+			JSON.stringify(options.metadata ?? {}),
+		],
 	);
 	return res.rows[0];
 }
@@ -405,13 +421,19 @@ export async function updateConversationNameIfExists(jid: string, name: string):
 	const phone = jid.replace(/@.*/, "");
 	
 	const normalized = name.trim();
-	if (normalized === "Azokia" || normalized === "Azokiallc" || normalized === "") return;
+	if (
+		normalized === "WOpen" ||
+		normalized === "Azokia" ||
+		normalized === "Azokiallc" ||
+		normalized === ""
+	)
+		return;
 
 	await pool.query(
 		`UPDATE conversations
 		 SET name = $1, updated_at = NOW()
 		 WHERE (phone = $2 OR jid = $3)
-		   AND (name IS NULL OR TRIM(name) = '' OR (name <> $1 AND name <> 'Azokia' AND name <> 'Azokiallc'))`,
+		   AND (name IS NULL OR TRIM(name) = '' OR (name <> $1 AND name <> 'WOpen' AND name <> 'Azokia' AND name <> 'Azokiallc'))`,
 		[normalized, phone, jid]
 	);
 }

@@ -19,7 +19,7 @@ async function main() {
 		}
 
 		const promptContent = node.parameters.options.systemMessage;
-		const saved = await saveSystemPrompt("Asesor de Ventas - Sistema de Restaurante Azokia", promptContent);
+		const saved = await saveSystemPrompt("Asesor de Ventas - WOpen", promptContent);
 		console.log(`[script] ¡Prompt de Restaurante guardado con éxito! ID: ${saved.id}, Título: ${saved.title}`);
 		process.exit(0);
 	} catch (error) {

@@ -46,7 +46,10 @@ ALTER TABLE conversations ADD COLUMN IF NOT EXISTS lead_labels JSONB NOT NULL DE
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS lead_score INTEGER CHECK(lead_score IS NULL OR (lead_score >= 0 AND lead_score <= 100));
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS lead_score_reason TEXT;
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS lead_updated_at TIMESTAMP WITH TIME ZONE;
-ALTER TABLE conversations ADD COLUMN IF NOT EXISTS lead_updated_by TEXT CHECK(lead_updated_by IS NULL OR lead_updated_by IN ('assistant','dashboard'));`
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS lead_updated_by TEXT CHECK(lead_updated_by IS NULL OR lead_updated_by IN ('assistant','dashboard'));
+ALTER TABLE outbox ADD COLUMN IF NOT EXISTS media_type TEXT CHECK(media_type IN ('text','image','audio','unknown')) NOT NULL DEFAULT 'text';
+ALTER TABLE outbox ADD COLUMN IF NOT EXISTS media_url TEXT;
+ALTER TABLE outbox ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb;`
 	);
 }
 

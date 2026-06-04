@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import HomeClient from "./HomeClient.tsx";
 
 export const metadata: Metadata = {
-	title: "Dashboard - WhatsApp Bot Admin",
-	description: "Gestioná tus conversaciones, prompts y configuraciones del WhatsApp Bot.",
+	title: "Dashboard - WOpen",
+	description: "Gestioná tus conversaciones, prompts y configuraciones de WOpen.",
 };
 
 export default function Home() {

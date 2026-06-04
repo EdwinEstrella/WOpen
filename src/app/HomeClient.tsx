@@ -24,7 +24,7 @@ type Tab =
 	| "contacts"
 	| "settings";
 
-const UI_STATE_STORAGE_KEY = "bot-personal.ui-state";
+const UI_STATE_STORAGE_KEY = "wopen.ui-state";
 const TABS: readonly Tab[] = [
 	"dashboard",
 	"chats",

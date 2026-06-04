@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
+import { ImagePlusIcon, MicIcon, PaperclipIcon, SquareIcon, XIcon } from "lucide-react";
 import { TrashIcon, MessagesIcon, RobotIcon, ArrowRightIcon, ArrowDownIcon, UserIcon, PhoneIcon, EditIcon, ArchiveIcon } from "./Icons.tsx";
 import type { ConversationListRow } from "../lib/db.ts";
 import type { MessageRow } from "../lib/db-contract.ts";
@@ -29,6 +30,8 @@ export default function ConversationPanel({
 	const [messages, setMessages] = useState<MessageRow[]>([]);
 	const [text, setText] = useState("");
 	const [sending, setSending] = useState(false);
+	const [selectedFile, setSelectedFile] = useState<File | null>(null);
+	const [recording, setRecording] = useState(false);
 	const [deleting, setDeleting] = useState(false);
 	const [archiving, setArchiving] = useState(false);
 	const [showScrollDown, setShowScrollDown] = useState(false);
@@ -53,6 +56,9 @@ export default function ConversationPanel({
 	const [activeIndex, setActiveIndex] = useState(0);
 	const [filterText, setFilterText] = useState("");
 	const inputRef = useRef<HTMLInputElement>(null);
+	const fileInputRef = useRef<HTMLInputElement>(null);
+	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+	const audioChunksRef = useRef<Blob[]>([]);
 
 	// Detectar trigger de /
 	useEffect(() => {
@@ -116,6 +122,8 @@ if (conversation.id !== prevConversationId) {
 	setProfileLeadLabels(conversation.lead_labels ?? []);
 	setProfileLeadScore(typeof conversation.lead_score === "number" ? String(conversation.lead_score) : "");
 	setProfileLeadReason(conversation.lead_score_reason ?? "");
+	setText("");
+	setSelectedFile(null);
 	setAvatarError(false);
 	setDrawerAvatarError(false);
 }
@@ -140,6 +148,12 @@ if (conversation.id !== prevConversationId) {
 		const interval = setInterval(loadMessages, 2000);
 		return () => clearInterval(interval);
 	}, [conversation.id]);
+
+	useEffect(() => {
+		return () => {
+			mediaRecorderRef.current?.stream.getTracks().forEach((track) => track.stop());
+		};
+	}, []);
 
 	// Escuchar scroll del contenedor para mostrar/ocultar el botón flotante
 	const handleScroll = () => {
@@ -180,19 +194,81 @@ if (conversation.id !== prevConversationId) {
 		}
 	}, [messages]);
 
+	const focusComposer = () => {
+		window.requestAnimationFrame(() => inputRef.current?.focus());
+	};
+
+	const handleFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+		const file = event.target.files?.[0] ?? null;
+		setSelectedFile(file);
+		focusComposer();
+	};
+
+	const clearSelectedFile = () => {
+		setSelectedFile(null);
+		if (fileInputRef.current) fileInputRef.current.value = "";
+		focusComposer();
+	};
+
+	const stopRecording = () => {
+		mediaRecorderRef.current?.stop();
+	};
+
+	const startRecording = async () => {
+		try {
+			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+			const recorder = new MediaRecorder(stream);
+			audioChunksRef.current = [];
+			recorder.ondataavailable = (event) => {
+				if (event.data.size > 0) audioChunksRef.current.push(event.data);
+			};
+			recorder.onstop = () => {
+				const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+				const file = new File([blob], `voice-note-${Date.now()}.webm`, { type: blob.type });
+				setSelectedFile(file);
+				setRecording(false);
+				stream.getTracks().forEach((track) => track.stop());
+				focusComposer();
+			};
+			mediaRecorderRef.current = recorder;
+			recorder.start();
+			setRecording(true);
+		} catch (error) {
+			console.error("[composer] Error iniciando grabación de audio:", error);
+			setRecording(false);
+		}
+	};
+
+	const toggleRecording = () => {
+		if (recording) {
+			stopRecording();
+			return;
+		}
+		void startRecording();
+	};
+
 	// Enviar mensaje manual
 	const handleSend = async (e: React.FormEvent) => {
 		e.preventDefault();
-		if (!text.trim() || sending || conversation.mode === "AI") return;
+		if ((!text.trim() && !selectedFile) || sending || conversation.mode === "AI") return;
 		setSending(true);
 		try {
+			const body = selectedFile
+				? (() => {
+						const formData = new FormData();
+						formData.append("content", text);
+						formData.append("file", selectedFile);
+						return formData;
+					})()
+				: JSON.stringify({ content: text });
 			const res = await fetch(`/api/messages/${conversation.id}`, {
 				method: "POST",
-				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ content: text }),
+				headers: selectedFile ? undefined : { "content-type": "application/json" },
+				body,
 			});
 			if (res.ok) {
 				setText("");
+				clearSelectedFile();
 				await loadMessages();
 			} else {
 				console.error("[send] Error enviando mensaje manual.");
@@ -201,6 +277,7 @@ if (conversation.id !== prevConversationId) {
 			console.error("[send] Error de red enviando mensaje:", error);
 		} finally {
 			setSending(false);
+			focusComposer();
 		}
 	};
 
@@ -538,50 +615,106 @@ if (conversation.id !== prevConversationId) {
 				{isAi ? (
 					<div className="flex items-center justify-center gap-2.5 p-3 border border-outline-variant rounded-full text-on-surface-variant text-[11px] font-medium">
 						<RobotIcon className="text-primary" size={14} />
-						<span>El bot responde automáticamente. Cambia a modo <span className="text-primary cursor-pointer hover:underline" onClick={() => onModeChanged("HUMAN")}>Humano</span> si querés intervenir manualmente.</span>
+						<span>El bot responde automaticamente. Cambia a modo <span className="text-primary cursor-pointer hover:underline" onClick={() => onModeChanged("HUMAN")}>Humano</span> si queres intervenir manualmente.</span>
 					</div>
 				) : (
-					<form onSubmit={handleSend} className="flex gap-2.5 w-full">
-						<div className="relative flex-1">
-							{showRepliesDropdown && filteredReplies.length > 0 && (
-								<div className="absolute bottom-full mb-2.5 left-0 w-full bg-surface-bright/95 border border-outline-variant/60 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden max-h-[200px] overflow-y-auto z-30 animate-fade-in flex flex-col py-1.5 text-on-surface">
-									{filteredReplies.map((reply, idx) => (
-										<div
-											key={reply.id}
-											onClick={() => handleSelectReply(reply.text)}
-											className={`px-4 py-2 text-xs flex justify-between items-center cursor-pointer transition-colors ${
-												idx === activeIndex
-													? "bg-primary/10 text-primary font-bold"
-													: "text-on-surface-variant hover:bg-surface-bright"
-											}`}
-										>
-											<span className="font-semibold">{reply.text}</span>
-											<span className="text-[10px] font-mono text-primary/70 bg-primary/5 px-2 py-0.5 rounded border border-primary/15 font-bold">
-												/{reply.shortcut}
-											</span>
-										</div>
-									))}
+					<form onSubmit={handleSend} className="flex w-full flex-col gap-2">
+						{selectedFile && (
+							<div className="flex items-center justify-between gap-3 rounded-2xl border border-primary/25 bg-primary/10 px-3 py-2 text-xs text-on-surface">
+								<div className="flex min-w-0 items-center gap-2">
+									{selectedFile.type.startsWith("audio/") ? (
+										<MicIcon className="size-4 shrink-0 text-primary" />
+									) : (
+										<ImagePlusIcon className="size-4 shrink-0 text-primary" />
+									)}
+									<span className="truncate font-medium">{selectedFile.name}</span>
+									<span className="shrink-0 text-[10px] text-on-surface-variant">
+										{Math.max(1, Math.round(selectedFile.size / 1024))} KB
+									</span>
 								</div>
-							)}
+								<button
+									type="button"
+									onClick={clearSelectedFile}
+									className="rounded-full p-1 text-on-surface-variant hover:bg-surface hover:text-on-surface"
+									aria-label="Quitar adjunto"
+								>
+									<XIcon className="size-4" />
+								</button>
+							</div>
+						)}
+						<div className="flex gap-2.5">
 							<input
-								ref={inputRef}
-								type="text"
-								value={text}
-								onChange={(e) => setText(e.target.value)}
-								onKeyDown={handleKeyDown}
-								placeholder="Escribí un mensaje en modo Humano... (usa / para respuestas rápidas)"
-								aria-label="Escribir mensaje"
-								disabled={sending}
-								className="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-full text-xs focus:outline-none focus:border-primary/50 transition-all duration-200 disabled:opacity-50 text-on-surface placeholder-on-surface-variant/50"
+								ref={fileInputRef}
+								type="file"
+								accept="image/png,image/jpeg,image/webp"
+								className="hidden"
+								onChange={handleFileSelected}
 							/>
+							<button
+								type="button"
+								onClick={() => fileInputRef.current?.click()}
+								disabled={sending || recording}
+								className="size-10 flex shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface text-on-surface-variant transition hover:border-primary/50 hover:text-primary disabled:opacity-50"
+								title="Adjuntar imagen"
+								aria-label="Adjuntar imagen"
+							>
+								<PaperclipIcon className="size-4" />
+							</button>
+							<button
+								type="button"
+								onClick={toggleRecording}
+								disabled={sending}
+								className={`size-10 flex shrink-0 items-center justify-center rounded-full border transition active:scale-95 disabled:opacity-50 ${
+									recording
+										? "border-error bg-error/15 text-error"
+										: "border-outline-variant bg-surface text-on-surface-variant hover:border-primary/50 hover:text-primary"
+								}`}
+								title={recording ? "Detener grabacion" : "Grabar audio"}
+								aria-label={recording ? "Detener grabacion" : "Grabar audio"}
+							>
+								{recording ? <SquareIcon className="size-4 fill-current" /> : <MicIcon className="size-4" />}
+							</button>
+							<div className="relative flex-1">
+								{showRepliesDropdown && filteredReplies.length > 0 && (
+									<div className="absolute bottom-full mb-2.5 left-0 w-full bg-surface-bright/95 border border-outline-variant/60 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden max-h-[200px] overflow-y-auto z-30 animate-fade-in flex flex-col py-1.5 text-on-surface">
+										{filteredReplies.map((reply, idx) => (
+											<div
+												key={reply.id}
+												onClick={() => handleSelectReply(reply.text)}
+												className={`px-4 py-2 text-xs flex justify-between items-center cursor-pointer transition-colors ${
+													idx === activeIndex
+														? "bg-primary/10 text-primary font-bold"
+														: "text-on-surface-variant hover:bg-surface-bright"
+												}`}
+											>
+												<span className="font-semibold">{reply.text}</span>
+												<span className="text-[10px] font-mono text-primary/70 bg-primary/5 px-2 py-0.5 rounded border border-primary/15 font-bold">
+													/{reply.shortcut}
+												</span>
+											</div>
+										))}
+									</div>
+								)}
+								<input
+									ref={inputRef}
+									type="text"
+									value={text}
+									onChange={(e) => setText(e.target.value)}
+									onKeyDown={handleKeyDown}
+									placeholder="Escribi un mensaje en modo Humano... (usa / para respuestas rapidas)"
+									aria-label="Escribir mensaje"
+									disabled={sending || recording}
+									className="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-full text-xs focus:outline-none focus:border-primary/50 transition-all duration-200 disabled:opacity-50 text-on-surface placeholder-on-surface-variant/50"
+								/>
+							</div>
+							<button
+								type="submit"
+								disabled={sending || recording || (!text.trim() && !selectedFile)}
+								className="size-10 flex items-center justify-center bg-transparent text-primary hover:bg-surface rounded-full transition-all duration-200 active:scale-95 disabled:opacity-50 cursor-pointer shrink-0"
+							>
+								{sending ? "..." : <ArrowRightIcon size={18} />}
+							</button>
 						</div>
-						<button
-							type="submit"
-							disabled={sending || !text.trim()}
-							className="size-10 flex items-center justify-center bg-transparent text-primary hover:bg-surface rounded-full transition-all duration-200 active:scale-95 disabled:opacity-50 cursor-pointer shrink-0"
-						>
-							{sending ? "..." : <ArrowRightIcon size={18} />}
-						</button>
 					</form>
 				)}
 			</div>
