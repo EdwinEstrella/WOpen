@@ -7,18 +7,27 @@ import {
 	Blocks,
 	Bot,
 	ChevronsUpDown,
+	CircleHelp,
+	Code2,
 	FileClock,
+	FolderKanban,
 	GraduationCap,
+	ImageIcon,
 	Layout,
 	LayoutDashboard,
 	LogOut,
+	Megaphone,
 	MessageSquareText,
 	MessagesSquare,
+	Plug,
 	Plus,
 	Settings,
+	Settings2,
+	SquareCheckBig,
 	UserCircle,
 	UserCog,
 	UserSearch,
+	Workflow,
 	Zap,
 	Brain,
 } from "lucide-react";
@@ -66,6 +75,7 @@ type PlaceholderNavItem = {
 	type: "placeholder";
 	label: string;
 	icon: ComponentType<{ className?: string }>;
+	badge?: string;
 };
 
 type NavItem = ExistingNavItem | PlaceholderNavItem;
@@ -110,18 +120,29 @@ const primaryItems: NavItem[] = [
 	{ type: "tab", value: "dashboard", label: "Dashboard", icon: LayoutDashboard },
 	{ type: "placeholder", label: "Reports", icon: FileClock },
 	{ type: "tab", value: "chats", label: "Conversaciones", icon: MessagesSquare },
+	{ type: "placeholder", label: "Campaigns", icon: Megaphone, badge: "DEV" },
 ];
 
 const workspaceItems: NavItem[] = [
 	{ type: "placeholder", label: "Deals", icon: Layout },
 	{ type: "tab", value: "contacts", label: "Contactos CRM", icon: UserCircle },
 	{ type: "placeholder", label: "Competitors", icon: UserSearch },
+	{ type: "placeholder", label: "Integrations", icon: Plug, badge: "DEV" },
+	{ type: "placeholder", label: "Manage", icon: Settings2, badge: "DEV" },
+	{ type: "placeholder", label: "Gallery", icon: ImageIcon, badge: "DEV" },
 ];
 
 const libraryItems: NavItem[] = [
 	{ type: "tab", value: "prompts", label: "AI Prompts", icon: Brain },
 	{ type: "tab", value: "automations", label: "Automatizaciones", icon: Zap },
+	{ type: "placeholder", label: "FAQ Bot", icon: CircleHelp, badge: "DEV" },
+	{ type: "placeholder", label: "Chatbot", icon: Bot, badge: "DEV" },
+	{ type: "placeholder", label: "AI Assistant", icon: Brain, badge: "DEV" },
+	{ type: "placeholder", label: "Flows", icon: Workflow, badge: "DEV" },
+	{ type: "placeholder", label: "Projects", icon: FolderKanban, badge: "DEV" },
+	{ type: "placeholder", label: "Tasks", icon: SquareCheckBig, badge: "DEV" },
 	{ type: "placeholder", label: "Knowledge Base", icon: GraduationCap },
+	{ type: "placeholder", label: "Developers", icon: Code2, badge: "DEV" },
 	{ type: "placeholder", label: "Feedback", icon: MessageSquareText },
 	{ type: "placeholder", label: "Document Review", icon: FileClock },
 ];
@@ -156,7 +177,7 @@ function SidebarItem({
 				{!isCollapsed && (
 					<span className="ml-2 flex items-center gap-2 truncate text-sm font-medium">
 						{item.label}
-						{item.type === "tab" && item.badge && (
+						{item.badge && (
 							<Badge variant="outline" className="h-fit border-primary/30 bg-primary/10 px-1.5 text-primary">
 								{item.badge}
 							</Badge>
