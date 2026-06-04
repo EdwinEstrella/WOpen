@@ -40,6 +40,7 @@ import {
 	enqueueOutbox,
 	listConversations,
 } from "../db.ts";
+import { outboxDestinationForConversation } from "../outbox-routing.ts";
 
 const logger = pino({ level: process.env.LOG_LEVEL || "warn" });
 const authDir = runtimePaths.authDir;
@@ -165,9 +166,10 @@ function startOutboxProcessor() {
 		try {
 			const pending = await getPendingOutbox(20);
 			for (const item of pending) {
-				const jid = item.phone.includes("@")
-					? item.phone
-					: `${item.phone}@s.whatsapp.net`;
+				const jid = outboxDestinationForConversation({
+					phone: item.conversation_phone ?? item.phone,
+					jid: item.conversation_jid ?? null,
+				});
 				console.log(
 					`[bot] Enviando mensaje de Outbox a ${jid}: "${item.content.substring(0, 30)}..."`,
 				);

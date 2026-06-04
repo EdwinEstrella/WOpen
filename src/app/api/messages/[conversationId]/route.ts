@@ -7,6 +7,7 @@ import {
 	updateConversation,
 } from "../../../../lib/db.ts";
 import { withMediaAvailability } from "../../../../lib/media-metadata.ts";
+import { outboxDestinationForConversation } from "../../../../lib/outbox-routing.ts";
 
 interface Ctx {
 	params: Promise<{ conversationId: string }>;
@@ -76,7 +77,11 @@ export async function POST(req: Request, { params }: Ctx) {
 		});
 
 		// 2. Encolamos el mensaje en la tabla outbox para que el proceso del bot lo transmita
-		await enqueueOutbox(parsedId, conversation.phone, content.trim());
+		await enqueueOutbox(
+			parsedId,
+			outboxDestinationForConversation(conversation),
+			content.trim(),
+		);
 
 		return NextResponse.json({ ok: true, messageId: message.id });
 	} catch (error: any) {

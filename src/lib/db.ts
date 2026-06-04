@@ -261,7 +261,12 @@ export async function enqueueOutbox(conversationId: number, phone: string, conte
 export async function getPendingOutbox(limit = 20): Promise<any[]> {
 	await ensureSchemaInitialized();
 	const res = await pool.query(
-		`SELECT * FROM outbox WHERE sent = 0 ORDER BY created_at ASC LIMIT $1`,
+		`SELECT o.*, c.jid AS conversation_jid, c.phone AS conversation_phone
+		 FROM outbox o
+		 LEFT JOIN conversations c ON c.id = o.conversation_id
+		 WHERE o.sent = 0
+		 ORDER BY o.created_at ASC
+		 LIMIT $1`,
 		[limit]
 	);
 	return res.rows;
