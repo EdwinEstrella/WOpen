@@ -109,7 +109,7 @@ const staggerVariants = {
 const primaryItems: NavItem[] = [
 	{ type: "tab", value: "dashboard", label: "Dashboard", icon: LayoutDashboard },
 	{ type: "placeholder", label: "Reports", icon: FileClock },
-	{ type: "tab", value: "chats", label: "Conversaciones", icon: MessagesSquare, badge: "BETA" },
+	{ type: "tab", value: "chats", label: "Conversaciones", icon: MessagesSquare },
 ];
 
 const workspaceItems: NavItem[] = [
@@ -202,6 +202,8 @@ export default function Sidebar({
 	onDisconnect,
 }: SidebarProps) {
 	const [isCollapsed, setIsCollapsed] = useState(true);
+	const [organizationMenuOpen, setOrganizationMenuOpen] = useState(false);
+	const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 	const [avatarFailed, setAvatarFailed] = useState(false);
 	const accountLabel = phone ? `+${phone}` : "Account";
 
@@ -218,7 +220,11 @@ export default function Sidebar({
 			variants={sidebarVariants}
 			transition={transitionProps}
 			onMouseEnter={() => setIsCollapsed(false)}
-			onMouseLeave={() => setIsCollapsed(true)}
+			onMouseLeave={() => {
+				setIsCollapsed(true);
+				setOrganizationMenuOpen(false);
+				setAccountMenuOpen(false);
+			}}
 			aria-label="Main navigation"
 		>
 			<motion.div
@@ -229,7 +235,11 @@ export default function Sidebar({
 					<div className="flex grow flex-col items-center">
 						<div className="flex h-[54px] w-full shrink-0 border-b border-outline-variant/30 p-2">
 							<div className="mt-[1.5px] flex w-full">
-								<DropdownMenu modal={false}>
+								<DropdownMenu
+									modal={false}
+									open={organizationMenuOpen}
+									onOpenChange={setOrganizationMenuOpen}
+								>
 									<DropdownMenuTrigger className="w-full" asChild>
 										<Button variant="ghost" size="sm" className="flex w-fit items-center gap-2 px-2">
 											<Avatar className="size-4 rounded">
@@ -306,7 +316,11 @@ export default function Sidebar({
 									</motion.span>
 								</button>
 
-								<DropdownMenu modal={false}>
+								<DropdownMenu
+									modal={false}
+									open={accountMenuOpen}
+									onOpenChange={setAccountMenuOpen}
+								>
 									<DropdownMenuTrigger className="w-full">
 										<div className="flex h-8 w-full flex-row items-center gap-2 rounded-md px-2 py-1.5 transition hover:bg-muted hover:text-primary">
 											<Avatar className="size-4">
@@ -371,3 +385,4 @@ export default function Sidebar({
 		</motion.nav>
 	);
 }
+
