@@ -107,7 +107,7 @@ export default function AutomationsOverview() {
 			return;
 		}
 		const data = await res.json().catch(() => ({}));
-		alert(data.error || "No se pudo guardar la automatizaci?n.");
+		alert(data.error || "No se pudo guardar la automatización.");
 	};
 
 	const toggleEnabled = async (automation: AutomationRow) => {
@@ -120,7 +120,7 @@ export default function AutomationsOverview() {
 	};
 
 	const deleteAutomation = async (id: number) => {
-		if (!confirm("?Seguro que quer?s borrar esta automatizaci?n?")) return;
+		if (!confirm("¿Seguro que quieres borrar esta automatización?")) return;
 		await fetch(`/api/automations?id=${id}`, { method: "DELETE" });
 		if (editingId === id) resetForm();
 		await loadAutomations();
@@ -132,7 +132,7 @@ export default function AutomationsOverview() {
 				<div className="flex items-center justify-between gap-3">
 					<div>
 						<h2 className="font-display text-sm font-bold uppercase tracking-wider text-on-surface">
-							{editingId ? "Editar automatizaci?n" : "Nueva automatizaci?n"}
+							{editingId ? "Editar automatización" : "Nueva automatización"}
 						</h2>
 						<p className="mt-1 text-xs text-on-surface-variant">Bloques seguros, sin SQL libre.</p>
 					</div>
@@ -149,7 +149,7 @@ export default function AutomationsOverview() {
 				<div className="rounded-xl border border-outline-variant/20 bg-surface-container-low/40 p-4">
 					<p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-primary">Disparador</p>
 					<p className="text-xs font-semibold text-on-surface">Mensaje entrante</p>
-					<p className="mt-1 text-[10px] text-on-surface-variant">Se eval?a cuando llega un WhatsApp del cliente.</p>
+					<p className="mt-1 text-[10px] text-on-surface-variant">Se evalúa cuando llega un WhatsApp del cliente.</p>
 				</div>
 
 				<label className="flex flex-col gap-1.5">
@@ -169,7 +169,7 @@ export default function AutomationsOverview() {
 				)}
 
 				<label className="flex flex-col gap-1.5">
-					<span className="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">Acci?n</span>
+					<span className="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">Acción</span>
 					<select value={actionType} onChange={(e) => setActionType(e.target.value as AutomationActionType)} className="rounded-xl border border-outline-variant/30 bg-surface-container-low px-4 py-2 text-xs text-on-surface outline-none focus:border-primary">
 						<option value="send_whatsapp">Enviar WhatsApp</option>
 						<option value="switch_mode">Cambiar modo</option>
@@ -178,17 +178,17 @@ export default function AutomationsOverview() {
 				</label>
 
 				<label className="flex flex-col gap-1.5">
-					<span className="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">Valor de acci?n</span>
-					<textarea value={actionValue} onChange={(e) => setActionValue(e.target.value)} required rows={5} className="resize-none rounded-xl border border-outline-variant/30 bg-surface-container-low px-4 py-3 text-xs text-on-surface outline-none focus:border-primary" placeholder={actionType === "switch_mode" ? "AI o HUMAN" : "Texto seguro de la acci?n"} />
+					<span className="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">Valor de acción</span>
+					<textarea value={actionValue} onChange={(e) => setActionValue(e.target.value)} required rows={5} className="resize-none rounded-xl border border-outline-variant/30 bg-surface-container-low px-4 py-3 text-xs text-on-surface outline-none focus:border-primary" placeholder={actionType === "switch_mode" ? "AI o HUMAN" : "Texto seguro de la acción"} />
 				</label>
 
 				<label className="flex items-center gap-2 text-xs font-semibold text-on-surface">
 					<input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
-					Automatizaci?n activa
+					Automatización activa
 				</label>
 
 				<button type="submit" className="mt-2 flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 font-display text-[10px] font-bold uppercase tracking-wider text-on-primary glow-active">
-					<PlusIcon size={12} /> {editingId ? "Guardar cambios" : "Crear automatizaci?n"}
+					<PlusIcon size={12} /> {editingId ? "Guardar cambios" : "Crear automatización"}
 				</button>
 			</form>
 
@@ -202,7 +202,7 @@ export default function AutomationsOverview() {
 					{loading && automations.length === 0 ? (
 						<p className="p-6 text-center text-xs text-on-surface-variant">Cargando automatizaciones?</p>
 					) : automations.length === 0 ? (
-						<p className="rounded-2xl border border-outline-variant/20 p-6 text-center text-xs text-on-surface-variant">Todav?a no hay automatizaciones reales.</p>
+						<p className="rounded-2xl border border-outline-variant/20 p-6 text-center text-xs text-on-surface-variant">Todavía no hay automatizaciones reales.</p>
 					) : (
 						<div className="flex flex-col gap-3">
 							{automations.map((automation) => {
