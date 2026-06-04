@@ -49,7 +49,7 @@ describe("shadcn/ui redesign foundation contract", () => {
 			compilerOptions: { baseUrl?: string; paths?: Record<string, string[]> };
 		}>("tsconfig.json");
 
-		assert.equal(tsconfig.compilerOptions.baseUrl, ".");
+		assert.equal(tsconfig.compilerOptions.baseUrl, undefined);
 		assert.deepEqual(tsconfig.compilerOptions.paths?.["@/*"], ["./src/*"]);
 	});
 
@@ -82,6 +82,7 @@ describe("shadcn/ui redesign foundation contract", () => {
 			"src/components/ui/button.tsx",
 			"src/components/ui/card.tsx",
 			"src/components/ui/dialog.tsx",
+			"src/components/ui/dropdown-menu.tsx",
 			"src/components/ui/input.tsx",
 			"src/components/ui/scroll-area.tsx",
 			"src/components/ui/separator.tsx",

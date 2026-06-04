@@ -301,10 +301,13 @@ export default function HomeClient() {
 					<Sidebar
 						activeTab={activeTab}
 						setActiveTab={(tab) => uiDispatch({ type: "SET_TAB", tab })}
+						phone={phone}
+						botProfile={botProfile}
+						onDisconnect={onDisconnect}
 					/>
 
-					{/* Contenedor Principal de Contenido (pl-[280px] para respetar el Sidebar Fijo) */}
-					<div className="pl-[280px] flex-1 h-screen w-full flex flex-col relative overflow-hidden bg-background">
+					{/* Contenedor Principal de Contenido (pl-[3.05rem] para respetar el sidebar colapsado) */}
+					<div className="pl-[3.05rem] flex-1 h-screen w-full flex flex-col relative overflow-hidden bg-background">
 						{/* Encabezado Superior */}
 						<DashboardHeader
 							phone={phone}

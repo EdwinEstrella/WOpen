@@ -1,15 +1,40 @@
 "use client";
 
-import React from "react";
+import { useState } from "react";
+import type { ComponentType } from "react";
+import { motion } from "framer-motion";
 import {
-	RobotIcon,
-	DashboardIcon,
-	MessagesIcon,
-	BrainIcon,
-	ZapIcon,
-	UsersIcon,
-	SettingsIcon,
-} from "./Icons.tsx";
+	Blocks,
+	Bot,
+	ChevronsUpDown,
+	FileClock,
+	GraduationCap,
+	Layout,
+	LayoutDashboard,
+	LogOut,
+	MessageSquareText,
+	MessagesSquare,
+	Plus,
+	Settings,
+	UserCircle,
+	UserCog,
+	UserSearch,
+	Zap,
+	Brain,
+} from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 type Tab =
 	| "dashboard"
@@ -22,114 +47,327 @@ type Tab =
 interface SidebarProps {
 	activeTab: Tab;
 	setActiveTab: (tab: Tab) => void;
+	phone?: string | null;
+	botProfile?: {
+		profile_picture_url: string | null;
+	} | null;
+	onDisconnect?: () => void;
 }
 
-export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
+type ExistingNavItem = {
+	type: "tab";
+	value: Tab;
+	label: string;
+	icon: ComponentType<{ className?: string }>;
+	badge?: string;
+};
+
+type PlaceholderNavItem = {
+	type: "placeholder";
+	label: string;
+	icon: ComponentType<{ className?: string }>;
+};
+
+type NavItem = ExistingNavItem | PlaceholderNavItem;
+
+const sidebarVariants = {
+	open: { width: "15rem" },
+	closed: { width: "3.05rem" },
+};
+
+const contentVariants = {
+	open: { display: "block", opacity: 1 },
+	closed: { display: "block", opacity: 1 },
+};
+
+const labelVariants = {
+	open: {
+		x: 0,
+		opacity: 1,
+		transition: { x: { stiffness: 1000, velocity: -100 } },
+	},
+	closed: {
+		x: -20,
+		opacity: 0,
+		transition: { x: { stiffness: 100 } },
+	},
+};
+
+const transitionProps = {
+	type: "tween",
+	ease: "easeOut",
+	duration: 0.2,
+	staggerChildren: 0.1,
+} as const;
+
+const staggerVariants = {
+	open: {
+		transition: { staggerChildren: 0.03, delayChildren: 0.02 },
+	},
+};
+
+const primaryItems: NavItem[] = [
+	{ type: "tab", value: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+	{ type: "placeholder", label: "Reports", icon: FileClock },
+	{ type: "tab", value: "chats", label: "Conversaciones", icon: MessagesSquare, badge: "BETA" },
+];
+
+const workspaceItems: NavItem[] = [
+	{ type: "placeholder", label: "Deals", icon: Layout },
+	{ type: "tab", value: "contacts", label: "Contactos CRM", icon: UserCircle },
+	{ type: "placeholder", label: "Competitors", icon: UserSearch },
+];
+
+const libraryItems: NavItem[] = [
+	{ type: "tab", value: "prompts", label: "AI Prompts", icon: Brain },
+	{ type: "tab", value: "automations", label: "Automatizaciones", icon: Zap },
+	{ type: "placeholder", label: "Knowledge Base", icon: GraduationCap },
+	{ type: "placeholder", label: "Feedback", icon: MessageSquareText },
+	{ type: "placeholder", label: "Document Review", icon: FileClock },
+];
+
+function SidebarItem({
+	item,
+	activeTab,
+	isCollapsed,
+	setActiveTab,
+}: {
+	item: NavItem;
+	activeTab: Tab;
+	isCollapsed: boolean;
+	setActiveTab: (tab: Tab) => void;
+}) {
+	const Icon = item.icon;
+	const isActive = item.type === "tab" && activeTab === item.value;
+
 	return (
-		<nav className="fixed left-0 top-0 h-screen w-[280px] bg-surface/95 border-r border-outline-variant/30 flex flex-col py-6 px-4 z-50 shadow-[20px_0_60px_rgba(12,83,58,0.14)] backdrop-blur-xl">
-			{/* Header de Marca */}
-			<div className="flex items-center gap-3 mb-10 px-2 shrink-0">
-				<div className="size-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shrink-0 border border-primary/40 glow-active">
-					<RobotIcon className="text-on-primary" size={20} />
-				</div>
-				<div>
-					<h1 className="font-display text-base font-bold text-primary leading-tight">
-						Bot Personal
-					</h1>
-					<p className="text-[10px] font-semibold text-on-surface-variant/70 uppercase tracking-wide mt-0.5">
-						WhatsApp CRM
-					</p>
-				</div>
-			</div>
+		<button
+			type="button"
+			onClick={() => item.type === "tab" && setActiveTab(item.value)}
+			aria-current={isActive ? "page" : undefined}
+			className={cn(
+				"flex h-8 w-full flex-row items-center rounded-md px-2 py-1.5 text-muted-foreground transition hover:bg-muted hover:text-primary",
+				isActive && "bg-muted text-primary",
+				item.type === "placeholder" && "cursor-default opacity-70 hover:text-muted-foreground",
+			)}
+		>
+			<Icon className="size-4 shrink-0" />
+			<motion.span variants={labelVariants} className="min-w-0">
+				{!isCollapsed && (
+					<span className="ml-2 flex items-center gap-2 truncate text-sm font-medium">
+						{item.label}
+						{item.type === "tab" && item.badge && (
+							<Badge variant="outline" className="h-fit border-primary/30 bg-primary/10 px-1.5 text-primary">
+								{item.badge}
+							</Badge>
+						)}
+					</span>
+				)}
+			</motion.span>
+		</button>
+	);
+}
 
-			{/* Links de Navegación */}
-			<div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
-				{/* Dashboard overview */}
-				<button
-					type="button"
-					onClick={() => setActiveTab("dashboard")}
-					className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
-						activeTab === "dashboard"
-							? "text-primary border border-primary bg-primary/10 rounded-xl"
-							: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
-					}`}
-				>
-					<DashboardIcon size={16} />
-					<span>Dashboard</span>
-				</button>
+function SidebarSection({
+	items,
+	activeTab,
+	isCollapsed,
+	setActiveTab,
+}: {
+	items: NavItem[];
+	activeTab: Tab;
+	isCollapsed: boolean;
+	setActiveTab: (tab: Tab) => void;
+}) {
+	return (
+		<div className="flex w-full flex-col gap-1">
+			{items.map((item) => (
+				<SidebarItem
+					key={item.label}
+					item={item}
+					activeTab={activeTab}
+					isCollapsed={isCollapsed}
+					setActiveTab={setActiveTab}
+				/>
+			))}
+		</div>
+	);
+}
 
-				{/* Conversations Workspace */}
-				<button
-					type="button"
-					onClick={() => setActiveTab("chats")}
-					className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
-						activeTab === "chats"
-							? "text-primary border border-primary bg-primary/10 rounded-xl"
-							: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
-					}`}
-				>
-					<MessagesIcon size={16} />
-					<span>Conversaciones</span>
-				</button>
+export default function Sidebar({
+	activeTab,
+	setActiveTab,
+	phone,
+	botProfile,
+	onDisconnect,
+}: SidebarProps) {
+	const [isCollapsed, setIsCollapsed] = useState(true);
+	const [avatarFailed, setAvatarFailed] = useState(false);
+	const accountLabel = phone ? `+${phone}` : "Account";
 
-				{/* AI System Prompts */}
-				<button
-					type="button"
-					onClick={() => setActiveTab("prompts")}
-					className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
-						activeTab === "prompts"
-							? "text-primary border border-primary bg-primary/10 rounded-xl"
-							: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
-					}`}
-				>
-					<BrainIcon size={16} />
-					<span>AI Prompts</span>
-				</button>
+	const handleLogout = async () => {
+		await fetch("/api/auth/logout", { method: "POST" });
+		window.location.href = "/login";
+	};
 
-				{/* Workflow Builder */}
-				<button
-					type="button"
-					onClick={() => setActiveTab("automations")}
-					className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
-						activeTab === "automations"
-							? "text-primary border border-primary bg-primary/10 rounded-xl"
-							: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
-					}`}
-				>
-					<ZapIcon size={16} />
-					<span>Automatizaciones</span>
-				</button>
+	return (
+		<motion.nav
+			className="fixed left-0 top-0 z-50 h-screen shrink-0 border-r border-outline-variant/30 shadow-[20px_0_60px_rgba(12,83,58,0.14)] backdrop-blur-xl"
+			initial={isCollapsed ? "closed" : "open"}
+			animate={isCollapsed ? "closed" : "open"}
+			variants={sidebarVariants}
+			transition={transitionProps}
+			onMouseEnter={() => setIsCollapsed(false)}
+			onMouseLeave={() => setIsCollapsed(true)}
+			aria-label="Main navigation"
+		>
+			<motion.div
+				className="relative z-40 flex h-full shrink-0 flex-col bg-surface/95 text-muted-foreground transition-all"
+				variants={contentVariants}
+			>
+				<motion.div variants={staggerVariants} className="flex h-full flex-col">
+					<div className="flex grow flex-col items-center">
+						<div className="flex h-[54px] w-full shrink-0 border-b border-outline-variant/30 p-2">
+							<div className="mt-[1.5px] flex w-full">
+								<DropdownMenu modal={false}>
+									<DropdownMenuTrigger className="w-full" asChild>
+										<Button variant="ghost" size="sm" className="flex w-fit items-center gap-2 px-2">
+											<Avatar className="size-4 rounded">
+												<AvatarFallback className="rounded bg-primary text-[10px] text-on-primary">
+													B
+												</AvatarFallback>
+											</Avatar>
+											<motion.span variants={labelVariants} className="flex w-fit items-center gap-2">
+												{!isCollapsed && (
+													<>
+														<span className="text-sm font-medium">Bot Personal</span>
+														<ChevronsUpDown className="size-4 text-muted-foreground/50" />
+													</>
+												)}
+											</motion.span>
+										</Button>
+									</DropdownMenuTrigger>
+									<DropdownMenuContent align="start">
+										<DropdownMenuItem disabled className="flex items-center gap-2">
+											<UserCog className="size-4" /> Manage members
+										</DropdownMenuItem>
+										<DropdownMenuItem disabled className="flex items-center gap-2">
+											<Blocks className="size-4" /> Integrations
+										</DropdownMenuItem>
+										<DropdownMenuItem disabled className="flex items-center gap-2">
+											<Plus className="size-4" />
+											Create or join an organization
+										</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
+							</div>
+						</div>
 
-				{/* Contacts CRM */}
-				<button
-					type="button"
-					onClick={() => setActiveTab("contacts")}
-					className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
-						activeTab === "contacts"
-							? "text-primary border border-primary bg-primary/10 rounded-xl"
-							: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
-					}`}
-				>
-					<UsersIcon size={16} />
-					<span>Contactos CRM</span>
-				</button>
+						<div className="flex h-full w-full flex-col">
+							<div className="flex grow flex-col gap-4">
+								<ScrollArea className="h-16 grow p-2">
+									<div className="flex w-full flex-col gap-2">
+										<SidebarSection
+											items={primaryItems}
+											activeTab={activeTab}
+											isCollapsed={isCollapsed}
+											setActiveTab={setActiveTab}
+										/>
+										<Separator className="w-full" />
+										<SidebarSection
+											items={workspaceItems}
+											activeTab={activeTab}
+											isCollapsed={isCollapsed}
+											setActiveTab={setActiveTab}
+										/>
+										<Separator className="w-full" />
+										<SidebarSection
+											items={libraryItems}
+											activeTab={activeTab}
+											isCollapsed={isCollapsed}
+											setActiveTab={setActiveTab}
+										/>
+									</div>
+								</ScrollArea>
+							</div>
 
-				{/* Settings Panel */}
-				<button
-					type="button"
-					onClick={() => setActiveTab("settings")}
-					className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl font-display text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
-						activeTab === "settings"
-							? "text-primary border border-primary bg-primary/10 rounded-xl"
-							: "text-on-surface-variant hover:text-on-surface hover:bg-surface-bright/20"
-					}`}
-				>
-					<SettingsIcon size={16} />
-					<span>Ajustes</span>
-				</button>
-			</div>
+							<div className="flex flex-col p-2">
+								<button
+									type="button"
+									onClick={() => setActiveTab("settings")}
+									className={cn(
+										"mt-auto flex h-8 w-full flex-row items-center rounded-md px-2 py-1.5 text-muted-foreground transition hover:bg-muted hover:text-primary",
+										activeTab === "settings" && "bg-muted text-primary",
+									)}
+								>
+									<Settings className="size-4 shrink-0" />
+									<motion.span variants={labelVariants}>
+										{!isCollapsed && <span className="ml-2 text-sm font-medium">Ajustes</span>}
+									</motion.span>
+								</button>
 
-			<div className="mt-auto shrink-0" />
-		</nav>
+								<DropdownMenu modal={false}>
+									<DropdownMenuTrigger className="w-full">
+										<div className="flex h-8 w-full flex-row items-center gap-2 rounded-md px-2 py-1.5 transition hover:bg-muted hover:text-primary">
+											<Avatar className="size-4">
+												{botProfile?.profile_picture_url && !avatarFailed && (
+													<AvatarImage
+														src={botProfile.profile_picture_url}
+														alt="Bot avatar"
+														onError={() => setAvatarFailed(true)}
+													/>
+												)}
+												<AvatarFallback className="text-[10px]">
+													<Bot className="size-3" />
+												</AvatarFallback>
+											</Avatar>
+											<motion.span variants={labelVariants} className="flex w-full min-w-0 items-center gap-2">
+												{!isCollapsed && (
+													<>
+														<span className="truncate text-sm font-medium">{accountLabel}</span>
+														<ChevronsUpDown className="ml-auto size-4 shrink-0 text-muted-foreground/50" />
+													</>
+												)}
+											</motion.span>
+										</div>
+									</DropdownMenuTrigger>
+									<DropdownMenuContent sideOffset={5}>
+										<div className="flex flex-row items-center gap-2 p-2">
+											<Avatar className="size-6">
+												{botProfile?.profile_picture_url && !avatarFailed && (
+													<AvatarImage src={botProfile.profile_picture_url} alt="Bot avatar" />
+												)}
+												<AvatarFallback>
+													<Bot className="size-3" />
+												</AvatarFallback>
+											</Avatar>
+											<div className="flex flex-col text-left">
+												<span className="text-sm font-medium">Bot Personal</span>
+												<span className="line-clamp-1 text-xs text-muted-foreground">{accountLabel}</span>
+											</div>
+										</div>
+										<DropdownMenuSeparator />
+										<DropdownMenuItem
+											className="flex items-center gap-2"
+											onSelect={() => setActiveTab("settings")}
+										>
+											<UserCircle className="size-4" /> Perfil
+										</DropdownMenuItem>
+										{onDisconnect && (
+											<DropdownMenuItem className="flex items-center gap-2" onSelect={onDisconnect}>
+												<LogOut className="size-4" /> Desconectar WhatsApp
+											</DropdownMenuItem>
+										)}
+										<DropdownMenuItem className="flex items-center gap-2" onSelect={handleLogout}>
+											<LogOut className="size-4" /> Cerrar sesión
+										</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
+							</div>
+						</div>
+					</div>
+				</motion.div>
+			</motion.div>
+		</motion.nav>
 	);
 }
