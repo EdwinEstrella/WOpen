@@ -73,6 +73,12 @@ function settingProvider(
 		: fallback;
 }
 
+function providerEnvApiKey(provider: AiProvider): string {
+	if (provider === "openai") return process.env.OPENAI_API_KEY || "";
+	if (provider === "google") return process.env.GEMINI_API_KEY || "";
+	return process.env.DEEPSEEK_API_KEY || "";
+}
+
 export function providerSettingsFor(
 	capability: ProviderCapability,
 	settings: Record<string, unknown>,
@@ -87,18 +93,15 @@ export function providerSettingsFor(
 		const defaults = DEFAULT_PROVIDER_CONFIG[provider];
 		return {
 			baseUrl: cleanBaseUrl(
-				settingString(
-					settings,
-					"chat_ai_base_url",
-					"CHAT_AI_BASE_URL",
-					process.env.DEEPSEEK_BASE_URL || defaults.baseUrl,
-				),
+				process.env.CHAT_AI_BASE_URL ||
+					process.env.DEEPSEEK_BASE_URL ||
+					defaults.baseUrl,
 			),
 			apiKey: settingString(
 				settings,
 				"chat_ai_api_key",
 				"CHAT_AI_API_KEY",
-				process.env.DEEPSEEK_API_KEY || "",
+				providerEnvApiKey(provider),
 			),
 			model: settingString(
 				settings,
@@ -119,18 +122,13 @@ export function providerSettingsFor(
 		const defaults = DEFAULT_PROVIDER_CONFIG[provider === "deepseek" ? "openai" : provider];
 		return {
 			baseUrl: cleanBaseUrl(
-				settingString(
-					settings,
-					"audio_ai_base_url",
-					"AUDIO_AI_BASE_URL",
-					defaults.baseUrl,
-				),
+				process.env.AUDIO_AI_BASE_URL || defaults.baseUrl,
 			),
 			apiKey: settingString(
 				settings,
 				"audio_ai_api_key",
 				"AUDIO_AI_API_KEY",
-				process.env.OPENAI_API_KEY || "",
+				providerEnvApiKey(provider === "deepseek" ? "openai" : provider),
 			),
 			model: settingString(
 				settings,
@@ -150,18 +148,13 @@ export function providerSettingsFor(
 	const defaults = DEFAULT_PROVIDER_CONFIG[provider === "deepseek" ? "openai" : provider];
 	return {
 		baseUrl: cleanBaseUrl(
-			settingString(
-				settings,
-				"image_ai_base_url",
-				"IMAGE_AI_BASE_URL",
-				defaults.baseUrl,
-			),
+			process.env.IMAGE_AI_BASE_URL || defaults.baseUrl,
 		),
 		apiKey: settingString(
 			settings,
 			"image_ai_api_key",
 			"IMAGE_AI_API_KEY",
-			process.env.OPENAI_API_KEY || "",
+			providerEnvApiKey(provider === "deepseek" ? "openai" : provider),
 		),
 		model: settingString(
 			settings,

@@ -10,19 +10,25 @@ function CapabilityProviderFields({
 	prefix,
 	providers,
 	settings,
+	models,
+	connecting,
 	onChange,
+	onConnect,
 }: {
 	title: string;
 	description: string;
 	prefix: "chat_ai" | "audio_ai" | "image_ai";
 	providers: Array<{ value: string; label: string }>;
 	settings: Record<string, any>;
+	models: string[];
+	connecting: boolean;
 	onChange: (key: string, value: any) => void;
+	onConnect: (prefix: "chat_ai" | "audio_ai" | "image_ai") => void;
 }) {
 	const providerKey = `${prefix}_provider`;
-	const baseUrlKey = `${prefix}_base_url`;
 	const apiKeyKey = `${prefix}_api_key`;
 	const modelKey = `${prefix}_model`;
+	const availableModels = models.length > 0 ? models : settings[modelKey] ? [settings[modelKey]] : [];
 
 	return (
 		<div className="rounded-2xl border border-outline-variant/20 bg-surface-container-low/60 p-4 space-y-3">
@@ -30,13 +36,16 @@ function CapabilityProviderFields({
 				<h4 className="text-[10px] font-bold uppercase tracking-wider text-on-surface">{title}</h4>
 				<p className="text-[9px] text-on-surface-variant/80">{description}</p>
 			</div>
-			<div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+			<div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-end">
 				<div className="flex flex-col gap-1.5">
 					<label htmlFor={providerKey} className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Proveedor</label>
 					<select
 						id={providerKey}
 						value={settings[providerKey] || providers[0]?.value || ""}
-						onChange={(e) => onChange(providerKey, e.target.value)}
+						onChange={(e) => {
+							onChange(providerKey, e.target.value);
+							onChange(modelKey, "");
+						}}
 						className="px-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
 					>
 						{providers.map((provider) => (
@@ -45,17 +54,40 @@ function CapabilityProviderFields({
 					</select>
 				</div>
 				<div className="flex flex-col gap-1.5">
-					<label htmlFor={baseUrlKey} className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Base URL</label>
-					<input id={baseUrlKey} type="url" value={settings[baseUrlKey] || ""} onChange={(e) => onChange(baseUrlKey, e.target.value)} placeholder="https://api.openai.com/v1" className="px-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all" />
-				</div>
-				<div className="flex flex-col gap-1.5">
 					<label htmlFor={apiKeyKey} className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">API Key</label>
-					<input id={apiKeyKey} type="password" value={settings[apiKeyKey] || ""} onChange={(e) => onChange(apiKeyKey, e.target.value)} placeholder="sk-..." autoComplete="off" className="px-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all" />
+					<input
+						id={apiKeyKey}
+						type="password"
+						value={settings[apiKeyKey] || ""}
+						onChange={(e) => onChange(apiKeyKey, e.target.value)}
+						placeholder="Usa .env si lo dejas vacio"
+						autoComplete="off"
+						className="px-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
+					/>
 				</div>
-				<div className="flex flex-col gap-1.5">
-					<label htmlFor={modelKey} className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Modelo</label>
-					<input id={modelKey} type="text" value={settings[modelKey] || ""} onChange={(e) => onChange(modelKey, e.target.value)} placeholder="gpt-4o-mini" className="px-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all" />
-				</div>
+				<button
+					type="button"
+					disabled={connecting}
+					onClick={() => onConnect(prefix)}
+					className="px-5 py-2 bg-primary/90 text-on-primary rounded-xl font-display text-[10px] font-bold uppercase tracking-wider transition-all duration-200 active:scale-95 disabled:opacity-50"
+				>
+					{connecting ? "Conectando..." : "Conectar"}
+				</button>
+			</div>
+			<div className="flex flex-col gap-1.5">
+				<label htmlFor={modelKey} className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Modelo</label>
+				<select
+					id={modelKey}
+					value={settings[modelKey] || ""}
+					onChange={(e) => onChange(modelKey, e.target.value)}
+					disabled={availableModels.length === 0}
+					className="px-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all disabled:opacity-60"
+				>
+					<option value="">Conecta el proveedor para cargar modelos</option>
+					{availableModels.map((model) => (
+						<option key={model} value={model}>{model}</option>
+					))}
+				</select>
 			</div>
 		</div>
 	);
@@ -65,6 +97,8 @@ export default function SettingsPanel() {
 	const [settings, setSettings] = useState<Record<string, any>>({});
 	const [loading, setLoading] = useState(false);
 	const [saving, setSaving] = useState(false);
+	const [modelOptions, setModelOptions] = useState<Record<string, string[]>>({});
+	const [connecting, setConnecting] = useState<Record<string, boolean>>({});
 
 	const loadSettings = async () => {
 		setLoading(true);
@@ -113,6 +147,37 @@ export default function SettingsPanel() {
 			...prev,
 			[key]: value,
 		}));
+	};
+
+	const handleConnectProvider = async (prefix: "chat_ai" | "audio_ai" | "image_ai") => {
+		const capability = prefix === "chat_ai" ? "chat" : prefix === "audio_ai" ? "audio" : "image";
+		const provider = settings[`${prefix}_provider`];
+		setConnecting((prev) => ({ ...prev, [prefix]: true }));
+		try {
+			const res = await fetch("/api/ai-models", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					provider,
+					capability,
+					apiKey: settings[`${prefix}_api_key`] || "",
+				}),
+			});
+			const data = await res.json();
+			if (!res.ok || !Array.isArray(data.models)) {
+				alert(data.message || data.error || "No se pudo conectar con el proveedor.");
+				return;
+			}
+			setModelOptions((prev) => ({ ...prev, [prefix]: data.models }));
+			if (!settings[`${prefix}_model`] && data.models[0]) {
+				handleChange(`${prefix}_model`, data.models[0]);
+			}
+		} catch (error) {
+			console.error("[settings] Error conectando proveedor IA:", error);
+			alert("Error conectando proveedor IA.");
+		} finally {
+			setConnecting((prev) => ({ ...prev, [prefix]: false }));
+		}
 	};
 
 	if (loading && Object.keys(settings).length === 0) {
@@ -195,6 +260,8 @@ export default function SettingsPanel() {
 						title="Responder mensajes"
 						description="Modelo conversacional para chats y follow-ups."
 						prefix="chat_ai"
+						models={modelOptions.chat_ai || []}
+						connecting={!!connecting.chat_ai}
 						providers={[
 							{ value: "openai", label: "ChatGPT / OpenAI" },
 							{ value: "google", label: "Google Gemini" },
@@ -202,28 +269,35 @@ export default function SettingsPanel() {
 						]}
 						settings={settings}
 						onChange={handleChange}
+						onConnect={handleConnectProvider}
 					/>
 					<CapabilityProviderFields
 						title="Transcribir audios"
 						description="Convierte notas de voz en texto antes de responder."
 						prefix="audio_ai"
+						models={modelOptions.audio_ai || []}
+						connecting={!!connecting.audio_ai}
 						providers={[
 							{ value: "openai", label: "ChatGPT / OpenAI" },
 							{ value: "google", label: "Google Gemini" },
 						]}
 						settings={settings}
 						onChange={handleChange}
+						onConnect={handleConnectProvider}
 					/>
 					<CapabilityProviderFields
 						title="Describir imagenes"
 						description="Interpreta imagenes recibidas por WhatsApp para darle contexto al bot."
 						prefix="image_ai"
+						models={modelOptions.image_ai || []}
+						connecting={!!connecting.image_ai}
 						providers={[
 							{ value: "openai", label: "ChatGPT / OpenAI" },
 							{ value: "google", label: "Google Gemini" },
 						]}
 						settings={settings}
 						onChange={handleChange}
+						onConnect={handleConnectProvider}
 					/>
 				</div>
 
