@@ -40,7 +40,6 @@ export default function ConversationPanel({
 	);
 	const [profileLeadReason, setProfileLeadReason] = useState(conversation.lead_score_reason ?? "");
 	const [savingProfile, setSavingProfile] = useState(false);
-	const [zoomImage, setZoomImage] = useState<string | null>(null);
 	const [avatarError, setAvatarError] = useState(false);
 	const [drawerAvatarError, setDrawerAvatarError] = useState(false);
 
@@ -311,13 +310,8 @@ if (conversation.id !== prevConversationId) {
 							alt={displayName}
 							width={32}
 							height={32}
-							className="size-8 rounded-full object-cover border border-primary/30 cursor-zoom-in hover:scale-105 transition-transform"
-							onClick={(e) => {
-								e.stopPropagation();
-								setZoomImage(profilePictureUrl);
-							}}
+							className="size-8 rounded-full object-cover border border-primary/30"
 							onError={() => setAvatarError(true)}
-							title="Ver imagen en grande"
 						/>
 					) : (
 						<div className="size-8 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-primary font-display font-bold">
@@ -401,12 +395,7 @@ if (conversation.id !== prevConversationId) {
 
 						<div className="mb-5 flex shrink-0 flex-col items-center sm:mb-8">
 							{profilePictureUrl && !drawerAvatarError ? (
-								<button 
-									type="button"
-									onClick={() => setZoomImage(profilePictureUrl)}
-									aria-label={`Ver foto de perfil de ${displayName} en grande`}
-									className="size-24 rounded-full overflow-hidden border border-primary/30 mb-3 cursor-zoom-in hover:scale-105 transition-transform"
-								>
+								<div className="relative mb-3 size-24 overflow-hidden rounded-full border border-primary/30">
 									<Image
 										src={profilePictureUrl}
 										alt={displayName}
@@ -414,7 +403,7 @@ if (conversation.id !== prevConversationId) {
 										className="size-full object-cover"
 										onError={() => setDrawerAvatarError(true)}
 									/>
-								</button>
+								</div>
 							) : (
 								<div className="size-24 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-primary font-display text-2xl font-bold mb-3">
 									{initials || <UserIcon size={28} />}
@@ -597,41 +586,6 @@ if (conversation.id !== prevConversationId) {
 				)}
 			</div>
 
-			{zoomImage && (
-				<div 
-					className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 transition-opacity duration-300"
-					onClick={() => setZoomImage(null)}
-				>
-					<div 
-						className="relative flex max-h-[94vh] w-full max-w-6xl items-center justify-center overflow-hidden rounded-3xl border border-outline-variant/60 bg-surface-container-lowest p-3 shadow-2xl animate-[scaleIn_0.2s_ease-out]"
-						onClick={(e) => e.stopPropagation()}
-					>
-						<div className="relative h-[88vh] w-full">
-							<Image 
-								src={zoomImage} 
-								alt="Contacto foto" 
-								fill
-								className="rounded-2xl object-contain animate-fade-in"
-							/>
-						</div>
-						<a
-							href={zoomImage}
-							target="_blank"
-							rel="noreferrer"
-							className="absolute left-4 top-4 rounded-full bg-black/60 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white ring-1 ring-white/15 transition-colors hover:bg-black/80"
-						>
-							Abrir original
-						</a>
-						<button type="button"
-							className="absolute top-4 right-4 flex size-8 items-center justify-center rounded-full bg-black/60 text-xl font-bold text-white shadow-md ring-1 ring-white/15 transition-all duration-200 hover:scale-105 hover:bg-black/80 focus:outline-none active:scale-95"
-							onClick={() => setZoomImage(null)}
-							aria-label="Cerrar imagen"
-						>
-							×
-						</button>
-					</div>
-				</div>
-			)}
 		</div>
 	);
 }
