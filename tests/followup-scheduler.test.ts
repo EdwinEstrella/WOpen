@@ -8,7 +8,10 @@ import {
 	createInMemoryTurnState,
 	redisTurnKeys,
 } from "../src/lib/redis-turn-state.ts";
-import { createFollowUpScheduler } from "../src/lib/followup-scheduler.ts";
+import {
+	createFollowUpScheduler,
+	followUpDurationHours,
+} from "../src/lib/followup-scheduler.ts";
 const at = (value: string) => new Date(value);
 type Decision =
 	| {
@@ -66,6 +69,7 @@ function makeDeps(
 	const sent: string[] = [];
 	const telegram: unknown[] = [];
 	const candidateQueries: unknown[] = [];
+	const logs: string[] = [];
 	let tokenIndex = 0;
 	const decision =
 		input.decision ??
@@ -108,6 +112,11 @@ function makeDeps(
 			return input.telegramResult ?? { ok: true, status: "sent" };
 		},
 		generateToken: () => `token-${++tokenIndex}`,
+		logger: {
+			log: (...parts) => logs.push(parts.join(" ")),
+			warn: (...parts) => logs.push(parts.join(" ")),
+			error: (...parts) => logs.push(parts.join(" ")),
+		},
 	});
 	return {
 		scheduler,
@@ -117,9 +126,24 @@ function makeDeps(
 		sent,
 		telegram,
 		candidateQueries,
+		logs,
 	};
 }
 describe("follow-up scheduler orchestration", () => {
+	it("combines hour and minute follow-up settings into decimal hours", () => {
+		assert.equal(
+			followUpDurationHours(
+				{
+					followup_min_hours_after_assistant: 1,
+					followup_min_minutes_after_assistant: 30,
+				},
+				"followup_min_hours_after_assistant",
+				"followup_min_minutes_after_assistant",
+			),
+			1.5,
+		);
+	});
+
 	it("acquires a global runner lock and skips all work when unavailable", async () => {
 		const { scheduler, turnState, calls, candidateQueries } = makeDeps();
 		turnState.acquireFollowupRunnerLock("busy", { ttlMs: 300_000 });
@@ -135,7 +159,7 @@ describe("follow-up scheduler orchestration", () => {
 	});
 	it("queries candidates with settings and sends eligible SI decisions", async () => {
 		const { repo, convo } = seedCandidate();
-		const { scheduler, sent, calls, candidateQueries, turnState } = makeDeps({
+		const { scheduler, sent, calls, candidateQueries, turnState, logs } = makeDeps({
 			repo,
 		});
 		const result = await scheduler.runOnce();
@@ -155,6 +179,12 @@ describe("follow-up scheduler orchestration", () => {
 			freeformWindowHours: 24,
 			blockOutside24h: true,
 		});
+		assert.equal(
+			logs.some((line) =>
+				line.includes("Configuración activa: espera mínima tras IA=12h"),
+			),
+			true,
+		);
 		assert.equal(updated?.followup_attempts, 1);
 		assert.equal(
 			updated?.last_followup_at?.toISOString(),
@@ -279,8 +309,9 @@ describe("follow-up scheduler orchestration", () => {
 		});
 		const { scheduler } = makeDeps({ repo });
 		const result = await scheduler.runOnce();
-		assert.equal(result.candidates, 1);
+		assert.equal(result.candidates, 2);
 		assert.equal(result.sent, 1);
+		assert.equal(result.blocked24h, 1);
 		assert.deepEqual(
 			repo
 				.listEvents()

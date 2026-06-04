@@ -307,16 +307,16 @@ export default function SettingsPanel() {
 						<MailIcon className="text-primary" size={14} /> Seguimientos
 						Automáticos (Follow-Ups)
 					</h3>
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 						<div className="flex flex-col gap-1.5">
 							<label htmlFor="followup_interval_hours" className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">
-								Intervalo de evaluación (horas)
+								Evaluacion (horas)
 							</label>
 							<input
 								id="followup_interval_hours"
 								type="number"
-								min="1"
-								value={settings.followup_interval_hours || 12}
+								min="0"
+								value={settings.followup_interval_hours ?? 12}
 								onChange={(e) =>
 									handleChange(
 										"followup_interval_hours",
@@ -328,17 +328,57 @@ export default function SettingsPanel() {
 							/>
 						</div>
 						<div className="flex flex-col gap-1.5">
+							<label htmlFor="followup_interval_minutes" className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">
+								Evaluacion (minutos)
+							</label>
+							<input
+								id="followup_interval_minutes"
+								type="number"
+								min="0"
+								max="59"
+								value={settings.followup_interval_minutes ?? 0}
+								onChange={(e) =>
+									handleChange(
+										"followup_interval_minutes",
+										Number(e.target.value),
+									)
+								}
+								className="px-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary"
+								required
+							/>
+						</div>
+						<div className="flex flex-col gap-1.5">
 							<label htmlFor="followup_min_hours_after_assistant" className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">
-								Espera tras mensaje de IA (horas)
+								Espera IA (horas)
 							</label>
 							<input
 								id="followup_min_hours_after_assistant"
 								type="number"
-								min="1"
-								value={settings.followup_min_hours_after_assistant || 12}
+								min="0"
+								value={settings.followup_min_hours_after_assistant ?? 12}
 								onChange={(e) =>
 									handleChange(
 										"followup_min_hours_after_assistant",
+										Number(e.target.value),
+									)
+								}
+								className="px-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary"
+								required
+							/>
+						</div>
+						<div className="flex flex-col gap-1.5">
+							<label htmlFor="followup_min_minutes_after_assistant" className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">
+								Espera IA (minutos)
+							</label>
+							<input
+								id="followup_min_minutes_after_assistant"
+								type="number"
+								min="0"
+								max="59"
+								value={settings.followup_min_minutes_after_assistant ?? 0}
+								onChange={(e) =>
+									handleChange(
+										"followup_min_minutes_after_assistant",
 										Number(e.target.value),
 									)
 								}

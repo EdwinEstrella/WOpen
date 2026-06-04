@@ -54,6 +54,18 @@ function valueOrNull(value: unknown) {
 	return value === undefined ? null : value;
 }
 
+const JSONB_CONVERSATION_COLUMNS = new Set(["lead_labels"]);
+
+function assignmentForConversationColumn(key: string, parameterIndex: number) {
+	return JSONB_CONVERSATION_COLUMNS.has(key)
+		? `${key} = $${parameterIndex}::jsonb`
+		: `${key} = $${parameterIndex}`;
+}
+
+function valueForConversationColumn(key: string, value: unknown) {
+	return JSONB_CONVERSATION_COLUMNS.has(key) ? JSON.stringify(value) : value;
+}
+
 const UPDATE_CONVERSATION_COLUMNS = new Set([
 	"name",
 	"mode",
@@ -210,10 +222,12 @@ export function createPostgresRepository(pool: PostgresPool) {
 					throw new Error(`unsupported_conversation_patch_column:${key}`);
 			}
 			const updatedAt = patch.updated_at ?? nowDate();
-			const assignments = entries.map(
-				([key], index) => `${key} = $${index + 2}`,
+			const assignments = entries.map(([key], index) =>
+				assignmentForConversationColumn(key, index + 2),
 			);
-			const values = entries.map(([, value]) => value);
+			const values = entries.map(([key, value]) =>
+				valueForConversationColumn(key, value),
+			);
 			if (!entries.some(([key]) => key === "updated_at")) {
 				assignments.push(`updated_at = $${values.length + 2}`);
 				values.push(updatedAt);
@@ -439,15 +453,6 @@ export function createPostgresRepository(pool: PostgresPool) {
 
 			const followUpCutoff = new Date(input.now.getTime() - minAgeMs);
 			const values: unknown[] = [followUpCutoff, input.maxAttempts];
-			let windowPredicate = "TRUE";
-			if (input.blockOutside24h) {
-				const freeformCutoff = new Date(
-					input.now.getTime() - input.freeformWindowHours * 3_600_000,
-				);
-				values.push(freeformCutoff);
-				windowPredicate = `c.last_user_message_at IS NOT NULL
-				 AND c.last_user_message_at >= $3`;
-			}
 			const result = await pool.query<ConversationRow>(
 				`SELECT c.*
 				 FROM conversations c
@@ -468,7 +473,6 @@ export function createPostgresRepository(pool: PostgresPool) {
 				       AND newer_user.role = 'user'
 				       AND newer_user.created_at > latest.created_at
 				   )
-				   AND ${windowPredicate}
 				 ORDER BY latest.created_at ASC`,
 				values,
 			);

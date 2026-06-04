@@ -216,6 +216,44 @@ describe("postgres adapter", () => {
 		assert.equal(row.name, "Ada");
 	});
 
+	it("serializes JSONB conversation patches before updating", async () => {
+		const pg = new FakePg();
+		const updatedAt = new Date("2026-01-02T00:00:00.000Z");
+		pg.respondWith((text, values) => {
+			assert.match(text, /lead_labels = \$2::jsonb/);
+			assert.match(text, /updated_at = \$6/);
+			assert.deepEqual(values, [
+				7,
+				JSON.stringify(["neutro"]),
+				75,
+				"mensaje de audio con interés",
+				"assistant",
+				updatedAt,
+			]);
+			return {
+				rows: [
+					conversation({
+						lead_labels: ["neutro"],
+						lead_score: 75,
+						lead_score_reason: "mensaje de audio con interés",
+						lead_updated_by: "assistant",
+					}),
+				],
+			};
+		});
+		const repo = createPostgresRepository(pg);
+
+		const row = await repo.updateConversation(7, {
+			lead_labels: ["neutro"],
+			lead_score: 75,
+			lead_score_reason: "mensaje de audio con interés",
+			lead_updated_by: "assistant",
+			updated_at: updatedAt,
+		});
+
+		assert.deepEqual(row.lead_labels, ["neutro"]);
+	});
+
 	it("inserts user message and resets follow-up counters while touching timestamps", async () => {
 		const pg = new FakePg();
 		const createdAt = new Date("2026-01-02T03:04:05.000Z");
@@ -470,7 +508,7 @@ describe("postgres adapter", () => {
 		);
 	});
 
-	it("queries pending follow-ups with AI/latest-assistant/no-new-user/time-window rules", async () => {
+	it("queries pending follow-ups with AI/latest-assistant/no-new-user rules and leaves 24h blocking to the scheduler", async () => {
 		const pg = new FakePg();
 		const now = new Date("2026-01-04T00:00:00.000Z");
 		pg.respondWith((text, values) => {
@@ -478,11 +516,10 @@ describe("postgres adapter", () => {
 			assert.match(text, /c\.followup_attempts < \$2/);
 			assert.match(text, /latest\.role = 'assistant'/);
 			assert.match(text, /NOT EXISTS[\s\S]+newer_user/);
-			assert.match(text, /c\.last_user_message_at >= \$3/);
+			assert.doesNotMatch(text, /last_user_message_at >= \$3/);
 			assert.deepEqual(values, [
 				new Date("2026-01-03T00:00:00.000Z"),
 				2,
-				new Date("2026-01-03T00:00:00.000Z"),
 			]);
 			return { rows: [conversation()] };
 		});

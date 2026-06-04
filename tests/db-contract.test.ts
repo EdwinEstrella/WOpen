@@ -43,7 +43,9 @@ describe("database schema contract", () => {
 			"CREATE INDEX IF NOT EXISTS idx_crm_tasks_status_due",
 			"('bot_on_keyword', '\"ok.\"'::jsonb)",
 			"('followup_interval_hours', '12'::jsonb)",
+			"('followup_interval_minutes', '0'::jsonb)",
 			"('followup_min_hours_after_assistant', '12'::jsonb)",
+			"('followup_min_minutes_after_assistant', '0'::jsonb)",
 			"('followup_max_attempts', '2'::jsonb)",
 			"('whatsapp_freeform_window_hours', '24'::jsonb)",
 			"('block_outside_24h_followups', 'true'::jsonb)",
@@ -58,7 +60,9 @@ describe("database schema contract", () => {
 	it("exposes settings defaults required by owner controls and follow-ups", () => {
 		assert.equal(DEFAULT_SETTINGS.bot_on_keyword, "ok.");
 		assert.equal(DEFAULT_SETTINGS.followup_interval_hours, 12);
+		assert.equal(DEFAULT_SETTINGS.followup_interval_minutes, 0);
 		assert.equal(DEFAULT_SETTINGS.followup_min_hours_after_assistant, 12);
+		assert.equal(DEFAULT_SETTINGS.followup_min_minutes_after_assistant, 0);
 		assert.equal(DEFAULT_SETTINGS.followup_max_attempts, 2);
 		assert.equal(DEFAULT_SETTINGS.whatsapp_freeform_window_hours, 24);
 		assert.equal(DEFAULT_SETTINGS.block_outside_24h_followups, true);
@@ -203,7 +207,7 @@ describe("in-memory repository contract", () => {
 		});
 	});
 
-	it("selects follow-up candidates according to mode, latest role, attempts, user reply, and 24h boundary", () => {
+	it("selects follow-up candidates according to mode, latest role, attempts, and user reply", () => {
 		const repo = createInMemoryRepository();
 		const now = iso("2026-06-03T12:00:00Z");
 		const eligible = repo.getOrCreateConversation({ phone: "1" });
@@ -261,7 +265,7 @@ describe("in-memory repository contract", () => {
 					blockOutside24h: true,
 				})
 				.map((c) => c.id),
-			[eligible.id],
+			[eligible.id, outside24h.id],
 		);
 		assert.deepEqual(
 			repo

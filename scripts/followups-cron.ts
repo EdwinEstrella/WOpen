@@ -1,5 +1,8 @@
 import "./env-loader";
-import { createFollowUpScheduler } from "../src/lib/followup-scheduler.ts";
+import {
+	createFollowUpScheduler,
+	followUpDurationHours,
+} from "../src/lib/followup-scheduler.ts";
 import { createIoredisTurnState } from "../src/lib/redis-adapter.ts";
 import { createConfiguredChatClient } from "../src/lib/ai-providers.ts";
 import { createTelegramNotifier } from "../src/lib/telegram-notifier.ts";
@@ -68,38 +71,47 @@ const scheduler = createFollowUpScheduler({
 
 export async function runFollowupSchedulerOnce() {
 	try {
-		const result = await scheduler.runOnce();
-		// Solo mostramos logs en consola si hubo candidatos encontrados o se procesó/envió algún seguimiento
-		if (result && (result.candidates > 0 || result.processed > 0 || result.sent > 0)) {
-			console.log("[scheduler] Ejecutando verificación de follow-ups...");
-			console.log("[scheduler] Verificación completada con actividad:", result);
-		}
-		return result;
+		return await scheduler.runOnce();
 	} catch (error) {
-		console.error("[scheduler] Error ejecutando el followup scheduler:", error);
+		console.error("[followup] Error ejecutando el evaluador de seguimientos:", error);
 	}
 }
 
-export function startFollowupsCron() {
-	let intervalMs = 60000;
-
+async function getFollowupIntervalMs() {
 	if (process.env.DEV_FOLLOWUP_POLL_INTERVAL_MS) {
 		const parsed = parseInt(process.env.DEV_FOLLOWUP_POLL_INTERVAL_MS, 10);
-		if (!isNaN(parsed)) {
-			intervalMs = parsed;
-		}
+		if (!isNaN(parsed) && parsed > 0) return parsed;
 	}
+	const settings = await getSettings();
+	const configuredHours = followUpDurationHours(
+		settings,
+		"followup_interval_hours",
+		"followup_interval_minutes",
+	);
+	return Math.max(Math.round(configuredHours * 3_600_000), 60_000);
+}
 
-	const intervalDesc = intervalMs >= 60000
-		? `${Math.round(intervalMs / 60000)} minuto(s)`
-		: `${Math.round(intervalMs / 1000)} segundo(s)`;
+function describeMs(ms: number) {
+	const totalMinutes = Math.round(ms / 60_000);
+	const hours = Math.floor(totalMinutes / 60);
+	const minutes = totalMinutes % 60;
+	if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
+	if (hours > 0) return `${hours}h`;
+	return `${totalMinutes}m`;
+}
 
-	console.log(`[scheduler] Iniciando loop de follow-ups (evaluación cada ${intervalDesc})...`);
-
-	// Primera ejecución inmediata
-	runFollowupSchedulerOnce().catch(() => {});
-
-	setInterval(async () => {
+export function startFollowupsCron() {
+	console.log("[followup] Iniciando loop de seguimiento automatico...");
+	const tick = async () => {
 		await runFollowupSchedulerOnce();
-	}, intervalMs);
+		const intervalMs = await getFollowupIntervalMs();
+		const nextAt = new Date(Date.now() + intervalMs);
+		console.log(
+			`[followup] Proxima evaluacion programada en ${describeMs(intervalMs)} (${nextAt.toISOString()}).`,
+		);
+		setTimeout(tick, intervalMs);
+	};
+	tick().catch((error) => {
+		console.error("[followup] Error critico en el loop de seguimiento:", error);
+	});
 }

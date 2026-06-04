@@ -38,7 +38,9 @@ export const DEFAULT_SETTINGS = {
 	dedupe_ttl_seconds: 86_400,
 	conversation_queue_ttl_seconds: 300,
 	followup_interval_hours: 12,
+	followup_interval_minutes: 0,
 	followup_min_hours_after_assistant: 12,
+	followup_min_minutes_after_assistant: 0,
 	followup_max_attempts: 2,
 	whatsapp_freeform_window_hours: 24,
 	block_outside_24h_followups: true,
@@ -92,7 +94,7 @@ INSERT INTO settings (key, value) VALUES
   ('bot_on_keyword', '"ok."'::jsonb), ('keyword_match_mode', '"exact"'::jsonb),
   ('keyword_case_sensitive', 'false'::jsonb), ('debounce_ms', '30000'::jsonb),
   ('processing_lock_ttl_ms', '90000'::jsonb), ('dedupe_ttl_seconds', '86400'::jsonb), ('conversation_queue_ttl_seconds', '300'::jsonb),
-  ('followup_interval_hours', '12'::jsonb), ('followup_min_hours_after_assistant', '12'::jsonb), ('followup_max_attempts', '2'::jsonb),
+  ('followup_interval_hours', '12'::jsonb), ('followup_interval_minutes', '0'::jsonb), ('followup_min_hours_after_assistant', '12'::jsonb), ('followup_min_minutes_after_assistant', '0'::jsonb), ('followup_max_attempts', '2'::jsonb),
   ('whatsapp_freeform_window_hours', '24'::jsonb), ('block_outside_24h_followups', 'true'::jsonb),
   ('chat_ai_provider', '"deepseek"'::jsonb), ('chat_ai_base_url', '"https://api.deepseek.com"'::jsonb), ('chat_ai_api_key', '""'::jsonb), ('chat_ai_model', '"deepseek-v4-pro"'::jsonb),
   ('audio_ai_provider', '"openai"'::jsonb), ('audio_ai_base_url', '"https://api.openai.com/v1"'::jsonb), ('audio_ai_api_key', '""'::jsonb), ('audio_ai_model', '"gpt-4o-transcribe"'::jsonb),
@@ -488,12 +490,7 @@ export function createInMemoryRepository() {
 					)
 				)
 					return false;
-				return (
-					!input.blockOutside24h ||
-					(!!conversation.last_user_message_at &&
-						hoursBetween(input.now, conversation.last_user_message_at) <=
-							input.freeformWindowHours)
-				);
+				return true;
 			});
 		},
 		getSettings() {

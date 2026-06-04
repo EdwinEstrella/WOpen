@@ -79,6 +79,7 @@ export interface FollowUpSchedulerDeps {
 		reason: string;
 	}) => Promise<unknown>;
 	generateToken: () => string;
+	logger?: Pick<typeof console, "log" | "warn" | "error">;
 }
 
 export interface FollowUpRunResult {
@@ -98,6 +99,27 @@ const n = (settings: Record<string, unknown>, key: string) =>
 	Number(settings[key]);
 const b = (settings: Record<string, unknown>, key: string) =>
 	settings[key] === true;
+const safeNumber = (settings: Record<string, unknown>, key: string) => {
+	const value = Number(settings[key]);
+	return Number.isFinite(value) && value > 0 ? value : 0;
+};
+export const followUpDurationHours = (
+	settings: Record<string, unknown>,
+	hoursKey: string,
+	minutesKey: string,
+) => {
+	const hours = safeNumber(settings, hoursKey);
+	const minutes = safeNumber(settings, minutesKey);
+	return (hours * 60 + minutes) / 60;
+};
+const durationText = (hoursDecimal: number) => {
+	const totalMinutes = Math.round(hoursDecimal * 60);
+	const hours = Math.floor(totalMinutes / 60);
+	const minutes = totalMinutes % 60;
+	if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
+	if (hours > 0) return `${hours}h`;
+	return `${minutes}m`;
+};
 const hoursBetween = (later: Date, earlier: Date) =>
 	(later.getTime() - earlier.getTime()) / 3_600_000;
 const outsideWindow = (
@@ -126,14 +148,23 @@ function result(status: FollowUpRunResult["status"]): FollowUpRunResult {
 }
 
 export function createFollowUpScheduler(deps: FollowUpSchedulerDeps) {
+	const logger = deps.logger ?? console;
+
 	async function processCandidate(
 		candidate: ConversationRow,
 		query: FollowUpQueryInput,
 		run: FollowUpRunResult,
 		now: Date,
 	) {
-		if (await deps.turnState.hasActiveTurnState(candidate.id))
+		logger.log(
+			`[followup] Evaluando conversación #${candidate.id} (${candidate.phone}). Intentos=${candidate.followup_attempts}/${query.maxAttempts}, último usuario=${candidate.last_user_message_at?.toISOString() ?? "sin registro"}, última IA=${candidate.last_assistant_message_at?.toISOString() ?? "sin registro"}.`,
+		);
+		if (await deps.turnState.hasActiveTurnState(candidate.id)) {
+			logger.log(
+				`[followup] Conversación #${candidate.id} omitida: hay un turno entrante activo o en cola. No mandamos seguimiento para no pisar una respuesta del cliente.`,
+			);
 			return void (run.skippedActiveTurn += 1);
+		}
 		const token = deps.generateToken();
 		if (
 			!(await deps.turnState.acquireFollowupConversationLock(
@@ -143,12 +174,26 @@ export function createFollowUpScheduler(deps: FollowUpSchedulerDeps) {
 					ttlMs: 120_000,
 				},
 			))
-		)
+		) {
+			logger.log(
+				`[followup] Conversación #${candidate.id} omitida: otro proceso ya tomó el lock de seguimiento.`,
+			);
 			return void (run.skippedConversationLocked += 1);
+		}
 		try {
 			const fresh = await deps.repo.getConversationById(candidate.id);
-			if (!fresh || (await deps.turnState.hasActiveTurnState(candidate.id)))
+			if (!fresh) {
+				logger.warn(
+					`[followup] Conversación #${candidate.id} omitida: ya no existe al refrescar desde DB.`,
+				);
 				return void (run.skippedActiveTurn += 1);
+			}
+			if (await deps.turnState.hasActiveTurnState(candidate.id)) {
+				logger.log(
+					`[followup] Conversación #${fresh.id} omitida después de refrescar: entró actividad nueva mientras evaluábamos.`,
+				);
+				return void (run.skippedActiveTurn += 1);
+			}
 			if (
 				outsideWindow(
 					fresh,
@@ -158,6 +203,9 @@ export function createFollowUpScheduler(deps: FollowUpSchedulerDeps) {
 				)
 			) {
 				const reason = "outside_24h_window";
+				logger.log(
+					`[followup] Conversación #${fresh.id} BLOQUEADA: último mensaje del cliente fue ${fresh.last_user_message_at?.toISOString() ?? "desconocido"} y supera la ventana libre de WhatsApp (${durationText(query.freeformWindowHours)}). No se envía para evitar spam/política 24h.`,
+				);
 				await deps.repo.markFollowUpBlocked(fresh.id, reason, now);
 				await deps.notifyFollowupBlocked({
 					conversationId: fresh.id,
@@ -169,18 +217,21 @@ export function createFollowUpScheduler(deps: FollowUpSchedulerDeps) {
 			}
 
 			const history = await deps.getRecentHistory(fresh.id);
-			console.log(`[scheduler-debug] Evaluando seguimiento para conversación ID: ${fresh.id} (Teléfono: ${fresh.phone}, Intentos previos: ${fresh.followup_attempts}).`);
-			console.log(`[scheduler-debug] Historial cargado: ${history.length} mensaje(s).`);
+			logger.log(
+				`[followup] Conversación #${fresh.id}: historial cargado (${history.length} mensaje(s)). Se consultará a IA para decidir SI/NO.`,
+			);
 			if (history.length > 0) {
-				console.log(`[scheduler-debug] Últimos mensajes del historial:`);
+				logger.log(`[followup] Conversación #${fresh.id}: últimos mensajes:`);
 				history.slice(-3).forEach((m) => {
-					console.log(`  - [${m.role}]: "${m.content.slice(0, 80)}${m.content.length > 80 ? '...' : ''}"`);
+					logger.log(`  - [${m.role}]: "${m.content.slice(0, 80)}${m.content.length > 80 ? "..." : ""}"`);
 				});
 			}
 
 			const decision = await deps.decideFollowUp(history);
 			if (!decision.ok) {
-				console.log(`[scheduler-debug] Error llamando a DeepSeek: ${decision.reason}`);
+				logger.warn(
+					`[followup] Conversación #${fresh.id}: IA devolvió error/JSON inválido (${decision.reason}). No se envía seguimiento.`,
+				);
 				await deps.repo.recordConversationEvent({
 					conversation_id: fresh.id,
 					event_type: "deepseek_json_invalid",
@@ -193,7 +244,9 @@ export function createFollowUpScheduler(deps: FollowUpSchedulerDeps) {
 			}
 			const message = decision.parsed.message?.trim() ?? "";
 			if (!decision.parsed.shouldSend || !message) {
-				console.log(`[scheduler-debug] Decisión DeepSeek: NO enviar seguimiento.`);
+				logger.log(
+					`[followup] Conversación #${fresh.id}: decisión IA = NO enviar. Se registra followup_skipped.`,
+				);
 				await deps.repo.recordConversationEvent({
 					conversation_id: fresh.id,
 					event_type: "followup_skipped",
@@ -218,7 +271,9 @@ export function createFollowUpScheduler(deps: FollowUpSchedulerDeps) {
 			);
 
 			if (isDuplicate) {
-				console.log(`[scheduler-debug] Decisión omitida: El mensaje de seguimiento ya se envió antes (duplicado detectado).`);
+				logger.log(
+					`[followup] Conversación #${fresh.id}: omitida por duplicado. La IA propuso un mensaje igual a uno anterior.`,
+				);
 				await deps.repo.recordConversationEvent({
 					conversation_id: fresh.id,
 					event_type: "followup_skipped",
@@ -230,7 +285,9 @@ export function createFollowUpScheduler(deps: FollowUpSchedulerDeps) {
 				return;
 			}
 
-			console.log(`[scheduler-debug] Decisión DeepSeek: SI enviar seguimiento. Mensaje: "${message}"`);
+			logger.log(
+				`[followup] Conversación #${fresh.id}: decisión IA = SI enviar. JID destino=${fresh.jid ?? `${fresh.phone}@s.whatsapp.net`}. Mensaje="${message}"`,
+			);
 
 			await Promise.all([
 				deps.sendWhatsAppMessage(
@@ -263,6 +320,9 @@ export function createFollowUpScheduler(deps: FollowUpSchedulerDeps) {
 			]);
 
 			run.sent += 1;
+			logger.log(
+				`[followup] Conversación #${fresh.id}: seguimiento enviado y auditado correctamente. Intentos ahora=${fresh.followup_attempts + 1}.`,
+			);
 		} finally {
 			await deps.turnState.releaseFollowupConversationLock(candidate.id, token);
 		}
@@ -272,27 +332,44 @@ export function createFollowUpScheduler(deps: FollowUpSchedulerDeps) {
 		async runOnce(): Promise<FollowUpRunResult> {
 			const now = deps.now(),
 				runnerToken = deps.generateToken();
+			logger.log(
+				`[followup] ===== Inicio evaluación de seguimientos: ${now.toISOString()} =====`,
+			);
 			if (
 				!(await deps.turnState.acquireFollowupRunnerLock(runnerToken, {
 					ttlMs: 300_000,
 				}))
-			)
+			) {
+				logger.log(
+					"[followup] Evaluación omitida: otro runner tiene el lock global. Esto evita envíos duplicados.",
+				);
 				return result("skipped_runner_locked");
+			}
 			const run = result("completed");
 			try {
 				const settings = await deps.repo.getSettings();
+				const minHoursAfterAssistant = followUpDurationHours(
+					settings,
+					"followup_min_hours_after_assistant",
+					"followup_min_minutes_after_assistant",
+				);
 				const query = {
 					now,
-					minHoursAfterAssistant: n(
-						settings,
-						"followup_min_hours_after_assistant",
-					),
+					minHoursAfterAssistant,
 					maxAttempts: n(settings, "followup_max_attempts"),
 					freeformWindowHours: n(settings, "whatsapp_freeform_window_hours"),
 					blockOutside24h: b(settings, "block_outside_24h_followups"),
 				};
+				logger.log(
+					`[followup] Configuración activa: espera mínima tras IA=${durationText(query.minHoursAfterAssistant)}, intentos máximos=${query.maxAttempts}, ventana WhatsApp=${durationText(query.freeformWindowHours)}, bloqueo 24h=${query.blockOutside24h ? "activo" : "inactivo"}.`,
+				);
 				const candidates = await deps.repo.getPendingFollowUps(query);
 				run.candidates = candidates.length;
+				logger.log(
+					candidates.length === 0
+						? "[followup] No hay conversaciones candidatas. Prefiltro DB descartó por modo HUMAN, último mensaje no-IA, respuesta nueva del cliente, intento máximo o espera mínima."
+						: `[followup] Candidatas encontradas: ${candidates.length}. Se evaluarán una por una.`,
+				);
 				
 				await Promise.all(candidates.map(async (candidate) => {
 					await processCandidate(candidate, query, run, now);
@@ -303,6 +380,9 @@ export function createFollowUpScheduler(deps: FollowUpSchedulerDeps) {
 					run.blocked24h +
 					run.skippedByDecision +
 					run.invalidDecisions;
+				logger.log(
+					`[followup] ===== Fin evaluación: status=${run.status}, candidatas=${run.candidates}, procesadas=${run.processed}, enviadas=${run.sent}, bloqueadas24h=${run.blocked24h}, omitidasTurnoActivo=${run.skippedActiveTurn}, omitidasLock=${run.skippedConversationLocked}, omitidasIA=${run.skippedByDecision}, iaInvalidas=${run.invalidDecisions} =====`,
+				);
 				return run;
 			} finally {
 				await deps.turnState.releaseFollowupRunnerLock(runnerToken);
