@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import QRCode from "qrcode";
-import { getConnectionState, getSettings } from "../../../../lib/db.ts";
+import { getConnectionState, getSettings, listWhatsAppInstances } from "../../../../lib/db.ts";
 
 export async function GET() {
 	try {
 		const state = await getConnectionState();
+		const instances = await listWhatsAppInstances();
 		const settings = await getSettings();
 		const botProfile = settings.bot_profile || null;
 		
@@ -20,6 +21,8 @@ export async function GET() {
 				phone: null,
 				updatedAt: state.updated_at,
 				botProfile,
+				instance: { id: state.instance_id, name: state.instance_name },
+				instances,
 			});
 		}
 
@@ -29,6 +32,8 @@ export async function GET() {
 			phone: state.phone,
 			updatedAt: state.updated_at,
 			botProfile,
+			instance: { id: state.instance_id, name: state.instance_name },
+			instances,
 		});
 	} catch (error: any) {
 		console.error("[api] Error en GET /api/connection/status:", error);

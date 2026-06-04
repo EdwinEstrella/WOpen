@@ -4,13 +4,12 @@ import fs from "node:fs";
 import { startWASocket, shutdownWASocket } from "../src/lib/baileys/client.ts";
 import {
 	getDestructiveRestartFlagPath,
-	runtimePaths,
-	clearDirectoryContents,
+	getSoftRestartFlagPath,
 } from "../src/lib/runtime-paths.ts";
 import { startFollowupsCron } from "./followups-cron.ts";
 
 const restartFlagPath = getDestructiveRestartFlagPath();
-const authDir = runtimePaths.authDir;
+const softRestartFlagPath = getSoftRestartFlagPath();
 
 async function main() {
 	console.log("[bot-process] Arrancando bot-process...");
@@ -23,6 +22,22 @@ async function main() {
 
 	// Loop de polling para la desconexión / reinicio manual controlado desde el frontend
 	setInterval(async () => {
+		if (fs.existsSync(softRestartFlagPath)) {
+			console.log(
+				"[bot-process] Bandera .restart-bot detectada. Reinicio suave solicitado.",
+			);
+			try {
+				fs.unlinkSync(softRestartFlagPath);
+				await shutdownWASocket();
+				await startWASocket();
+			} catch (error) {
+				console.error(
+					"[bot-process] Error durante el reinicio suave:",
+					error,
+				);
+			}
+		}
+
 		if (fs.existsSync(restartFlagPath)) {
 			console.log(
 				"[bot-process] Bandera .reset-auth detectada. Reset destructivo solicitado desde el panel.",
@@ -34,11 +49,8 @@ async function main() {
 				// Apagamos el socket actual limpiando listeners
 				await shutdownWASocket();
 
-				// Limpiamos la carpeta de sesión local auth/ como defensa
-				if (fs.existsSync(authDir)) {
-					clearDirectoryContents(authDir);
-					console.log("[bot-process] Directorio auth/ vaciado con éxito.");
-				}
+				// La API de desconexion ya limpia el directorio auth de la instancia activa.
+				// Aqui solo reiniciamos el socket para forzar un nuevo QR.
 
 				// Volvemos a arrancar limpio, lo cual forzará un nuevo QR
 				await startWASocket();

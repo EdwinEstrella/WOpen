@@ -7,6 +7,7 @@ import ConversationList from "../components/ConversationList.tsx";
 import ConversationPanel from "../components/ConversationPanel.tsx";
 import PromptsManager from "../components/PromptsManager.tsx";
 import SettingsPanel from "../components/SettingsPanel.tsx";
+import QRScreen from "../components/QRScreen.tsx";
 import DashboardOverview from "../components/DashboardOverview.tsx";
 import AutomationsOverview from "../components/AutomationsOverview.tsx";
 import ContactsOverview from "../components/ContactsOverview.tsx";
@@ -296,7 +297,7 @@ export default function HomeClient() {
 
 	return (
 		<ConnectionGate>
-			{(phone, onDisconnect, botProfile) => (
+			{(phone, onDisconnect, botProfile, connection) => (
 				<div className="h-screen w-full flex bg-background text-on-surface antialiased font-sans overflow-hidden">
 					<Sidebar
 						activeTab={activeTab}
@@ -310,16 +311,22 @@ export default function HomeClient() {
 					<div className="pl-[3.05rem] flex-1 h-screen w-full flex flex-col relative overflow-hidden bg-background">
 						{/* Encabezado Superior */}
 						<DashboardHeader
-							phone={phone}
+							phone={connection.status === "connected" ? phone : null}
 							onDisconnect={onDisconnect}
-							botProfile={botProfile}
+							botProfile={connection.status === "connected" ? botProfile : null}
 							quickReplies={quickReplies}
 							onQuickRepliesUpdated={loadQuickReplies}
 						/>
 
 						{/* Contenido Dinámico de Pestañas */}
 						<main className="flex-1 p-6 overflow-hidden flex flex-col min-h-0 relative z-10">
-							{activeTab === "dashboard" && <DashboardOverview conversations={conversations} />}
+							{connection.status !== "connected" ? (
+								<div className="flex min-h-0 flex-1 items-center justify-center">
+									<QRScreen status={connection.status} qrPng={connection.qrPng} updatedAt={connection.updatedAt} />
+								</div>
+							) : (
+								<>
+									{activeTab === "dashboard" && <DashboardOverview conversations={conversations} />}
 
 							{activeTab === "chats" && (
 								<div className="flex-1 glass-panel rounded-2xl overflow-hidden flex min-h-[500px] shadow-2xl">
@@ -372,7 +379,9 @@ export default function HomeClient() {
 								<ContactsOverview conversations={contactsList} />
 							)}
 
-							{activeTab === "settings" && <SettingsPanel />}
+									{activeTab === "settings" && <SettingsPanel />}
+								</>
+							)}
 						</main>
 					</div>
 				</div>

@@ -1,8 +1,9 @@
 ﻿import { NextResponse } from "next/server";
 import fs from "node:fs";
-import { setConnectionState } from "../../../../lib/db.ts";
+import { getActiveWhatsAppInstance, setConnectionState } from "../../../../lib/db.ts";
 import {
 	getDestructiveRestartFlagPath,
+	getInstanceAuthDir,
 	runtimePaths,
 	clearDirectoryContents,
 } from "../../../../lib/runtime-paths.ts";
@@ -18,7 +19,8 @@ export async function POST() {
 			phone: null,
 		});
 
-		const authDir = runtimePaths.authDir;
+		const activeInstance = await getActiveWhatsAppInstance();
+		const authDir = getInstanceAuthDir(activeInstance.id);
 		const restartFlagPath = getDestructiveRestartFlagPath();
 		const dataDir = runtimePaths.dataDir;
 

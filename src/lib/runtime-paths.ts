@@ -20,9 +20,18 @@ export const runtimePaths = {
 };
 
 export const destructiveRestartFlagName = ".reset-auth";
+export const softRestartFlagName = ".restart-bot";
 
 export function getDestructiveRestartFlagPath(): string {
 	return path.join(runtimePaths.dataDir, destructiveRestartFlagName);
+}
+
+export function getSoftRestartFlagPath(): string {
+	return path.join(runtimePaths.dataDir, softRestartFlagName);
+}
+
+export function getInstanceAuthDir(instanceId: number | string): string {
+	return path.join(runtimePaths.authDir, "instances", String(instanceId));
 }
 
 /**

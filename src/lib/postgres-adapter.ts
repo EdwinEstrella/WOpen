@@ -35,9 +35,9 @@ const actorFor = (changedBy: ModeChangedBy): EventActorRole =>
 			? "system"
 			: "human";
 
-export async function initializePostgresSchema(pool: PostgresQueryable) {
-	await pool.query(
-		`${DATABASE_SCHEMA_SQL}
+const SCHEMA_INIT_ADVISORY_LOCK_ID = 756_709_401;
+
+const SCHEMA_MIGRATION_SQL = `${DATABASE_SCHEMA_SQL}
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS unread_count INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS profile_picture_url TEXT;
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS profile_picture_fetched_at TIMESTAMP WITH TIME ZONE;
@@ -49,8 +49,36 @@ ALTER TABLE conversations ADD COLUMN IF NOT EXISTS lead_updated_at TIMESTAMP WIT
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS lead_updated_by TEXT CHECK(lead_updated_by IS NULL OR lead_updated_by IN ('assistant','dashboard'));
 ALTER TABLE outbox ADD COLUMN IF NOT EXISTS media_type TEXT CHECK(media_type IN ('text','image','audio','unknown')) NOT NULL DEFAULT 'text';
 ALTER TABLE outbox ADD COLUMN IF NOT EXISTS media_url TEXT;
-ALTER TABLE outbox ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb;`
-	);
+ALTER TABLE outbox ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb;
+INSERT INTO whatsapp_instances (name, phone, status, qr_string, is_active, created_at, updated_at)
+SELECT 'Principal', cs.phone, COALESCE(cs.status, 'disconnected'), cs.qr_string, TRUE, NOW(), NOW()
+FROM connection_state cs
+WHERE cs.id = 1
+  AND NOT EXISTS (SELECT 1 FROM whatsapp_instances);
+INSERT INTO whatsapp_instances (name, is_active, created_at, updated_at)
+SELECT 'Principal', TRUE, NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM whatsapp_instances);`;
+
+export async function initializePostgresSchema(pool: PostgresPool) {
+	if (!pool.connect) {
+		await pool.query(SCHEMA_MIGRATION_SQL);
+		return;
+	}
+
+	const client = await pool.connect();
+	try {
+		await client.query("BEGIN");
+		await client.query("SELECT pg_advisory_xact_lock($1)", [
+			SCHEMA_INIT_ADVISORY_LOCK_ID,
+		]);
+		await client.query(SCHEMA_MIGRATION_SQL);
+		await client.query("COMMIT");
+	} catch (error) {
+		await client.query("ROLLBACK").catch(() => {});
+		throw error;
+	} finally {
+		client.release();
+	}
 }
 
 function valueOrNull(value: unknown) {
@@ -470,6 +498,7 @@ export function createPostgresRepository(pool: PostgresPool) {
 				   AND c.followup_attempts < $2
 				   AND latest.role = 'assistant'
 				   AND latest.created_at <= $1
+				   AND (c.last_followup_at IS NULL OR c.last_followup_at <= $1)
 				   AND NOT EXISTS (
 				     SELECT 1 FROM messages newer_user
 				     WHERE newer_user.conversation_id = c.id

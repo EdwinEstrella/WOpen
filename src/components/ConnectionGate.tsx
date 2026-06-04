@@ -1,11 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import QRScreen from "./QRScreen.tsx";
-import DashboardHeader from "./DashboardHeader.tsx";
+
+type ConnectionInfo = {
+	status: "disconnected" | "qr" | "connecting" | "connected";
+	qrPng: string | null;
+	updatedAt: Date | string | null;
+};
 
 interface ConnectionGateProps {
-	children: (phone: string | null, onDisconnect: () => void, botProfile: any) => React.ReactNode;
+	children: (
+		phone: string | null,
+		onDisconnect: () => void,
+		botProfile: any,
+		connection: ConnectionInfo,
+	) => React.ReactNode;
 }
 
 export default function ConnectionGate({ children }: ConnectionGateProps) {
@@ -58,20 +67,6 @@ export default function ConnectionGate({ children }: ConnectionGateProps) {
 		);
 	}
 
-	if (status !== "connected") {
-		return (
-			<div className="min-h-screen flex flex-col bg-background relative overflow-hidden">
-				{/* Ambient Glows */}
-				<div className="absolute top-0 right-0 size-96 bg-primary/5 rounded-full blur-3xl -mr-20 -mt-20"></div>
-				<div className="absolute bottom-0 left-0 size-96 bg-secondary/5 rounded-full blur-3xl -ml-20 -mb-20"></div>
+	return <>{children(phone, handleDisconnectLocal, botProfile, { status, qrPng, updatedAt })}</>;
 
-				<DashboardHeader phone={null} onDisconnect={() => {}} botProfile={null} quickReplies={[]} onQuickRepliesUpdated={() => {}} />
-				<main className="flex-1 flex items-center justify-center p-6 z-10">
-					<QRScreen status={status} qrPng={qrPng} updatedAt={updatedAt} />
-				</main>
-			</div>
-		);
-	}
-
-	return <>{children(phone, handleDisconnectLocal, botProfile)}</>;
 }

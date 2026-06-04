@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ComponentType } from "react";
 import { motion } from "framer-motion";
 import {
@@ -62,6 +62,14 @@ interface SidebarProps {
 	} | null;
 	onDisconnect?: () => void;
 }
+
+type WhatsAppInstance = {
+	id: number;
+	name: string;
+	phone: string | null;
+	status: "disconnected" | "qr" | "connecting" | "connected";
+	is_active: boolean;
+};
 
 type ExistingNavItem = {
 	type: "tab";
@@ -226,7 +234,79 @@ export default function Sidebar({
 	const [organizationMenuOpen, setOrganizationMenuOpen] = useState(false);
 	const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 	const [avatarFailed, setAvatarFailed] = useState(false);
+	const [instances, setInstances] = useState<WhatsAppInstance[]>([]);
+	const [newInstanceName, setNewInstanceName] = useState("");
+	const [instanceBusy, setInstanceBusy] = useState(false);
+	const [instanceError, setInstanceError] = useState<string | null>(null);
 	const accountLabel = phone ? `+${phone}` : "Account";
+
+	const loadInstances = async () => {
+		try {
+			const res = await fetch("/api/instances", { cache: "no-store" });
+			if (!res.ok) throw new Error("No se pudieron cargar las instancias");
+			setInstances(await res.json());
+			setInstanceError(null);
+		} catch (error: any) {
+			setInstanceError(error.message || "Error cargando instancias");
+		}
+	};
+
+	useEffect(() => {
+		if (organizationMenuOpen) void loadInstances();
+	}, [organizationMenuOpen]);
+
+	const activateInstance = async (id: number, reload = true) => {
+		setInstanceBusy(true);
+		try {
+			const res = await fetch(`/api/instances/${id}`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ active: true }),
+			});
+			if (!res.ok) throw new Error("No se pudo activar la instancia");
+			await loadInstances();
+			if (reload) window.location.reload();
+		} catch (error: any) {
+			setInstanceError(error.message || "Error activando instancia");
+		} finally {
+			setInstanceBusy(false);
+		}
+	};
+
+	const createInstance = async () => {
+		const name = newInstanceName.trim();
+		if (!name || instanceBusy) return;
+		setInstanceBusy(true);
+		try {
+			const res = await fetch("/api/instances", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ name }),
+			});
+			if (!res.ok) throw new Error("No se pudo crear la instancia");
+			const created = await res.json();
+			setNewInstanceName("");
+			await activateInstance(created.id, true);
+		} catch (error: any) {
+			setInstanceError(error.message || "Error creando instancia");
+			setInstanceBusy(false);
+		}
+	};
+
+	const deleteInstance = async (id: number) => {
+		if (instanceBusy || !confirm("Eliminar esta instancia de WhatsApp?")) return;
+		setInstanceBusy(true);
+		try {
+			const res = await fetch(`/api/instances/${id}`, { method: "DELETE" });
+			if (!res.ok) throw new Error("No se pudo eliminar la instancia");
+			await loadInstances();
+			window.location.reload();
+		} catch (error: any) {
+			setInstanceError(error.message || "Error eliminando instancia");
+		} finally {
+			setInstanceBusy(false);
+		}
+	};
 
 	const handleLogout = async () => {
 		await fetch("/api/auth/logout", { method: "POST" });
@@ -279,16 +359,50 @@ export default function Sidebar({
 											</motion.span>
 										</Button>
 									</DropdownMenuTrigger>
-									<DropdownMenuContent align="start">
+									<DropdownMenuContent align="start" className="w-80 p-2">
+										<div className="px-2 py-1 text-xs font-semibold text-primary">WhatsApp instances</div>
+										<div className="space-y-1 py-1">
+											{instances.map((instance) => (
+												<div key={instance.id} className="flex items-center justify-between gap-2 rounded-md border border-outline-variant/40 bg-surface px-2 py-2">
+													<div className="min-w-0">
+														<div className="truncate text-xs font-semibold text-primary">{instance.name}</div>
+														<div className="text-[10px] text-muted-foreground">
+															{instance.is_active ? "Active" : instance.status} {instance.phone ? `+${instance.phone}` : ""}
+														</div>
+													</div>
+													<div className="flex shrink-0 items-center gap-1">
+														{!instance.is_active && (
+															<button type="button" disabled={instanceBusy} onClick={() => activateInstance(instance.id)} className="rounded border border-primary/40 px-2 py-1 text-[10px] font-bold text-primary hover:bg-primary/10">Use</button>
+														)}
+														<button type="button" disabled={instanceBusy || instances.length <= 1} onClick={() => deleteInstance(instance.id)} className="rounded border border-error/40 px-2 py-1 text-[10px] font-bold text-error hover:bg-error/10">Delete</button>
+													</div>
+												</div>
+											))}
+											{instances.length === 0 && <div className="px-2 py-2 text-xs text-muted-foreground">No instances yet.</div>}
+										</div>
+										<DropdownMenuSeparator />
+										<div className="space-y-2 p-2">
+											<div className="flex items-center gap-2 text-xs font-semibold text-primary"><Plus className="size-4" /> Create or join</div>
+											<input
+												value={newInstanceName}
+												onChange={(event) => setNewInstanceName(event.target.value)}
+												onKeyDown={(event) => {
+													if (event.key === "Enter") void createInstance();
+												}}
+												placeholder="New instance name"
+												className="w-full rounded-md border border-outline-variant bg-background px-2 py-1.5 text-xs text-primary outline-none focus:border-primary/60"
+											/>
+											<button type="button" disabled={instanceBusy || !newInstanceName.trim()} onClick={createInstance} className="w-full rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-on-primary disabled:opacity-50">
+												Create and connect
+											</button>
+											{instanceError && <p className="text-[10px] text-error">{instanceError}</p>}
+										</div>
+										<DropdownMenuSeparator />
 										<DropdownMenuItem disabled className="flex items-center gap-2">
 											<UserCog className="size-4" /> Manage members
 										</DropdownMenuItem>
 										<DropdownMenuItem disabled className="flex items-center gap-2">
 											<Blocks className="size-4" /> Integrations
-										</DropdownMenuItem>
-										<DropdownMenuItem disabled className="flex items-center gap-2">
-											<Plus className="size-4" />
-											Create or join an organization
 										</DropdownMenuItem>
 									</DropdownMenuContent>
 								</DropdownMenu>

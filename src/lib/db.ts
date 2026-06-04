@@ -3,6 +3,7 @@ import {
 	DATABASE_SCHEMA_SQL,
 	DEFAULT_SETTINGS,
 	type ConversationRow,
+	type WhatsAppInstanceRow,
 	type MessageRow,
 	type InsertMessageInput,
 	type FollowUpQueryInput,
@@ -42,15 +43,46 @@ const repo = createPostgresRepository(pool);
 
 // Helper para inicializar la base de datos al arrancar
 let schemaInitialized = false;
+let schemaInitializationPromise: Promise<void> | null = null;
+
+function isRetryableSchemaInitError(error: unknown) {
+	const code = typeof error === "object" && error !== null ? (error as any).code : null;
+	return code === "40P01" || code === "55P03";
+}
+
+async function initializeSchemaWithRetry(maxAttempts = 3) {
+	for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+		try {
+			await initializePostgresSchema(pool);
+			return;
+		} catch (error) {
+			if (!isRetryableSchemaInitError(error) || attempt === maxAttempts) {
+				throw error;
+			}
+			const delayMs = 100 * attempt;
+			console.warn(
+				`[db] Inicialización de schema bloqueada por concurrencia (${(error as any).code}). Reintentando en ${delayMs}ms...`,
+			);
+			await new Promise((resolve) => setTimeout(resolve, delayMs));
+		}
+	}
+}
+
 export async function ensureSchemaInitialized() {
 	if (schemaInitialized) return;
-	try {
-		await initializePostgresSchema(pool);
-		schemaInitialized = true;
-		console.log("[db] Esquema de PostgreSQL inicializado correctamente.");
-	} catch (error) {
-		console.error("[db] Error al inicializar el esquema de PostgreSQL:", error);
+	if (!schemaInitializationPromise) {
+		schemaInitializationPromise = initializeSchemaWithRetry()
+			.then(() => {
+				schemaInitialized = true;
+				console.log("[db] Esquema de PostgreSQL inicializado correctamente.");
+			})
+			.catch((error) => {
+				schemaInitializationPromise = null;
+				console.error("[db] Error al inicializar el esquema de PostgreSQL:", error);
+				throw error;
+			});
 	}
+	await schemaInitializationPromise;
 }
 
 // Ejecutamos la inicialización del esquema asincrónicamente al importar
@@ -207,9 +239,126 @@ export interface ConnectionStateRow {
 	qr_string?: string | null;
 	phone?: string | null;
 	updated_at: Date;
+	instance_id?: number | null;
+	instance_name?: string | null;
 }
+
+export async function listWhatsAppInstances(): Promise<WhatsAppInstanceRow[]> {
+	await ensureSchemaInitialized();
+	const res = await pool.query<WhatsAppInstanceRow>(
+		"SELECT * FROM whatsapp_instances ORDER BY is_active DESC, updated_at DESC, id ASC",
+	);
+	return res.rows;
+}
+
+export async function getActiveWhatsAppInstance(): Promise<WhatsAppInstanceRow> {
+	await ensureSchemaInitialized();
+	const existing = await pool.query<WhatsAppInstanceRow>(
+		"SELECT * FROM whatsapp_instances WHERE is_active = TRUE ORDER BY id ASC LIMIT 1",
+	);
+	if (existing.rows[0]) return existing.rows[0];
+
+	const fallback = await pool.query<WhatsAppInstanceRow>(
+		"SELECT * FROM whatsapp_instances ORDER BY id ASC LIMIT 1",
+	);
+	if (fallback.rows[0]) {
+		await setActiveWhatsAppInstance(fallback.rows[0].id);
+		return { ...fallback.rows[0], is_active: true };
+	}
+
+	const created = await createWhatsAppInstance("Principal");
+	await setActiveWhatsAppInstance(created.id);
+	return { ...created, is_active: true };
+}
+
+export async function createWhatsAppInstance(name: string): Promise<WhatsAppInstanceRow> {
+	await ensureSchemaInitialized();
+	const normalizedName = name.trim();
+	if (!normalizedName) throw new Error("instance_name_required");
+	const res = await pool.query<WhatsAppInstanceRow>(
+		`INSERT INTO whatsapp_instances (name, status, is_active, created_at, updated_at)
+		 VALUES ($1, 'disconnected', NOT EXISTS (SELECT 1 FROM whatsapp_instances WHERE is_active = TRUE), NOW(), NOW())
+		 RETURNING *`,
+		[normalizedName],
+	);
+	return res.rows[0];
+}
+
+export async function setActiveWhatsAppInstance(id: number): Promise<WhatsAppInstanceRow> {
+	await ensureSchemaInitialized();
+	const client = await pool.connect();
+	try {
+		await client.query("BEGIN");
+		const existing = await client.query<WhatsAppInstanceRow>(
+			"SELECT * FROM whatsapp_instances WHERE id = $1 FOR UPDATE",
+			[id],
+		);
+		if (!existing.rows[0]) throw new Error(`whatsapp_instance_not_found:${id}`);
+		await client.query("UPDATE whatsapp_instances SET is_active = FALSE WHERE is_active = TRUE");
+		const activated = await client.query<WhatsAppInstanceRow>(
+			`UPDATE whatsapp_instances
+			 SET is_active = TRUE, updated_at = NOW()
+			 WHERE id = $1
+			 RETURNING *`,
+			[id],
+		);
+		await client.query("COMMIT");
+		return activated.rows[0];
+	} catch (error) {
+		await client.query("ROLLBACK").catch(() => {});
+		throw error;
+	} finally {
+		client.release();
+	}
+}
+
+export async function updateWhatsAppInstanceState(
+	id: number,
+	patch: Partial<Pick<WhatsAppInstanceRow, "phone" | "status" | "qr_string" | "profile_picture_url" | "profile_status">>,
+): Promise<WhatsAppInstanceRow> {
+	await ensureSchemaInitialized();
+	const entries = Object.entries(patch).filter(([, value]) => value !== undefined);
+	if (entries.length === 0) return getActiveWhatsAppInstance();
+	const assignments = entries.map(([key], index) => `${key} = $${index + 2}`);
+	const values = entries.map(([, value]) => value);
+	const res = await pool.query<WhatsAppInstanceRow>(
+		`UPDATE whatsapp_instances
+		 SET ${assignments.join(", ")}, updated_at = NOW()
+		 WHERE id = $1
+		 RETURNING *`,
+		[id, ...values],
+	);
+	if (!res.rows[0]) throw new Error(`whatsapp_instance_not_found:${id}`);
+	return res.rows[0];
+}
+
+export async function deleteWhatsAppInstance(id: number): Promise<void> {
+	await ensureSchemaInitialized();
+	const instances = await listWhatsAppInstances();
+	if (instances.length <= 1) throw new Error("cannot_delete_last_instance");
+	const deleting = instances.find((instance) => instance.id === id);
+	if (!deleting) throw new Error(`whatsapp_instance_not_found:${id}`);
+	await pool.query("DELETE FROM whatsapp_instances WHERE id = $1", [id]);
+	if (deleting.is_active) {
+		const next = (await listWhatsAppInstances())[0];
+		if (next) await setActiveWhatsAppInstance(next.id);
+	}
+}
+
 export async function getConnectionState(): Promise<ConnectionStateRow> {
 	await ensureSchemaInitialized();
+	const active = await getActiveWhatsAppInstance();
+	if (active) {
+		return {
+			id: 1,
+			status: active.status,
+			qr_string: active.qr_string,
+			phone: active.phone,
+			updated_at: active.updated_at,
+			instance_id: active.id,
+			instance_name: active.name,
+		};
+	}
 	const res = await pool.query<ConnectionStateRow>(
 		"SELECT * FROM connection_state WHERE id = 1 LIMIT 1"
 	);
@@ -231,6 +380,12 @@ export async function setConnectionState(input: {
 	phone?: string | null;
 }): Promise<ConnectionStateRow> {
 	await ensureSchemaInitialized();
+	const active = await getActiveWhatsAppInstance();
+	await updateWhatsAppInstanceState(active.id, {
+		status: input.status,
+		qr_string: input.qr_string ?? null,
+		phone: input.phone ?? null,
+	});
 	const res = await pool.query<ConnectionStateRow>(
 		`INSERT INTO connection_state (id, status, qr_string, phone, updated_at)
 		 VALUES (1, $1, $2, $3, NOW())
@@ -242,7 +397,11 @@ export async function setConnectionState(input: {
 		 RETURNING *`,
 		[input.status, input.qr_string ?? null, input.phone ?? null]
 	);
-	return res.rows[0];
+	return {
+		...res.rows[0],
+		instance_id: active.id,
+		instance_name: active.name,
+	};
 }
 
 // 17. enqueueOutbox(conversationId, phone, content)

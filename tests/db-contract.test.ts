@@ -30,6 +30,9 @@ describe("database schema contract", () => {
 			"metadata JSONB NOT NULL DEFAULT '{}'::jsonb",
 			"CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_whatsapp_id",
 			"CREATE TABLE IF NOT EXISTS settings",
+			"CREATE TABLE IF NOT EXISTS whatsapp_instances",
+			"CREATE UNIQUE INDEX IF NOT EXISTS idx_whatsapp_instances_one_active",
+			"status TEXT CHECK(status IN ('disconnected','qr','connecting','connected'))",
 			"CREATE TABLE IF NOT EXISTS conversation_events",
 			"CREATE INDEX IF NOT EXISTS idx_conversation_events_conv_created",
 			"CREATE TABLE IF NOT EXISTS automations",
@@ -279,6 +282,41 @@ describe("in-memory repository contract", () => {
 				.map((c) => c.id),
 			[eligible.id, outside24h.id],
 		);
+	});
+
+	it("does not select conversations whose last follow-up is still inside the configured wait", () => {
+		const repo = createInMemoryRepository();
+		const convo = repo.getOrCreateConversation({ phone: "549777" });
+		repo.insertMessageAndTouchConversation({
+			conversation_id: convo.id,
+			direction: "inbound",
+			role: "user",
+			content: "Hola",
+			source: "whatsapp",
+			created_at: iso("2026-06-04T14:00:00Z"),
+		});
+		repo.insertMessageAndTouchConversation({
+			conversation_id: convo.id,
+			direction: "outbound",
+			role: "assistant",
+			content: "Te ayudo.",
+			source: "bot",
+			created_at: iso("2026-06-04T15:24:00Z"),
+		});
+		repo.updateConversation(convo.id, {
+			followup_attempts: 1,
+			last_followup_at: iso("2026-06-04T15:24:00Z"),
+		});
+
+		const rows = repo.getPendingFollowUps({
+			now: iso("2026-06-04T15:31:00Z"),
+			minHoursAfterAssistant: 1.5,
+			maxAttempts: 3,
+			freeformWindowHours: 24,
+			blockOutside24h: true,
+		});
+
+		assert.deepEqual(rows.map((row) => row.id), []);
 	});
 
 	it("uses insertion order, not skewed timestamps, to decide whether IA is the latest message for follow-ups", () => {

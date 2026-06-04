@@ -195,6 +195,23 @@ export function createFollowUpScheduler(deps: FollowUpSchedulerDeps) {
 				return void (run.skippedActiveTurn += 1);
 			}
 			if (
+				fresh.last_followup_at &&
+				hoursBetween(now, fresh.last_followup_at) < query.minHoursAfterAssistant
+			) {
+				logger.log(
+					`[followup] Conversacion #${fresh.id} omitida: ultimo seguimiento=${fresh.last_followup_at.toISOString()} todavia no cumple la espera minima (${durationText(query.minHoursAfterAssistant)}).`,
+				);
+				await deps.repo.recordConversationEvent({
+					conversation_id: fresh.id,
+					event_type: "followup_skipped",
+					actor_role: "system",
+					reason: "followup_interval_not_elapsed",
+					created_at: now,
+				});
+				run.skippedByDecision += 1;
+				return;
+			}
+			if (
 				outsideWindow(
 					fresh,
 					now,

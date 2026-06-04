@@ -13,7 +13,7 @@ import { Redis } from "ioredis";
 import { createIoredisTurnState } from "../redis-adapter.ts";
 import { createInboundHandler } from "./inbound-handler.ts";
 import { normalizeProfileStatus } from "./profile.ts";
-import { runtimePaths, clearDirectoryContents } from "../runtime-paths.ts";
+import { runtimePaths, clearDirectoryContents, getInstanceAuthDir } from "../runtime-paths.ts";
 import {
 	createConfiguredChatClient,
 	describeImage,
@@ -22,6 +22,8 @@ import {
 import {
 	getConnectionState,
 	setConnectionState,
+	getActiveWhatsAppInstance,
+	updateWhatsAppInstanceState,
 	getOrCreateConversation,
 	getConversationById,
 	insertMessageAndTouchConversation,
@@ -287,7 +289,12 @@ async function refreshAllProfilePictures() {
 
 // Función principal para iniciar el socket de Baileys
 export async function startWASocket() {
-	console.log("[bot] Iniciando conexión con WhatsApp...");
+	const activeInstance = await getActiveWhatsAppInstance();
+	const instanceAuthDir = getInstanceAuthDir(activeInstance.id);
+	if (!fs.existsSync(instanceAuthDir)) {
+		fs.mkdirSync(instanceAuthDir, { recursive: true });
+	}
+	console.log(`[bot] Iniciando conexion con WhatsApp para instancia "${activeInstance.name}" (#${activeInstance.id})...`);
 
 	let version: [number, number, number] | undefined;
 	try {
@@ -304,7 +311,7 @@ export async function startWASocket() {
 		);
 	}
 
-	const { state, saveCreds } = await getMultiFileAuthState(authDir);
+	const { state, saveCreds } = await getMultiFileAuthState(instanceAuthDir);
 
 	const sock = makeWASocket({
 		version: version as any,
@@ -333,6 +340,11 @@ export async function startWASocket() {
 				qr_string: qr,
 				phone: null,
 			});
+			await updateWhatsAppInstanceState(activeInstance.id, {
+				status: "qr",
+				qr_string: qr,
+				phone: null,
+			});
 			// Generar ASCII QR de fallback en consola
 			try {
 				const qrcodeTerminal = await import("qrcode-terminal");
@@ -342,8 +354,10 @@ export async function startWASocket() {
 				} else {
 					console.warn("[bot] No se encontro la funcion generate en qrcode-terminal");
 				}
-			} catch (error) {
-				console.warn("[bot] No se pudo imprimir el QR en consola:", error);
+			} catch (error: any) {
+				console.warn(
+					`[bot] QR disponible en el panel web; no se pudo imprimir fallback en consola (${error?.message || error}).`,
+				);
 			}
 		}
 
@@ -354,6 +368,11 @@ export async function startWASocket() {
 				await setConnectionState({
 					status: "connecting",
 					qr_string: current.qr_string,
+					phone: null,
+				});
+				await updateWhatsAppInstanceState(activeInstance.id, {
+					status: "connecting",
+					qr_string: current.qr_string ?? null,
 					phone: null,
 				});
 			}
@@ -367,6 +386,11 @@ export async function startWASocket() {
 			console.log(`[bot] Número de teléfono conectado: ${numericPhone}`);
 
 			await setConnectionState({
+				status: "connected",
+				qr_string: null,
+				phone: numericPhone,
+			});
+			await updateWhatsAppInstanceState(activeInstance.id, {
 				status: "connected",
 				qr_string: null,
 				phone: numericPhone,
@@ -386,6 +410,9 @@ export async function startWASocket() {
 				let selfPpUrl: string | null = null;
 				try {
 					selfPpUrl = (await sock.profilePictureUrl(selfJid, "image")) || null;
+					await updateWhatsAppInstanceState(activeInstance.id, {
+						profile_picture_url: selfPpUrl,
+					});
 				} catch (e) {
 					console.log("[bot] No se pudo obtener la foto de perfil propia.");
 				}
@@ -401,6 +428,9 @@ export async function startWASocket() {
 				try {
 					const statusRes: any = await sock.fetchStatus(selfJid);
 					selfStatus = normalizeProfileStatus(statusRes);
+					await updateWhatsAppInstanceState(activeInstance.id, {
+						profile_status: selfStatus,
+					});
 				} catch (e) {
 					console.log("[bot] No se pudo obtener el estado propio.");
 				}
@@ -435,8 +465,13 @@ export async function startWASocket() {
 					qr_string: null,
 					phone: null,
 				});
+				await updateWhatsAppInstanceState(activeInstance.id, {
+					status: "disconnected",
+					qr_string: null,
+					phone: null,
+				});
 				try {
-					clearDirectoryContents(authDir);
+					clearDirectoryContents(instanceAuthDir);
 				} catch (error) {
 					console.warn(
 						"[bot] No se pudo limpiar el directorio de credenciales:",
@@ -447,6 +482,10 @@ export async function startWASocket() {
 				console.log("[bot] Reiniciando conexión para generar nuevo código QR...");
 				scheduleReconnect(1000);
 			} else {
+				await updateWhatsAppInstanceState(activeInstance.id, {
+					status: "disconnected",
+					qr_string: null,
+				}).catch(() => {});
 				// Reconexión con backoff
 				const delay = status === 440 ? 15000 : 5000;
 				console.log(`[bot] Intentando reconectar en ${delay / 1000}s...`);

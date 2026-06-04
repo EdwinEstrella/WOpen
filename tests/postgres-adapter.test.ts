@@ -110,6 +110,18 @@ describe("postgres adapter", () => {
 		);
 	});
 
+	it("serializes real schema initialization with a transaction-level advisory lock", async () => {
+		const pg = new FakePgPool();
+
+		await initializePostgresSchema(pg);
+
+		assert.equal(pg.calls[0].text, "BEGIN");
+		assert.match(pg.calls[1].text, /pg_advisory_xact_lock/);
+		assert.match(pg.calls[2].text, /CREATE TABLE IF NOT EXISTS conversations/);
+		assert.equal(pg.calls[3].text, "COMMIT");
+		assert.equal(pg.released, 1);
+	});
+
 	it("merges settings rows over defaults", async () => {
 		const pg = new FakePg();
 		pg.respondWith(() => ({
@@ -515,6 +527,7 @@ describe("postgres adapter", () => {
 			assert.match(text, /c\.mode = 'AI'/);
 			assert.match(text, /c\.followup_attempts < \$2/);
 			assert.match(text, /latest\.role = 'assistant'/);
+			assert.match(text, /c\.last_followup_at IS NULL OR c\.last_followup_at <= \$1/);
 			assert.match(text, /ORDER BY m\.id DESC/);
 			assert.match(text, /NOT EXISTS[\s\S]+newer_user/);
 			assert.match(text, /newer_user\.id > latest\.id/);

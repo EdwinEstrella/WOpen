@@ -167,6 +167,20 @@ CREATE TABLE IF NOT EXISTS outbox (
 );
 
 CREATE INDEX IF NOT EXISTS idx_outbox_pending ON outbox(sent, created_at);
+
+CREATE TABLE IF NOT EXISTS whatsapp_instances (
+  id SERIAL PRIMARY KEY,
+  name TEXT UNIQUE NOT NULL,
+  phone TEXT,
+  status TEXT CHECK(status IN ('disconnected','qr','connecting','connected')) NOT NULL DEFAULT 'disconnected',
+  qr_string TEXT,
+  profile_picture_url TEXT,
+  profile_status TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_whatsapp_instances_one_active ON whatsapp_instances(is_active) WHERE is_active = TRUE;
 `;
 
 export interface ConversationRow {
@@ -197,6 +211,18 @@ export interface ConversationRow {
 	lead_score_reason: string | null;
 	lead_updated_at: Date | null;
 	lead_updated_by: "assistant" | "dashboard" | null;
+	created_at: Date;
+	updated_at: Date;
+}
+export interface WhatsAppInstanceRow {
+	id: number;
+	name: string;
+	phone: string | null;
+	status: "disconnected" | "qr" | "connecting" | "connected";
+	qr_string: string | null;
+	profile_picture_url: string | null;
+	profile_status: string | null;
+	is_active: boolean;
 	created_at: Date;
 	updated_at: Date;
 }
@@ -484,6 +510,12 @@ export function createInMemoryRepository() {
 				if (
 					hoursBetween(input.now, latest.created_at) <
 					input.minHoursAfterAssistant
+				)
+					return false;
+				if (
+					conversation.last_followup_at &&
+					hoursBetween(input.now, conversation.last_followup_at) <
+						input.minHoursAfterAssistant
 				)
 					return false;
 				if (
