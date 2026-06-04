@@ -19,8 +19,9 @@ function upsert(input: {
 	id?: string;
 	fromMe?: boolean;
 	text?: string;
-	audio?: boolean;
-	name?: string;
+		audio?: boolean;
+		noContent?: boolean;
+		name?: string;
 	timestamp?: Date;
 	senderPn?: string;
 }): WhatsAppUpsert {
@@ -36,7 +37,9 @@ function upsert(input: {
 				},
 				pushName: input.name ?? "Cliente",
 				messageTimestamp: input.timestamp ?? at("2026-06-04T12:00:00Z"),
-				message: input.audio
+				message: input.noContent
+					? undefined
+					: input.audio
 					? { audioMessage: {} }
 					: { conversation: input.text ?? "Hola" },
 			},
@@ -129,6 +132,29 @@ describe("owner-aware inbound handler filters", () => {
 			"2026-06-04T12:00:00.000Z",
 		);
 		assert.equal(sent.length, 2);
+		assert.equal(
+			calls.filter((call) => call.startsWith("deepseek:")).length,
+			1,
+		);
+	});
+
+	it("does not consume dedupe for temporary no-content decrypt stubs before the real message arrives", async () => {
+		const { handler, repo, calls } = makeDeps();
+
+		const stubResult = await handler.handleUpsert(
+			upsert({ id: "retry-1", noContent: true }),
+		);
+		const realResult = await handler.handleUpsert(
+			upsert({ id: "retry-1", text: "Ahora sí llegó el texto" }),
+		);
+
+		const convo = repo.getOrCreateConversation({ phone: "549111" });
+		assert.equal(stubResult.processed, 0);
+		assert.equal(realResult.processed, 1);
+		assert.equal(
+			convo.last_user_message_at?.toISOString(),
+			"2026-06-04T12:00:00.000Z",
+		);
 		assert.equal(
 			calls.filter((call) => call.startsWith("deepseek:")).length,
 			1,

@@ -268,6 +268,13 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 		const chatJid = canonicalChatJid(message);
 		const whatsappMessageId = message.key.id;
 		const fromMe = message.key.fromMe === true;
+		const { mediaType, content: detectedText } = detectMediaTypeAndContent(message);
+		let text = detectedText;
+
+		if (mediaType === "unknown" && (!text || text.trim() === "")) {
+			return { status: "ignored" };
+		}
+
 		if (
 			whatsappMessageId &&
 			!(await deps.turnState.acceptDedupeMessage(whatsappMessageId, {
@@ -308,12 +315,6 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 		const debounceMs = Number(rawSettings.debounce_ms ?? 30000);
 		const role: MessageRole = fromMe ? "human" : "user";
 		const createdAt = timestampFrom(message, now);
-		const { mediaType, content: detectedText } = detectMediaTypeAndContent(message);
-		let text = detectedText;
-
-		if (mediaType === "unknown" && (!text || text.trim() === "")) {
-			return { status: "ignored" };
-		}
 
 		if (mediaType === "audio" || mediaType === "image") {
 			console.log(
