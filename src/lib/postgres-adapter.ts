@@ -457,10 +457,10 @@ export function createPostgresRepository(pool: PostgresPool) {
 				`SELECT c.*
 				 FROM conversations c
 				 JOIN LATERAL (
-				   SELECT m.role, m.created_at
+				   SELECT m.id, m.role, m.created_at
 				   FROM messages m
 				   WHERE m.conversation_id = c.id
-				   ORDER BY m.created_at DESC
+				   ORDER BY m.id DESC
 				   LIMIT 1
 				 ) latest ON TRUE
 				 WHERE c.mode = 'AI'
@@ -471,7 +471,7 @@ export function createPostgresRepository(pool: PostgresPool) {
 				     SELECT 1 FROM messages newer_user
 				     WHERE newer_user.conversation_id = c.id
 				       AND newer_user.role = 'user'
-				       AND newer_user.created_at > latest.created_at
+				       AND newer_user.id > latest.id
 				   )
 				 ORDER BY latest.created_at ASC`,
 				values,

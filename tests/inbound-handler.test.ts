@@ -383,6 +383,34 @@ describe("owner-aware inbound handler AI/HUMAN customer paths", () => {
 		assert.equal(turnState.hasActiveTurnState(convo.id), false);
 	});
 
+	it("persists assistant replies after the inbound WhatsApp timestamp so follow-ups see IA as the latest message", async () => {
+		const { handler, repo } = makeDeps();
+		await handler.handleUpsert(
+			upsert({
+				id: "m-ai-future-timestamp",
+				fromMe: false,
+				text: "Necesito info",
+				timestamp: at("2026-06-04T12:00:05Z"),
+			}),
+		);
+
+		const convo = repo.getOrCreateConversation({ phone: "549111" });
+		const updated = repo.getConversationById(convo.id);
+		assert.equal(
+			updated?.last_user_message_at?.toISOString(),
+			"2026-06-04T12:00:05.000Z",
+		);
+		assert.equal(
+			updated?.last_assistant_message_at?.toISOString(),
+			"2026-06-04T12:00:05.002Z",
+		);
+		assert.equal(
+			updated!.last_assistant_message_at!.getTime() >
+				updated!.last_user_message_at!.getTime(),
+			true,
+		);
+	});
+
 	it("persists assistant lead labels and score from the AI response", async () => {
 		const { handler, repo, setDeepSeekRaw } = makeDeps();
 		setDeepSeekRaw(

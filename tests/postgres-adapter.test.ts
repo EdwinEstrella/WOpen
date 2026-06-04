@@ -515,7 +515,9 @@ describe("postgres adapter", () => {
 			assert.match(text, /c\.mode = 'AI'/);
 			assert.match(text, /c\.followup_attempts < \$2/);
 			assert.match(text, /latest\.role = 'assistant'/);
+			assert.match(text, /ORDER BY m\.id DESC/);
 			assert.match(text, /NOT EXISTS[\s\S]+newer_user/);
+			assert.match(text, /newer_user\.id > latest\.id/);
 			assert.doesNotMatch(text, /last_user_message_at >= \$3/);
 			assert.deepEqual(values, [
 				new Date("2026-01-03T00:00:00.000Z"),

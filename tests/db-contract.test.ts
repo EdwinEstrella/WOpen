@@ -281,6 +281,41 @@ describe("in-memory repository contract", () => {
 		);
 	});
 
+	it("uses insertion order, not skewed timestamps, to decide whether IA is the latest message for follow-ups", () => {
+		const repo = createInMemoryRepository();
+		const now = iso("2026-06-04T12:10:00Z");
+		const convo = repo.getOrCreateConversation({ phone: "549999" });
+		repo.insertMessageAndTouchConversation({
+			conversation_id: convo.id,
+			direction: "inbound",
+			role: "user",
+			content: "Hola",
+			source: "whatsapp",
+			created_at: iso("2026-06-04T12:00:05Z"),
+		});
+		repo.insertMessageAndTouchConversation({
+			conversation_id: convo.id,
+			direction: "outbound",
+			role: "assistant",
+			content: "Te ayudo.",
+			source: "bot",
+			created_at: iso("2026-06-04T12:00:00Z"),
+		});
+
+		assert.deepEqual(
+			repo
+				.getPendingFollowUps({
+					now,
+					minHoursAfterAssistant: 0.03,
+					maxAttempts: 3,
+					freeformWindowHours: 24,
+					blockOutside24h: true,
+				})
+				.map((c) => c.id),
+			[convo.id],
+		);
+	});
+
 	it("records handoff and blocked follow-up event shapes", () => {
 		const repo = createInMemoryRepository();
 		const convo = repo.getOrCreateConversation({ phone: "549333" });

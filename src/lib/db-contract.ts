@@ -475,7 +475,7 @@ export function createInMemoryRepository() {
 					return false;
 				const rows = messages
 					.filter((message) => message.conversation_id === conversation.id)
-					.sort((a, b) => a.created_at.getTime() - b.created_at.getTime());
+					.sort((a, b) => a.id - b.id);
 				const latest = rows.at(-1);
 				if (!latest || latest.role !== "assistant") return false;
 				if (
@@ -486,7 +486,7 @@ export function createInMemoryRepository() {
 				if (
 					rows.some(
 						(message) =>
-							message.role === "user" && message.created_at > latest.created_at,
+							message.role === "user" && message.id > latest.id,
 					)
 				)
 					return false;
