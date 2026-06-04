@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { deleteConversation, getConversationById, updateConversation } from "../../../../lib/db.ts";
+import { normalizeLeadLabels } from "../../../../domain/whatsapp-rules.ts";
 
 interface Ctx {
 	params: Promise<{ conversationId: string }>;
@@ -43,6 +44,29 @@ export async function PATCH(req: Request, { params }: Ctx) {
 		}
 		if (typeof body.is_archived === "boolean") {
 			patch.is_archived = body.is_archived;
+		}
+		if (Array.isArray(body.lead_labels)) {
+			patch.lead_labels = normalizeLeadLabels(body.lead_labels);
+			patch.lead_updated_by = "dashboard";
+			patch.lead_updated_at = new Date();
+		}
+		if (
+			body.lead_score === null ||
+			(typeof body.lead_score === "number" &&
+				Number.isFinite(body.lead_score) &&
+				body.lead_score >= 0 &&
+				body.lead_score <= 100)
+		) {
+			patch.lead_score =
+				body.lead_score === null ? null : Math.round(body.lead_score);
+			patch.lead_updated_by = "dashboard";
+			patch.lead_updated_at = new Date();
+		}
+		if (typeof body.lead_score_reason === "string") {
+			patch.lead_score_reason =
+				body.lead_score_reason.trim().slice(0, 240) || null;
+			patch.lead_updated_by = "dashboard";
+			patch.lead_updated_at = new Date();
 		}
 
 		const existing = await getConversationById(parsedId);

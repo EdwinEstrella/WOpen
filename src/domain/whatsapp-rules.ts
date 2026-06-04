@@ -1,5 +1,24 @@
 ﻿export type ConversationMode = "AI" | "HUMAN";
 export type MessageRole = "user" | "assistant" | "human";
+export const LEAD_LABELS = [
+	"frio",
+	"neutro",
+	"caliente",
+	"cliente_potencial",
+] as const;
+export type LeadLabel = (typeof LEAD_LABELS)[number];
+
+export function isLeadLabel(value: unknown): value is LeadLabel {
+	return (
+		typeof value === "string" &&
+		(LEAD_LABELS as readonly string[]).includes(value)
+	);
+}
+
+export function normalizeLeadLabels(value: unknown): LeadLabel[] {
+	if (!Array.isArray(value)) return [];
+	return [...new Set(value.filter(isLeadLabel))];
+}
 
 export interface AutomationSettings {
 	botOnKeyword: string;
@@ -107,6 +126,11 @@ export type NormalReplyParseResult =
 			ok: true;
 			parts: string[];
 			handoff: { required: boolean; reason: string };
+			lead: {
+				labels: LeadLabel[];
+				score: number | null;
+				reason: string;
+			};
 	  }
 	| { ok: false; sendRaw: false; reason: string };
 
@@ -153,6 +177,15 @@ export function parseNormalReply(raw: string): NormalReplyParseResult {
 
 			if (parts.length > 0) {
 				const handoffRecord = isRecord(data.handoff) ? data.handoff : {};
+				const leadRecord = isRecord(data.lead) ? data.lead : {};
+				const rawScore = leadRecord.score;
+				const score =
+					typeof rawScore === "number" &&
+					Number.isFinite(rawScore) &&
+					rawScore >= 0 &&
+					rawScore <= 100
+						? Math.round(rawScore)
+						: null;
 				return {
 					ok: true,
 					parts,
@@ -161,6 +194,14 @@ export function parseNormalReply(raw: string): NormalReplyParseResult {
 						reason:
 							typeof handoffRecord.reason === "string"
 								? handoffRecord.reason
+								: "",
+					},
+					lead: {
+						labels: normalizeLeadLabels(leadRecord.labels),
+						score,
+						reason:
+							typeof leadRecord.reason === "string"
+								? leadRecord.reason.trim().slice(0, 240)
 								: "",
 					},
 				};

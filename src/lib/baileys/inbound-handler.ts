@@ -600,6 +600,19 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 				});
 			}
 
+			if (
+				deps.repo.updateConversation &&
+				(parsed.lead.labels.length > 0 || parsed.lead.score !== null)
+			) {
+				await deps.repo.updateConversation(beforeConversation.id, {
+					lead_labels: parsed.lead.labels,
+					lead_score: parsed.lead.score,
+					lead_score_reason: parsed.lead.reason || null,
+					lead_updated_at: now,
+					lead_updated_by: "assistant",
+				});
+			}
+
 			const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 			for await (const [i, part] of parsed.parts.entries()) {
 				if (i > 0) {

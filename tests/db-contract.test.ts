@@ -20,6 +20,9 @@ describe("database schema contract", () => {
 			"last_assistant_message_at TIMESTAMP WITH TIME ZONE",
 			"last_human_message_at TIMESTAMP WITH TIME ZONE",
 			"last_owner_intervention_at TIMESTAMP WITH TIME ZONE",
+			"lead_labels JSONB NOT NULL DEFAULT '[]'::jsonb",
+			"lead_score INTEGER CHECK",
+			"lead_updated_by TEXT CHECK",
 			"CREATE TABLE IF NOT EXISTS messages",
 			"whatsapp_message_id TEXT",
 			"direction TEXT CHECK(direction IN ('inbound','outbound'))",
@@ -113,6 +116,18 @@ describe("in-memory repository contract", () => {
 			repo.getConversationById(convo.id)?.followup_blocked_reason,
 			null,
 		);
+		repo.updateConversation(convo.id, {
+			lead_labels: ["cliente_potencial", "caliente"],
+			lead_score: 86,
+			lead_score_reason: "pidi? precio y mostr? urgencia",
+			lead_updated_at: iso("2026-06-01T10:00:30Z"),
+			lead_updated_by: "assistant",
+		});
+		assert.deepEqual(repo.getConversationById(convo.id)?.lead_labels, [
+			"cliente_potencial",
+			"caliente",
+		]);
+		assert.equal(repo.getConversationById(convo.id)?.lead_score, 86);
 
 		repo.insertMessageAndTouchConversation({
 			conversation_id: convo.id,

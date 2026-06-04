@@ -17,6 +17,12 @@ interface DashboardOverviewProps {
 
 const EMPTY_CONVOS: ConversationListRow[] = [];
 const shortTimeFormatter = new Intl.DateTimeFormat("es-AR", { timeStyle: "short" });
+const leadLabels = [
+	{ key: "frio", label: "Fríos" },
+	{ key: "neutro", label: "Neutros" },
+	{ key: "caliente", label: "Calientes" },
+	{ key: "cliente_potencial", label: "Potenciales" },
+] as const;
 
 export default function DashboardOverview({ conversations = EMPTY_CONVOS }: DashboardOverviewProps) {
 	// 1. Conversaciones Activas
@@ -37,6 +43,44 @@ export default function DashboardOverview({ conversations = EMPTY_CONVOS }: Dash
 		.filter((c) => c.last_message_at)
 		.sort((a, b) => new Date(b.last_message_at!).getTime() - new Date(a.last_message_at!).getTime())
 		.slice(0, 5);
+	const leadCounts = leadLabels.map((item) => ({
+		...item,
+		count: conversations.filter((conversation) =>
+			conversation.lead_labels?.includes(item.key),
+		).length,
+	}));
+	const maxLeadCount = Math.max(1, ...leadCounts.map((item) => item.count));
+	const scoredLeads = conversations.filter(
+		(conversation) => typeof conversation.lead_score === "number",
+	);
+	const averageLeadScore =
+		scoredLeads.length > 0
+			? Math.round(
+				scoredLeads.reduce(
+					(total, conversation) => total + (conversation.lead_score ?? 0),
+					0,
+				) / scoredLeads.length,
+			)
+			: 0;
+	const scoreBuckets = [
+		{
+			label: "0-39",
+			count: scoredLeads.filter((conversation) => (conversation.lead_score ?? 0) <= 39).length,
+		},
+		{
+			label: "40-69",
+			count: scoredLeads.filter(
+				(conversation) =>
+					(conversation.lead_score ?? 0) >= 40 &&
+					(conversation.lead_score ?? 0) <= 69,
+			).length,
+		},
+		{
+			label: "70-100",
+			count: scoredLeads.filter((conversation) => (conversation.lead_score ?? 0) >= 70).length,
+		},
+	];
+	const maxScoreBucket = Math.max(1, ...scoreBuckets.map((bucket) => bucket.count));
 
 	return (
 		<div className="flex-1 overflow-y-auto pr-1">
@@ -237,15 +281,58 @@ export default function DashboardOverview({ conversations = EMPTY_CONVOS }: Dash
 								</div>
 							</div>
 						</div>
-						<div className="p-6 flex-1 flex flex-col justify-center min-h-[280px]">
-							<div className="flex flex-col items-center justify-center text-center text-on-surface-variant gap-y-3">
-								<div className="size-12 bg-primary/10 rounded-2xl border border-primary/20 flex items-center justify-center glow-active">
-									<TrendingUpIcon className="text-primary" size={24} />
+						<div className="p-6 flex-1 min-h-[280px]">
+							<div className="grid h-full grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+								<div className="flex flex-col gap-4">
+									<div>
+										<p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+											Etiquetas asignadas
+										</p>
+										<p className="mt-1 text-xs text-on-surface-variant">
+											Distribución actual de clasificación comercial del bot y ajustes manuales.
+										</p>
+									</div>
+									<div className="flex flex-1 flex-col justify-end gap-3">
+										{leadCounts.map((item) => (
+											<div key={item.key} className="grid grid-cols-[110px_1fr_32px] items-center gap-3">
+												<span className="text-[11px] font-bold text-on-surface">{item.label}</span>
+												<div className="h-7 overflow-hidden rounded-full border border-outline-variant/35 bg-surface-container-lowest">
+													<div
+														className="h-full rounded-full bg-primary/80 transition-all"
+														style={{ width: `${(item.count / maxLeadCount) * 100}%` }}
+													/>
+												</div>
+												<span className="text-right font-mono text-xs font-bold text-primary">{item.count}</span>
+											</div>
+										))}
+									</div>
 								</div>
-								<h3 className="text-sm font-bold text-on-surface">Panel de Analíticas Activo</h3>
-								<p className="text-xs max-w-sm">
-									La precisión de respuesta del bot se mantiene estable con un total de <strong className="text-primary font-semibold">{aiConversations}</strong> chats autogestionados de manera activa por la Inteligencia Artificial.
-								</p>
+
+								<div className="rounded-2xl border border-outline-variant/25 bg-background/50 p-4">
+									<div className="mb-4">
+										<p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+											Calificación promedio
+										</p>
+										<div className="mt-2 flex items-end gap-2">
+											<span className="font-display text-4xl font-bold text-primary">{averageLeadScore}</span>
+											<span className="pb-1 text-xs text-on-surface-variant">/100</span>
+										</div>
+									</div>
+									<div className="flex h-32 items-end gap-3">
+										{scoreBuckets.map((bucket) => (
+											<div key={bucket.label} className="flex flex-1 flex-col items-center gap-2">
+												<div className="flex h-24 w-full items-end rounded-xl border border-outline-variant/25 bg-surface-container-lowest px-2">
+													<div
+														className="w-full rounded-t-lg bg-secondary"
+														style={{ height: `${Math.max(8, (bucket.count / maxScoreBucket) * 100)}%` }}
+													/>
+												</div>
+												<span className="font-mono text-[10px] text-on-surface-variant">{bucket.label}</span>
+												<span className="text-[10px] font-bold text-on-surface">{bucket.count}</span>
+											</div>
+										))}
+									</div>
+								</div>
 							</div>
 						</div>
 					</div>

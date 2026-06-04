@@ -1,6 +1,7 @@
 import type {
 	ConversationMode,
 	MessageRole,
+	LeadLabel,
 } from "../domain/whatsapp-rules.ts";
 
 export type MessageDirection = "inbound" | "outbound";
@@ -62,6 +63,11 @@ CREATE TABLE IF NOT EXISTS conversations (
   last_human_message_at TIMESTAMP WITH TIME ZONE, last_owner_intervention_at TIMESTAMP WITH TIME ZONE,
   last_ai_reactivated_at TIMESTAMP WITH TIME ZONE, unread_count INTEGER NOT NULL DEFAULT 0,
   is_archived BOOLEAN NOT NULL DEFAULT FALSE,
+  lead_labels JSONB NOT NULL DEFAULT '[]'::jsonb,
+  lead_score INTEGER CHECK(lead_score IS NULL OR (lead_score >= 0 AND lead_score <= 100)),
+  lead_score_reason TEXT,
+  lead_updated_at TIMESTAMP WITH TIME ZONE,
+  lead_updated_by TEXT CHECK(lead_updated_by IS NULL OR lead_updated_by IN ('assistant','dashboard')),
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
@@ -160,6 +166,11 @@ export interface ConversationRow {
 	last_ai_reactivated_at: Date | null;
 	unread_count: number;
 	is_archived: boolean;
+	lead_labels: LeadLabel[];
+	lead_score: number | null;
+	lead_score_reason: string | null;
+	lead_updated_at: Date | null;
+	lead_updated_by: "assistant" | "dashboard" | null;
 	created_at: Date;
 	updated_at: Date;
 }
@@ -275,6 +286,11 @@ export function createInMemoryRepository() {
 				last_ai_reactivated_at: null,
 				unread_count: 0,
 				is_archived: false,
+				lead_labels: [],
+				lead_score: null,
+				lead_score_reason: null,
+				lead_updated_at: null,
+				lead_updated_by: null,
 				created_at: created,
 				updated_at: created,
 			};

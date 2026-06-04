@@ -41,7 +41,12 @@ export async function initializePostgresSchema(pool: PostgresQueryable) {
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS unread_count INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS profile_picture_url TEXT;
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS profile_picture_fetched_at TIMESTAMP WITH TIME ZONE;
-ALTER TABLE conversations ADD COLUMN IF NOT EXISTS is_archived BOOLEAN NOT NULL DEFAULT FALSE;`
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS is_archived BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS lead_labels JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS lead_score INTEGER CHECK(lead_score IS NULL OR (lead_score >= 0 AND lead_score <= 100));
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS lead_score_reason TEXT;
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS lead_updated_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS lead_updated_by TEXT CHECK(lead_updated_by IS NULL OR lead_updated_by IN ('assistant','dashboard'));`
 	);
 }
 
@@ -69,6 +74,11 @@ const UPDATE_CONVERSATION_COLUMNS = new Set([
 	"is_archived",
 	"profile_picture_url",
 	"profile_picture_fetched_at",
+	"lead_labels",
+	"lead_score",
+	"lead_score_reason",
+	"lead_updated_at",
+	"lead_updated_by",
 	"updated_at",
 ]);
 

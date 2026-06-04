@@ -127,6 +127,7 @@ describe("DeepSeek JSON validation", () => {
 				ok: true,
 				parts: ["Hola"],
 				handoff: { required: false, reason: "" },
+				lead: { labels: [], score: null, reason: "" },
 			},
 		);
 		assert.deepEqual(parseNormalReply("Hola sin JSON"), {

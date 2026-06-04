@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { TrashIcon, MessagesIcon, RobotIcon, ArrowRightIcon, ArrowDownIcon, UserIcon, PhoneIcon, EditIcon, ArchiveIcon } from "./Icons.tsx";
 import type { ConversationListRow } from "../lib/db.ts";
 import type { MessageRow } from "../lib/db-contract.ts";
+import { LEAD_LABELS, type LeadLabel } from "../domain/whatsapp-rules.ts";
 import MessageBubble from "./MessageBubble.tsx";
 import ModeToggle from "./ModeToggle.tsx";
 
@@ -33,6 +34,11 @@ export default function ConversationPanel({
 	const [showScrollDown, setShowScrollDown] = useState(false);
 	const [profileOpen, setProfileOpen] = useState(false);
 	const [profileName, setProfileName] = useState(conversation.name?.trim() || "");
+	const [profileLeadLabels, setProfileLeadLabels] = useState<LeadLabel[]>(conversation.lead_labels ?? []);
+	const [profileLeadScore, setProfileLeadScore] = useState(
+		typeof conversation.lead_score === "number" ? String(conversation.lead_score) : "",
+	);
+	const [profileLeadReason, setProfileLeadReason] = useState(conversation.lead_score_reason ?? "");
 	const [savingProfile, setSavingProfile] = useState(false);
 	const [zoomImage, setZoomImage] = useState<string | null>(null);
 	const [avatarError, setAvatarError] = useState(false);
@@ -108,6 +114,9 @@ if (conversation.id !== prevConversationId) {
 	prevMessagesLengthRef.current = 0;
 	setShowScrollDown(false);
 	setProfileName(conversation.name?.trim() || "");
+	setProfileLeadLabels(conversation.lead_labels ?? []);
+	setProfileLeadScore(typeof conversation.lead_score === "number" ? String(conversation.lead_score) : "");
+	setProfileLeadReason(conversation.lead_score_reason ?? "");
 	setAvatarError(false);
 	setDrawerAvatarError(false);
 }
@@ -244,6 +253,15 @@ if (conversation.id !== prevConversationId) {
 	const technicalJid = conversation.jid || `${cleanPhone}@s.whatsapp.net`;
 	const initials = (conversation.name?.trim() || cleanPhone).slice(0, 1).toLocaleUpperCase();
 	const profilePictureUrl = conversation.profile_picture_url;
+	const leadScore = typeof conversation.lead_score === "number" ? conversation.lead_score : null;
+
+	const toggleLeadLabel = (label: LeadLabel) => {
+		setProfileLeadLabels((current) =>
+			current.includes(label)
+				? current.filter((item) => item !== label)
+				: [...current, label],
+		);
+	};
 
 	const handleSaveProfile = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -253,7 +271,14 @@ if (conversation.id !== prevConversationId) {
 			const res = await fetch(`/api/conversations/${conversation.id}`, {
 				method: "PATCH",
 				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ name: profileName }),
+				body: JSON.stringify({
+					name: profileName,
+					lead_labels: profileLeadLabels,
+					lead_score: profileLeadScore.trim()
+						? Number(profileLeadScore)
+						: null,
+					lead_score_reason: profileLeadReason,
+				}),
 			});
 			if (res.ok) {
 				const updated = await res.json();
@@ -305,6 +330,23 @@ if (conversation.id !== prevConversationId) {
 						<span className="size-2 rounded-full bg-primary"></span>
 						+{cleanPhone}
 					</span>
+					{(conversation.lead_labels?.length > 0 || leadScore !== null) && (
+						<span className="mt-1 flex flex-wrap items-center gap-1">
+							{conversation.lead_labels?.slice(0, 2).map((label) => (
+								<span
+									key={label}
+									className="rounded-full border border-primary/25 bg-primary/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-primary"
+								>
+									{label.replace("_", " ")}
+								</span>
+							))}
+							{leadScore !== null && (
+								<span className="rounded-full border border-secondary/35 bg-secondary/10 px-1.5 py-0.5 text-[8px] font-bold text-secondary">
+									{leadScore}/100
+								</span>
+							)}
+						</span>
+					)}
 				</div>
 				</button>
 				
@@ -410,6 +452,55 @@ if (conversation.id !== prevConversationId) {
 										{technicalJid}
 									</p>
 								</div>
+							</div>
+
+							<div className="rounded-2xl border border-outline-variant/30 bg-background/60 p-4 text-xs">
+								<span className="text-[10px] uppercase tracking-widest font-bold text-on-surface-variant">
+									Calificación de cliente
+								</span>
+								<div className="mt-3 flex flex-wrap gap-2">
+									{LEAD_LABELS.map((label) => {
+										const active = profileLeadLabels.includes(label);
+										return (
+											<button
+												key={label}
+												type="button"
+												onClick={() => toggleLeadLabel(label)}
+												className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+													active
+														? "border-primary/50 bg-primary/15 text-primary"
+														: "border-outline-variant/40 text-on-surface-variant hover:text-on-surface"
+												}`}
+											>
+												{label.replace("_", " ")}
+											</button>
+										);
+									})}
+								</div>
+								<label className="mt-4 block">
+									<span className="mb-2 block text-[10px] uppercase tracking-widest font-bold text-on-surface-variant">
+										Score 0-100
+									</span>
+									<input
+										type="number"
+										min="0"
+										max="100"
+										value={profileLeadScore}
+										onChange={(event) => setProfileLeadScore(event.target.value)}
+										className="w-full px-4 py-2.5 rounded-xl bg-surface-container-lowest border border-outline-variant/40 text-sm text-on-surface focus:outline-none focus:border-primary"
+									/>
+								</label>
+								<label className="mt-3 block">
+									<span className="mb-2 block text-[10px] uppercase tracking-widest font-bold text-on-surface-variant">
+										Motivo
+									</span>
+									<textarea
+										value={profileLeadReason}
+										onChange={(event) => setProfileLeadReason(event.target.value)}
+										placeholder="Ej: pidió precio, urgencia alta, comparando opciones..."
+										className="min-h-20 w-full resize-none rounded-xl border border-outline-variant/40 bg-surface-container-lowest px-4 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none"
+									/>
+								</label>
 							</div>
 
 							<button

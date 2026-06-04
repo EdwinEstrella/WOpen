@@ -29,7 +29,7 @@ function bodyAt(calls: Array<{ init?: RequestInit }>, index: number) {
 }
 
 const validNormal =
-	'{"response":{"part_1":"Hola","part_2":"¿Seguimos?","part_3":""},"handoff":{"required":false,"reason":""}}';
+	'{"response":{"part_1":"Hola","part_2":"¿Seguimos?","part_3":""},"handoff":{"required":false,"reason":""},"lead":{"labels":["cliente_potencial","caliente"],"score":82,"reason":"pregunta por precio y disponibilidad"}}';
 const validFollowup = '{"respuesta":"SI","mensaje":"¿Te ayudo con algo más?"}';
 
 describe("DeepSeek client adapter", () => {
@@ -85,6 +85,8 @@ describe("DeepSeek client adapter", () => {
 		assert.match(messagesText, /part_2/);
 		assert.match(messagesText, /part_3/);
 		assert.match(messagesText, /handoff/);
+		assert.match(messagesText, /cliente_potencial/);
+		assert.match(messagesText, /score/);
 	});
 
 	it("follow-up request asks for strict respuesta SI/NO and mensaje JSON", async () => {

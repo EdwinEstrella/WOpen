@@ -357,6 +357,26 @@ describe("owner-aware inbound handler AI/HUMAN customer paths", () => {
 		assert.equal(turnState.hasActiveTurnState(convo.id), false);
 	});
 
+	it("persists assistant lead labels and score from the AI response", async () => {
+		const { handler, repo, setDeepSeekRaw } = makeDeps();
+		setDeepSeekRaw(
+			'{"response":{"part_1":"Te paso la info.","part_2":"","part_3":""},"handoff":{"required":false,"reason":""},"lead":{"labels":["cliente_potencial","caliente"],"score":91,"reason":"pidió precio y mostró urgencia"}}',
+		);
+
+		await handler.handleUpsert(
+			upsert({ id: "m-lead-score", fromMe: false, text: "Quiero precio hoy" }),
+		);
+
+		const convo = repo.getOrCreateConversation({ phone: "549111" });
+		const updated = repo.getConversationById(convo.id);
+		assert.deepEqual(updated?.lead_labels, [
+			"cliente_potencial",
+			"caliente",
+		]);
+		assert.equal(updated?.lead_score, 91);
+		assert.equal(updated?.lead_updated_by, "assistant");
+	});
+
 	it("normalizes WhatsApp voice notes without exposing the raw audio marker", async () => {
 		const { handler, deepSeekInputs } = makeDeps();
 

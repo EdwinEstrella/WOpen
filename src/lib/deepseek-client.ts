@@ -101,8 +101,9 @@ function normalMessages(input: NormalReplyRequest): ChatMessage[] {
 			role: "user",
 			content: [
 				"Responde usando JSON estricto sin markdown.",
-				'Formato obligatorio: {"response":{"part_1":"...","part_2":"...","part_3":"..."},"handoff":{"required":false,"reason":""}}.',
+				'Formato obligatorio: {"response":{"part_1":"...","part_2":"...","part_3":"..."},"handoff":{"required":false,"reason":""},"lead":{"labels":["frio"|"neutro"|"caliente"|"cliente_potencial"],"score":0-100,"reason":"..."}}.',
 				"Usa handoff.required=true si necesita humano.",
+				"Clasifica intención comercial actual. Usa labels como estado completo: omití una etiqueta si ya no aplica. score=0 pésimo lead, 100 excelente lead.",
 				`Mensajes del turno: ${input.queuedMessages.map((m) => m.text).join("\n")}`,
 			].join("\n"),
 		},
@@ -151,7 +152,7 @@ function repairMessages(
 ): ChatMessage[] {
 	const schema =
 		kind === "normal"
-			? '{"response":{"part_1":"...","part_2":"...","part_3":"..."},"handoff":{"required":false,"reason":""}}'
+			? '{"response":{"part_1":"...","part_2":"...","part_3":"..."},"handoff":{"required":false,"reason":""},"lead":{"labels":["frio"|"neutro"|"caliente"|"cliente_potencial"],"score":0-100,"reason":"..."}}'
 			: '{"respuesta":"SI"|"NO","mensaje":"..."}';
 	return [
 		{
