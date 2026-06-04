@@ -13,7 +13,7 @@ import { PlusIcon } from "./Icons.tsx";
 const conditionLabels: Record<AutomationConditionType, string> = {
 	always: "Siempre",
 	message_contains: "Mensaje contiene",
-	conversation_mode: "Modo de conversaci?n",
+	conversation_mode: "Modo de conversación",
 };
 
 const actionLabels: Record<AutomationActionType, string> = {
@@ -153,17 +153,17 @@ export default function AutomationsOverview() {
 				</div>
 
 				<label className="flex flex-col gap-1.5">
-					<span className="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">Condici?n</span>
+					<span className="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">Condición</span>
 					<select value={conditionType} onChange={(e) => setConditionType(e.target.value as AutomationConditionType)} className="rounded-xl border border-outline-variant/30 bg-surface-container-low px-4 py-2 text-xs text-on-surface outline-none focus:border-primary">
 						<option value="always">Siempre</option>
 						<option value="message_contains">Mensaje contiene</option>
-						<option value="conversation_mode">Modo de conversaci?n</option>
+						<option value="conversation_mode">Modo de conversación</option>
 					</select>
 				</label>
 
 				{conditionType !== "always" && (
 					<label className="flex flex-col gap-1.5">
-						<span className="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">Valor de condici?n</span>
+						<span className="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">Valor de condición</span>
 						<input value={conditionValue} onChange={(e) => setConditionValue(e.target.value)} required className="rounded-xl border border-outline-variant/30 bg-surface-container-low px-4 py-2 text-xs text-on-surface outline-none focus:border-primary" placeholder={conditionType === "conversation_mode" ? "AI o HUMAN" : "Ej: precio"} />
 					</label>
 				)}
