@@ -96,13 +96,24 @@ export async function getOrCreateConversation(
 	name?: string | null,
 ): Promise<ConversationRow> {
 	await ensureSchemaInitialized();
-	return repo.getOrCreateConversation({ phone, jid, name });
+	const active = await getActiveWhatsAppInstance();
+	return repo.getOrCreateConversation({
+		instance_id: active.id,
+		phone,
+		jid,
+		name,
+	});
 }
 
 // 2. getConversationById(id)
 export async function getConversationById(id: number): Promise<ConversationRow | null> {
 	await ensureSchemaInitialized();
-	return repo.getConversationById(id);
+	const active = await getActiveWhatsAppInstance();
+	const res = await pool.query<ConversationRow>(
+		"SELECT * FROM conversations WHERE id = $1 AND instance_id IS NOT DISTINCT FROM $2 LIMIT 1",
+		[id, active.id],
+	);
+	return res.rows[0] ?? null;
 }
 
 // 3. insertMessageAndTouchConversation(input)
@@ -184,18 +195,27 @@ export async function recordConversationEvent(input: {
 // 12. getSettings()
 export async function getSettings(): Promise<Record<string, unknown>> {
 	await ensureSchemaInitialized();
-	return repo.getSettings();
+	const active = await getActiveWhatsAppInstance();
+	const res = await pool.query<{ key: string; value: unknown }>(
+		"SELECT key, value FROM instance_settings WHERE instance_id = $1 ORDER BY key ASC",
+		[active.id],
+	);
+	return {
+		...DEFAULT_SETTINGS,
+		...Object.fromEntries(res.rows.map((row) => [row.key, row.value])),
+	};
 }
 
 // 13. setSetting(key, value)
 export async function setSetting(key: string, value: unknown): Promise<void> {
 	await ensureSchemaInitialized();
+	const active = await getActiveWhatsAppInstance();
 	await pool.query(
-		`INSERT INTO settings (key, value, updated_at)
-		 VALUES ($1, $2, NOW())
-		 ON CONFLICT (key)
+		`INSERT INTO instance_settings (instance_id, key, value, updated_at)
+		 VALUES ($1, $2, $3, NOW())
+		 ON CONFLICT (instance_id, key)
 		 DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
-		[key, JSON.stringify(value)],
+		[active.id, key, JSON.stringify(value)],
 	);
 }
 
@@ -213,6 +233,7 @@ export interface ConversationListRow extends ConversationRow {
 }
 export async function listConversations(options: { archived?: boolean; hasMessages?: boolean } = {}): Promise<ConversationListRow[]> {
 	await ensureSchemaInitialized();
+	const active = await getActiveWhatsAppInstance();
 	const isArchived = options.archived === true;
 	
 	let sql = `SELECT c.*, 
@@ -227,7 +248,9 @@ export async function listConversations(options: { archived?: boolean; hasMessag
 		   ORDER BY created_at DESC, id DESC
 		   LIMIT 1
 		 ) m ON TRUE
-		 WHERE (c.phone <> cs.phone OR cs.phone IS NULL) AND c.is_archived = $1`;
+		 WHERE c.instance_id IS NOT DISTINCT FROM $2
+		   AND (c.phone <> cs.phone OR cs.phone IS NULL)
+		   AND c.is_archived = $1`;
 		 
 	if (options.hasMessages === true) {
 		sql += ` AND (c.last_message_at IS NOT NULL OR c.unread_count > 0)`;
@@ -235,7 +258,7 @@ export async function listConversations(options: { archived?: boolean; hasMessag
 	
 	sql += ` ORDER BY c.last_message_at DESC NULLS LAST, c.id DESC`;
 
-	const res = await pool.query<ConversationListRow>(sql, [isArchived]);
+	const res = await pool.query<ConversationListRow>(sql, [isArchived, active.id]);
 	return res.rows;
 }
 
@@ -423,11 +446,13 @@ export async function enqueueOutbox(
 	} = {},
 ): Promise<any> {
 	await ensureSchemaInitialized();
+	const active = await getActiveWhatsAppInstance();
 	const res = await pool.query(
-		`INSERT INTO outbox (conversation_id, phone, content, media_type, media_url, metadata, created_at)
-		 VALUES ($1, $2, $3, $4, $5, $6::jsonb, NOW())
+		`INSERT INTO outbox (instance_id, conversation_id, phone, content, media_type, media_url, metadata, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, NOW())
 		 RETURNING *`,
 		[
+			active.id,
 			conversationId,
 			phone,
 			content,
@@ -442,14 +467,16 @@ export async function enqueueOutbox(
 // 18. getPendingOutbox(limit = 20)
 export async function getPendingOutbox(limit = 20): Promise<any[]> {
 	await ensureSchemaInitialized();
+	const active = await getActiveWhatsAppInstance();
 	const res = await pool.query(
 		`SELECT o.*, c.jid AS conversation_jid, c.phone AS conversation_phone
 		 FROM outbox o
 		 LEFT JOIN conversations c ON c.id = o.conversation_id
 		 WHERE o.sent = 0
+		   AND o.instance_id IS NOT DISTINCT FROM $2
 		 ORDER BY o.created_at ASC
 		 LIMIT $1`,
-		[limit]
+		[limit, active.id]
 	);
 	return res.rows;
 }
@@ -475,8 +502,10 @@ export async function deleteConversation(id: number): Promise<void> {
 // 21. getActiveSystemPrompt()
 export async function getActiveSystemPrompt(): Promise<string> {
 	await ensureSchemaInitialized();
+	const active = await getActiveWhatsAppInstance();
 	const res = await pool.query<{ content: string }>(
-		"SELECT content FROM system_prompts WHERE is_active = TRUE LIMIT 1"
+		"SELECT content FROM system_prompts WHERE instance_id IS NOT DISTINCT FROM $1 AND is_active = TRUE LIMIT 1",
+		[active.id],
 	);
 	if (res.rows[0]) return res.rows[0].content;
 
@@ -499,10 +528,10 @@ Siempre responde con JSON válido:
 Usa handoff.required=true como herramienta Humano cuando el cliente pida una persona/asesor, esté listo para cerrar, esté molesto, haga una objeción crítica, pida algo que no debes inventar o necesite intervención humana. En ese caso, incluye reason claro y una respuesta breve para avisar que será derivado.`;
 
 	await pool.query(
-		`INSERT INTO system_prompts (title, content, is_active, created_at)
-		 VALUES ('Asistente Default', $1, TRUE, NOW())
+		`INSERT INTO system_prompts (instance_id, title, content, is_active, created_at)
+		 VALUES ($1, 'Asistente Default', $2, TRUE, NOW())
 		 ON CONFLICT DO NOTHING`,
-		[fallbackContent]
+		[active.id, fallbackContent]
 	);
 	return fallbackContent;
 }
@@ -518,29 +547,39 @@ export interface SystemPromptRow {
 
 export async function getAllSystemPrompts(): Promise<SystemPromptRow[]> {
 	await ensureSchemaInitialized();
+	const active = await getActiveWhatsAppInstance();
 	const res = await pool.query<SystemPromptRow>(
-		"SELECT * FROM system_prompts ORDER BY is_active DESC, id ASC"
+		"SELECT * FROM system_prompts WHERE instance_id IS NOT DISTINCT FROM $1 ORDER BY is_active DESC, id ASC",
+		[active.id],
 	);
 	return res.rows;
 }
 
 export async function saveSystemPrompt(title: string, content: string): Promise<SystemPromptRow> {
 	await ensureSchemaInitialized();
+	const active = await getActiveWhatsAppInstance();
 	const res = await pool.query<SystemPromptRow>(
-		`INSERT INTO system_prompts (title, content, is_active, created_at)
-		 VALUES ($1, $2, FALSE, NOW())
+		`INSERT INTO system_prompts (instance_id, title, content, is_active, created_at)
+		 VALUES ($1, $2, $3, FALSE, NOW())
 		 RETURNING *`,
-		[title, content]
+		[active.id, title, content]
 	);
 	return res.rows[0];
 }
 
 export async function setActiveSystemPrompt(id: number): Promise<void> {
 	await ensureSchemaInitialized();
+	const active = await getActiveWhatsAppInstance();
 	await pool.query("BEGIN");
 	try {
-		await pool.query("UPDATE system_prompts SET is_active = FALSE");
-		await pool.query("UPDATE system_prompts SET is_active = TRUE WHERE id = $1", [id]);
+		await pool.query(
+			"UPDATE system_prompts SET is_active = FALSE WHERE instance_id IS NOT DISTINCT FROM $1",
+			[active.id],
+		);
+		await pool.query(
+			"UPDATE system_prompts SET is_active = TRUE WHERE id = $1 AND instance_id IS NOT DISTINCT FROM $2",
+			[id, active.id],
+		);
 		await pool.query("COMMIT");
 	} catch (error) {
 		await pool.query("ROLLBACK");
@@ -607,21 +646,26 @@ export async function updateConversationNameIfExists(jid: string, name: string):
 // 26. Automations CRUD
 export async function listAutomations(): Promise<AutomationRow[]> {
 	await ensureSchemaInitialized();
+	const active = await getActiveWhatsAppInstance();
 	const res = await pool.query<AutomationRow>(
 		`SELECT * FROM automations
+		 WHERE instance_id IS NOT DISTINCT FROM $1
 		 ORDER BY enabled DESC, updated_at DESC, id DESC`,
+		[active.id],
 	);
 	return res.rows;
 }
 
 export async function saveAutomation(input: AutomationInput): Promise<AutomationRow> {
 	await ensureSchemaInitialized();
+	const active = await getActiveWhatsAppInstance();
 	const normalized = normalizeAutomationInput(input);
 	const res = await pool.query<AutomationRow>(
-		`INSERT INTO automations (name, enabled, trigger_type, definition, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, NOW(), NOW())
+		`INSERT INTO automations (instance_id, name, enabled, trigger_type, definition, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
 		 RETURNING *`,
 		[
+			active.id,
 			normalized.name,
 			normalized.enabled,
 			normalized.definition.trigger.type,
@@ -636,11 +680,12 @@ export async function updateAutomation(
 	input: AutomationInput,
 ): Promise<AutomationRow | null> {
 	await ensureSchemaInitialized();
+	const active = await getActiveWhatsAppInstance();
 	const normalized = normalizeAutomationInput(input);
 	const res = await pool.query<AutomationRow>(
 		`UPDATE automations
 		 SET name = $2, enabled = $3, trigger_type = $4, definition = $5, updated_at = NOW()
-		 WHERE id = $1
+		 WHERE id = $1 AND instance_id IS NOT DISTINCT FROM $6
 		 RETURNING *`,
 		[
 			id,
@@ -648,6 +693,7 @@ export async function updateAutomation(
 			normalized.enabled,
 			normalized.definition.trigger.type,
 			normalized.definition,
+			active.id,
 		],
 	);
 	return res.rows[0] ?? null;
@@ -658,24 +704,27 @@ export async function setAutomationEnabled(
 	enabled: boolean,
 ): Promise<AutomationRow | null> {
 	await ensureSchemaInitialized();
+	const active = await getActiveWhatsAppInstance();
 	const res = await pool.query<AutomationRow>(
 		`UPDATE automations
 		 SET enabled = $2, updated_at = NOW()
-		 WHERE id = $1
+		 WHERE id = $1 AND instance_id IS NOT DISTINCT FROM $3
 		 RETURNING *`,
-		[id, enabled],
+		[id, enabled, active.id],
 	);
 	return res.rows[0] ?? null;
 }
 
 export async function deleteAutomation(id: number): Promise<void> {
 	await ensureSchemaInitialized();
-	await pool.query("DELETE FROM automations WHERE id = $1", [id]);
+	const active = await getActiveWhatsAppInstance();
+	await pool.query("DELETE FROM automations WHERE id = $1 AND instance_id IS NOT DISTINCT FROM $2", [id, active.id]);
 }
 
 // 27. CRM Tasks CRUD
 export async function listCrmTasks(): Promise<CrmTaskListRow[]> {
 	await ensureSchemaInitialized();
+	const active = await getActiveWhatsAppInstance();
 	const res = await pool.query<CrmTaskListRow>(
 		`SELECT t.*,
 		        c.name AS conversation_name,
@@ -683,6 +732,7 @@ export async function listCrmTasks(): Promise<CrmTaskListRow[]> {
 		        c.lead_labels AS conversation_lead_labels
 		 FROM crm_tasks t
 		 LEFT JOIN conversations c ON c.id = t.conversation_id
+		 WHERE t.instance_id IS NOT DISTINCT FROM $1
 		 ORDER BY
 		   CASE t.status
 		     WHEN 'pending' THEN 1
@@ -692,20 +742,23 @@ export async function listCrmTasks(): Promise<CrmTaskListRow[]> {
 		   t.due_at ASC NULLS LAST,
 		   t.updated_at DESC,
 		   t.id DESC`,
+		[active.id],
 	);
 	return res.rows;
 }
 
 export async function saveCrmTask(input: Record<string, unknown>): Promise<CrmTaskRow> {
 	await ensureSchemaInitialized();
+	const active = await getActiveWhatsAppInstance();
 	const normalized: CrmTaskInput = normalizeCrmTaskInput(input);
 	const res = await pool.query<CrmTaskRow>(
 		`INSERT INTO crm_tasks (
-		   conversation_id, title, description, status, task_type,
+		   instance_id, conversation_id, title, description, status, task_type,
 		   lead_label, priority, due_at, created_at, updated_at
-		 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+		 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
 		 RETURNING *`,
 		[
+			active.id,
 			normalized.conversation_id,
 			normalized.title,
 			normalized.description,
@@ -724,12 +777,13 @@ export async function updateCrmTask(
 	input: Record<string, unknown>,
 ): Promise<CrmTaskRow | null> {
 	await ensureSchemaInitialized();
+	const active = await getActiveWhatsAppInstance();
 	const patch: CrmTaskPatch = normalizeCrmTaskPatch(input);
 	const entries = Object.entries(patch).filter(([, value]) => value !== undefined);
 	if (entries.length === 0) {
 		const existing = await pool.query<CrmTaskRow>(
-			"SELECT * FROM crm_tasks WHERE id = $1 LIMIT 1",
-			[id],
+			"SELECT * FROM crm_tasks WHERE id = $1 AND instance_id IS NOT DISTINCT FROM $2 LIMIT 1",
+			[id, active.id],
 		);
 		return existing.rows[0] ?? null;
 	}
@@ -739,15 +793,16 @@ export async function updateCrmTask(
 	const res = await pool.query<CrmTaskRow>(
 		`UPDATE crm_tasks
 		 SET ${assignments.join(", ")}, updated_at = NOW()
-		 WHERE id = $1
+		 WHERE id = $1 AND instance_id IS NOT DISTINCT FROM $${values.length + 2}
 		 RETURNING *`,
-		[id, ...values],
+		[id, ...values, active.id],
 	);
 	return res.rows[0] ?? null;
 }
 
 export async function deleteCrmTask(id: number): Promise<void> {
 	await ensureSchemaInitialized();
-	await pool.query("DELETE FROM crm_tasks WHERE id = $1", [id]);
+	const active = await getActiveWhatsAppInstance();
+	await pool.query("DELETE FROM crm_tasks WHERE id = $1 AND instance_id IS NOT DISTINCT FROM $2", [id, active.id]);
 }
 

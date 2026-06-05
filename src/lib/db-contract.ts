@@ -76,7 +76,7 @@ export const DEFAULT_SETTINGS = {
 
 export const DATABASE_SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS conversations (
-  id SERIAL PRIMARY KEY, phone TEXT UNIQUE NOT NULL, jid TEXT UNIQUE, name TEXT,
+  id SERIAL PRIMARY KEY, instance_id INTEGER, phone TEXT NOT NULL, jid TEXT, name TEXT,
   profile_picture_url TEXT, profile_picture_fetched_at TIMESTAMP WITH TIME ZONE,
   mode TEXT CHECK(mode IN ('AI','HUMAN')) NOT NULL DEFAULT 'AI', mode_reason TEXT,
   mode_changed_at TIMESTAMP WITH TIME ZONE, mode_changed_by TEXT CHECK(mode_changed_by IN ('system','owner','dashboard','assistant')),
@@ -106,6 +106,13 @@ CREATE TABLE IF NOT EXISTS messages (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_whatsapp_id ON messages(whatsapp_message_id) WHERE whatsapp_message_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_messages_conv_created ON messages(conversation_id, created_at);
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value JSONB NOT NULL, updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS instance_settings (
+  instance_id INTEGER NOT NULL,
+  key TEXT NOT NULL,
+  value JSONB NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  PRIMARY KEY(instance_id, key)
+);
 INSERT INTO settings (key, value) VALUES
   ('bot_on_keyword', '"ok."'::jsonb), ('keyword_match_mode', '"exact"'::jsonb),
   ('keyword_case_sensitive', 'false'::jsonb), ('debounce_ms', '30000'::jsonb),
@@ -127,6 +134,8 @@ CREATE TABLE IF NOT EXISTS teams (
   name TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
+CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_instance_phone ON conversations(instance_id, phone);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_instance_jid ON conversations(instance_id, jid) WHERE jid IS NOT NULL;
 CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
@@ -173,31 +182,36 @@ CREATE TABLE IF NOT EXISTS audit_events (
 CREATE INDEX IF NOT EXISTS idx_audit_events_entity_created ON audit_events(entity_type, entity_id, created_at DESC);
 CREATE TABLE IF NOT EXISTS crm_accounts (
   id SERIAL PRIMARY KEY,
+  instance_id INTEGER,
   team_id INTEGER REFERENCES teams(id) ON DELETE SET NULL,
   name TEXT NOT NULL,
   owner_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
+CREATE INDEX IF NOT EXISTS idx_crm_accounts_instance ON crm_accounts(instance_id, id);
 CREATE TABLE IF NOT EXISTS crm_contacts (
   id SERIAL PRIMARY KEY,
+  instance_id INTEGER,
   team_id INTEGER REFERENCES teams(id) ON DELETE SET NULL,
   display_name TEXT,
   owner_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
+CREATE INDEX IF NOT EXISTS idx_crm_contacts_instance ON crm_contacts(instance_id, id);
 CREATE TABLE IF NOT EXISTS crm_contact_methods (
   id SERIAL PRIMARY KEY,
+  instance_id INTEGER,
   contact_id INTEGER NOT NULL REFERENCES crm_contacts(id) ON DELETE CASCADE,
   method_type TEXT NOT NULL,
   value TEXT NOT NULL,
   normalized_value TEXT NOT NULL,
   is_primary BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  UNIQUE(method_type, normalized_value)
+  UNIQUE(instance_id, method_type, normalized_value)
 );
-CREATE INDEX IF NOT EXISTS idx_crm_contact_methods_contact ON crm_contact_methods(contact_id, id);
+CREATE INDEX IF NOT EXISTS idx_crm_contact_methods_contact ON crm_contact_methods(instance_id, contact_id, id);
 CREATE TABLE IF NOT EXISTS crm_contact_account_links (
   id SERIAL PRIMARY KEY,
   contact_id INTEGER NOT NULL REFERENCES crm_contacts(id) ON DELETE CASCADE,
@@ -219,6 +233,7 @@ CREATE TABLE IF NOT EXISTS conversation_crm_links (
 
 CREATE TABLE IF NOT EXISTS crm_deals (
   id SERIAL PRIMARY KEY,
+  instance_id INTEGER,
   team_id INTEGER REFERENCES teams(id) ON DELETE SET NULL,
   title TEXT NOT NULL,
   description TEXT,
@@ -233,11 +248,13 @@ CREATE TABLE IF NOT EXISTS crm_deals (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   CONSTRAINT chk_deal_owner CHECK (contact_id IS NOT NULL OR account_id IS NOT NULL)
 );
-CREATE INDEX IF NOT EXISTS idx_crm_deals_contact ON crm_deals(contact_id);
-CREATE INDEX IF NOT EXISTS idx_crm_deals_account ON crm_deals(account_id);
+CREATE INDEX IF NOT EXISTS idx_crm_deals_contact ON crm_deals(instance_id, contact_id);
+CREATE INDEX IF NOT EXISTS idx_crm_deals_account ON crm_deals(instance_id, account_id);
+CREATE INDEX IF NOT EXISTS idx_crm_deals_pipeline ON crm_deals(instance_id, updated_at DESC, id DESC);
 
 CREATE TABLE IF NOT EXISTS crm_ai_suggestions (
   id SERIAL PRIMARY KEY,
+  instance_id INTEGER,
   conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
   contact_id INTEGER REFERENCES crm_contacts(id) ON DELETE SET NULL,
   deal_id INTEGER REFERENCES crm_deals(id) ON DELETE SET NULL,
@@ -254,11 +271,12 @@ CREATE TABLE IF NOT EXISTS crm_ai_suggestions (
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
-CREATE INDEX IF NOT EXISTS idx_crm_ai_suggestions_conversation_status ON crm_ai_suggestions(conversation_id, status, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_crm_ai_suggestions_status_created ON crm_ai_suggestions(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_crm_ai_suggestions_conversation_status ON crm_ai_suggestions(instance_id, conversation_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_crm_ai_suggestions_status_created ON crm_ai_suggestions(instance_id, status, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS system_prompts (
   id SERIAL PRIMARY KEY,
+  instance_id INTEGER,
   title TEXT NOT NULL,
   content TEXT NOT NULL,
   is_active BOOLEAN DEFAULT FALSE,
@@ -267,6 +285,7 @@ CREATE TABLE IF NOT EXISTS system_prompts (
 
 CREATE TABLE IF NOT EXISTS automations (
   id SERIAL PRIMARY KEY,
+  instance_id INTEGER,
   name TEXT NOT NULL,
   enabled BOOLEAN NOT NULL DEFAULT FALSE,
   trigger_type TEXT CHECK(trigger_type IN ('incoming_message')) NOT NULL,
@@ -278,6 +297,7 @@ CREATE INDEX IF NOT EXISTS idx_automations_enabled_trigger ON automations(enable
 
 CREATE TABLE IF NOT EXISTS crm_tasks (
   id SERIAL PRIMARY KEY,
+  instance_id INTEGER,
   conversation_id INTEGER REFERENCES conversations(id) ON DELETE SET NULL,
   title TEXT NOT NULL,
   description TEXT,
@@ -306,6 +326,7 @@ ON CONFLICT (id) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS outbox (
   id SERIAL PRIMARY KEY,
+  instance_id INTEGER,
   conversation_id INTEGER NOT NULL,
   phone TEXT NOT NULL,
   content TEXT NOT NULL,
@@ -335,6 +356,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_whatsapp_instances_one_active ON whatsapp_
 
 export interface ConversationRow {
 	id: number;
+	instance_id: number | null;
 	phone: string;
 	jid: string | null;
 	name: string | null;
@@ -460,6 +482,7 @@ export interface AuditEventRow {
 }
 export interface CrmAccountRow {
 	id: number;
+	instance_id: number | null;
 	team_id: number | null;
 	name: string;
 	owner_user_id: number | null;
@@ -468,6 +491,7 @@ export interface CrmAccountRow {
 }
 export interface CrmContactRow {
 	id: number;
+	instance_id: number | null;
 	team_id: number | null;
 	display_name: string | null;
 	owner_user_id: number | null;
@@ -476,6 +500,7 @@ export interface CrmContactRow {
 }
 export interface CrmContactMethodRow {
 	id: number;
+	instance_id: number | null;
 	contact_id: number;
 	method_type: CrmContactMethodType | string;
 	value: string;
@@ -499,6 +524,7 @@ export interface ConversationCrmLinkRow {
 }
 export interface CrmDealRow {
 	id: number;
+	instance_id: number | null;
 	team_id: number | null;
 	title: string;
 	description: string | null;
@@ -514,6 +540,7 @@ export interface CrmDealRow {
 }
 export interface AiCrmSuggestionRow {
 	id: number;
+	instance_id: number | null;
 	conversation_id: number;
 	contact_id: number | null;
 	deal_id: number | null;
@@ -598,6 +625,7 @@ export function createInMemoryRepository() {
 			const created = nowDate();
 			const row: ConversationRow = {
 				id: nextConversationId++,
+				instance_id: null,
 				phone: input.phone,
 				jid: input.jid ?? null,
 				name: input.name ?? null,

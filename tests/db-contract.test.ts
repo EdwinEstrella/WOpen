@@ -14,7 +14,10 @@ describe("database schema contract", () => {
 		const sql = DATABASE_SCHEMA_SQL;
 		for (const fragment of [
 			"CREATE TABLE IF NOT EXISTS conversations",
-			"jid TEXT UNIQUE",
+			"instance_id INTEGER",
+			"jid TEXT",
+			"CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_instance_phone",
+			"CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_instance_jid",
 			"mode_reason TEXT",
 			"last_user_message_at TIMESTAMP WITH TIME ZONE",
 			"last_assistant_message_at TIMESTAMP WITH TIME ZONE",
@@ -30,6 +33,7 @@ describe("database schema contract", () => {
 			"metadata JSONB NOT NULL DEFAULT '{}'::jsonb",
 			"CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_whatsapp_id",
 			"CREATE TABLE IF NOT EXISTS settings",
+			"CREATE TABLE IF NOT EXISTS instance_settings",
 			"CREATE TABLE IF NOT EXISTS whatsapp_instances",
 			"CREATE UNIQUE INDEX IF NOT EXISTS idx_whatsapp_instances_one_active",
 			"status TEXT CHECK(status IN ('disconnected','qr','connecting','connected'))",

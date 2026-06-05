@@ -38,6 +38,7 @@ const actorFor = (changedBy: ModeChangedBy): EventActorRole =>
 const SCHEMA_INIT_ADVISORY_LOCK_ID = 756_709_401;
 
 const SCHEMA_MIGRATION_SQL = `${DATABASE_SCHEMA_SQL}
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS instance_id INTEGER;
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS unread_count INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS profile_picture_url TEXT;
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS profile_picture_fetched_at TIMESTAMP WITH TIME ZONE;
@@ -50,6 +51,25 @@ ALTER TABLE conversations ADD COLUMN IF NOT EXISTS lead_updated_by TEXT CHECK(le
 ALTER TABLE outbox ADD COLUMN IF NOT EXISTS media_type TEXT CHECK(media_type IN ('text','image','audio','unknown')) NOT NULL DEFAULT 'text';
 ALTER TABLE outbox ADD COLUMN IF NOT EXISTS media_url TEXT;
 ALTER TABLE outbox ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE outbox ADD COLUMN IF NOT EXISTS instance_id INTEGER;
+ALTER TABLE crm_accounts ADD COLUMN IF NOT EXISTS instance_id INTEGER;
+ALTER TABLE crm_contacts ADD COLUMN IF NOT EXISTS instance_id INTEGER;
+ALTER TABLE crm_contact_methods ADD COLUMN IF NOT EXISTS instance_id INTEGER;
+ALTER TABLE crm_deals ADD COLUMN IF NOT EXISTS instance_id INTEGER;
+ALTER TABLE crm_ai_suggestions ADD COLUMN IF NOT EXISTS instance_id INTEGER;
+ALTER TABLE system_prompts ADD COLUMN IF NOT EXISTS instance_id INTEGER;
+ALTER TABLE automations ADD COLUMN IF NOT EXISTS instance_id INTEGER;
+ALTER TABLE crm_tasks ADD COLUMN IF NOT EXISTS instance_id INTEGER;
+ALTER TABLE crm_contact_methods DROP CONSTRAINT IF EXISTS crm_contact_methods_method_type_normalized_value_key;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_contact_methods_instance_method_value ON crm_contact_methods(instance_id, method_type, normalized_value);
+CREATE INDEX IF NOT EXISTS idx_crm_accounts_instance ON crm_accounts(instance_id, id);
+CREATE INDEX IF NOT EXISTS idx_crm_contacts_instance ON crm_contacts(instance_id, id);
+CREATE INDEX IF NOT EXISTS idx_crm_contact_methods_contact ON crm_contact_methods(instance_id, contact_id, id);
+CREATE INDEX IF NOT EXISTS idx_crm_deals_contact ON crm_deals(instance_id, contact_id);
+CREATE INDEX IF NOT EXISTS idx_crm_deals_account ON crm_deals(instance_id, account_id);
+CREATE INDEX IF NOT EXISTS idx_crm_deals_pipeline ON crm_deals(instance_id, updated_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_crm_ai_suggestions_conversation_status ON crm_ai_suggestions(instance_id, conversation_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_crm_ai_suggestions_status_created ON crm_ai_suggestions(instance_id, status, created_at DESC);
 INSERT INTO whatsapp_instances (name, phone, status, qr_string, is_active, created_at, updated_at)
 SELECT 'Principal', cs.phone, COALESCE(cs.status, 'disconnected'), cs.qr_string, TRUE, NOW(), NOW()
 FROM connection_state cs
@@ -185,16 +205,19 @@ export function createPostgresRepository(pool: PostgresPool) {
 		},
 
 		async getOrCreateConversation(input: {
+			instance_id?: number | null;
 			phone: string;
 			jid?: string | null;
 			name?: string | null;
 		}): Promise<ConversationRow> {
+			const instanceId = input.instance_id ?? null;
 			const existing = await pool.query<ConversationRow>(
 				`SELECT * FROM conversations
-				 WHERE phone = $1 OR jid = $2
+				 WHERE (instance_id IS NOT DISTINCT FROM $3)
+				   AND (phone = $1 OR jid = $2)
 				 ORDER BY id ASC
 				 LIMIT 1`,
-				[input.phone, input.jid ?? null],
+				[input.phone, input.jid ?? null, instanceId],
 			);
 			if (existing.rows[0]) {
 				const row = existing.rows[0];
@@ -225,10 +248,10 @@ export function createPostgresRepository(pool: PostgresPool) {
 			}
 
 			const created = await pool.query<ConversationRow>(
-				`INSERT INTO conversations (phone, jid, name)
-				 VALUES ($1, $2, $3)
+				`INSERT INTO conversations (instance_id, phone, jid, name)
+				 VALUES ($1, $2, $3, $4)
 				 RETURNING *`,
-				[input.phone, input.jid ?? null, input.name ?? null],
+				[instanceId, input.phone, input.jid ?? null, input.name ?? null],
 			);
 			return created.rows[0];
 		},

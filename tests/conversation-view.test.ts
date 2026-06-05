@@ -20,6 +20,7 @@ const NOW = new Date("2026-06-05T15:00:00.000Z");
 function makeConversation(overrides: Partial<ConversationRow> = {}): ConversationRow {
 	return {
 		id: 41,
+		instance_id: null,
 		phone: "5491112345678",
 		jid: "5491112345678@s.whatsapp.net",
 		name: "Legacy Name",

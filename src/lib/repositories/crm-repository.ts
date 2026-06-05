@@ -34,6 +34,17 @@ const hasConnect = (db: any): db is { connect: () => Promise<any> } => {
 	return db && typeof db.connect === "function";
 };
 
+type CrmRepositoryOptions = {
+	/**
+	 * Tenant scope for CRM data. In this product the WhatsApp instance is the
+	 * tenant boundary, persisted as `instance_id` in the database.
+	 */
+	getTenantId?: () => Promise<number | null> | number | null;
+};
+
+const resolveTenantId = async (options?: CrmRepositoryOptions) =>
+	options?.getTenantId ? await options.getTenantId() : null;
+
 export interface CrmRepository {
 	createAccount(input: {
 		team_id?: number | null;
@@ -208,25 +219,31 @@ async function recordAudit(
 	);
 }
 
-export function createPostgresCrmRepository(db: Queryable): CrmRepository {
+export function createPostgresCrmRepository(
+	db: Queryable,
+	options?: CrmRepositoryOptions,
+): CrmRepository {
 	return {
 		async createAccount(input) {
+			const tenantId = await resolveTenantId(options);
 			const at = input.created_at ?? nowDate();
 			const result = await db.query<CrmAccountRow>(
-				`INSERT INTO crm_accounts (team_id, name, owner_user_id, created_at, updated_at)
-				 VALUES ($1, $2, $3, $4, $4)
+				`INSERT INTO crm_accounts (instance_id, team_id, name, owner_user_id, created_at, updated_at)
+				 VALUES ($1, $2, $3, $4, $5, $5)
 				 RETURNING *`,
-				[input.team_id ?? null, input.name, input.owner_user_id ?? null, at],
+				[tenantId, input.team_id ?? null, input.name, input.owner_user_id ?? null, at],
 			);
 			return result.rows[0];
 		},
 		async createContact(input) {
+			const tenantId = await resolveTenantId(options);
 			const at = input.created_at ?? nowDate();
 			const result = await db.query<CrmContactRow>(
-				`INSERT INTO crm_contacts (team_id, display_name, owner_user_id, created_at, updated_at)
-				 VALUES ($1, $2, $3, $4, $4)
+				`INSERT INTO crm_contacts (instance_id, team_id, display_name, owner_user_id, created_at, updated_at)
+				 VALUES ($1, $2, $3, $4, $5, $5)
 				 RETURNING *`,
 				[
+					tenantId,
 					input.team_id ?? null,
 					input.display_name ?? null,
 					input.owner_user_id ?? null,
@@ -236,9 +253,10 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 			return result.rows[0];
 		},
 		async getContactById(contactId) {
+			const tenantId = await resolveTenantId(options);
 			const result = await db.query<CrmContactRow>(
-				"SELECT * FROM crm_contacts WHERE id = $1 LIMIT 1",
-				[contactId],
+				"SELECT * FROM crm_contacts WHERE id = $1 AND instance_id IS NOT DISTINCT FROM $2 LIMIT 1",
+				[contactId, tenantId],
 			);
 			return result.rows[0] ?? null;
 		},
@@ -250,8 +268,8 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 				this.listAccountLinksByContactId(contactId),
 				this.listDealsByContactId(contactId),
 				db.query<AiCrmSuggestionRow>(
-					"SELECT * FROM crm_ai_suggestions WHERE contact_id = $1 ORDER BY created_at DESC, id DESC",
-					[contactId],
+					"SELECT * FROM crm_ai_suggestions WHERE contact_id = $1 AND instance_id IS NOT DISTINCT FROM $2 ORDER BY created_at DESC, id DESC",
+					[contactId, await resolveTenantId(options)],
 				).then((result) => result.rows),
 			]);
 			return {
@@ -263,6 +281,7 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 			};
 		},
 		async updateContact(id, patch) {
+			const tenantId = await resolveTenantId(options);
 			const at = patch.updated_at ?? nowDate();
 			const result = await db.query<CrmContactRow>(
 				`UPDATE crm_contacts
@@ -270,7 +289,7 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 				     owner_user_id = COALESCE($2, owner_user_id),
 				     team_id = COALESCE($3, team_id),
 				     updated_at = $4
-				 WHERE id = $5
+				 WHERE id = $5 AND instance_id IS NOT DISTINCT FROM $6
 				 RETURNING *`,
 				[
 					patch.display_name ?? null,
@@ -278,6 +297,7 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 					patch.team_id ?? null,
 					at,
 					id,
+					tenantId,
 				],
 			);
 			const row = result.rows[0];
@@ -287,12 +307,14 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 			return row;
 		},
 		async addContactMethod(input) {
+			const tenantId = await resolveTenantId(options);
 			const result = await db.query<CrmContactMethodRow>(
 				`INSERT INTO crm_contact_methods (
-				 contact_id, method_type, value, normalized_value, is_primary, created_at
-				) VALUES ($1, $2, $3, $4, $5, $6)
+				 instance_id, contact_id, method_type, value, normalized_value, is_primary, created_at
+				) VALUES ($1, $2, $3, $4, $5, $6, $7)
 				RETURNING *`,
 				[
+					tenantId,
 					input.contact_id,
 					input.method_type,
 					input.value,
@@ -304,37 +326,57 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 			return result.rows[0];
 		},
 		async listContactMethods(contactId) {
+			const tenantId = await resolveTenantId(options);
 			const result = await db.query<CrmContactMethodRow>(
-				"SELECT * FROM crm_contact_methods WHERE contact_id = $1 ORDER BY id ASC",
-				[contactId],
+				"SELECT * FROM crm_contact_methods WHERE contact_id = $1 AND instance_id IS NOT DISTINCT FROM $2 ORDER BY id ASC",
+				[contactId, tenantId],
 			);
 			return result.rows;
 		},
 		async linkContactToAccount(input) {
+			const tenantId = await resolveTenantId(options);
 			const result = await db.query<CrmContactAccountLinkRow>(
 				`INSERT INTO crm_contact_account_links (contact_id, account_id, created_at)
-				 VALUES ($1, $2, $3)
+				 SELECT $1, $2, $3
+				 WHERE EXISTS (
+				   SELECT 1 FROM crm_contacts WHERE id = $1 AND instance_id IS NOT DISTINCT FROM $4
+				 )
+				 AND EXISTS (
+				   SELECT 1 FROM crm_accounts WHERE id = $2 AND instance_id IS NOT DISTINCT FROM $4
+				 )
 				 RETURNING *`,
-				[input.contact_id, input.account_id, input.created_at ?? nowDate()],
+				[input.contact_id, input.account_id, input.created_at ?? nowDate(), tenantId],
 			);
-			return result.rows[0];
+			const row = result.rows[0];
+			if (!row) {
+				throw new Error(
+					`CRM contact/account link cannot cross tenant boundaries`,
+				);
+			}
+			return row;
 		},
 		async listAccountLinksByContactId(contactId) {
+			const tenantId = await resolveTenantId(options);
 			const result = await db.query<CrmContactAccountLinkRow>(
-				"SELECT * FROM crm_contact_account_links WHERE contact_id = $1 ORDER BY id ASC",
-				[contactId],
+				`SELECT l.*
+				 FROM crm_contact_account_links l
+				 JOIN crm_contacts c ON c.id = l.contact_id
+				 WHERE l.contact_id = $1 AND c.instance_id IS NOT DISTINCT FROM $2
+				 ORDER BY l.id ASC`,
+				[contactId, tenantId],
 			);
 			return result.rows;
 		},
 		async reassignContactOwner(input) {
+			const tenantId = await resolveTenantId(options);
 			const client = (hasConnect(db) ? await db.connect() : db) as Queryable;
 			try {
 				if (hasConnect(db)) {
 					await client.query("BEGIN");
 				}
 				const beforeResult = await client.query<CrmContactRow>(
-					"SELECT * FROM crm_contacts WHERE id = $1 LIMIT 1",
-					[input.contact_id]
+					"SELECT * FROM crm_contacts WHERE id = $1 AND instance_id IS NOT DISTINCT FROM $2 LIMIT 1",
+					[input.contact_id, tenantId]
 				);
 				const before = beforeResult.rows[0];
 				if (!before) {
@@ -351,9 +393,9 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 				const result = await client.query<CrmContactRow>(
 					`UPDATE crm_contacts
 					 SET owner_user_id = $1, updated_at = $2
-					 WHERE id = $3
+					 WHERE id = $3 AND instance_id IS NOT DISTINCT FROM $4
 					 RETURNING *`,
-					[input.owner_user_id, at, input.contact_id],
+					[input.owner_user_id, at, input.contact_id, tenantId],
 				);
 				const row = result.rows[0];
 				if (!row) {
@@ -386,21 +428,31 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 			}
 		},
 		async getConversationCrmLink(conversationId) {
+			const tenantId = await resolveTenantId(options);
 			const result = await db.query<ConversationCrmLinkRow>(
-				"SELECT * FROM conversation_crm_links WHERE conversation_id = $1 LIMIT 1",
-				[conversationId],
+				`SELECT l.*
+				 FROM conversation_crm_links l
+				 JOIN conversations c ON c.id = l.conversation_id
+				 WHERE l.conversation_id = $1 AND c.instance_id IS NOT DISTINCT FROM $2
+				 LIMIT 1`,
+				[conversationId, tenantId],
 			);
 			return result.rows[0] ?? null;
 		},
 		async setConversationCrmLink(input) {
+			const tenantId = await resolveTenantId(options);
 			const client = (hasConnect(db) ? await db.connect() : db) as Queryable;
 			try {
 				if (hasConnect(db)) {
 					await client.query("BEGIN");
 				}
 				const beforeResult = await client.query<ConversationCrmLinkRow>(
-					"SELECT * FROM conversation_crm_links WHERE conversation_id = $1 LIMIT 1",
-					[input.conversation_id]
+					`SELECT l.*
+					 FROM conversation_crm_links l
+					 JOIN conversations c ON c.id = l.conversation_id
+					 WHERE l.conversation_id = $1 AND c.instance_id IS NOT DISTINCT FROM $2
+					 LIMIT 1`,
+					[input.conversation_id, tenantId]
 				);
 				const before = beforeResult.rows[0] ?? null;
 				const isNoOp = before &&
@@ -417,7 +469,17 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 				const result = await client.query<ConversationCrmLinkRow>(
 					`INSERT INTO conversation_crm_links (
 					 conversation_id, contact_id, account_id, created_at, updated_at
-					) VALUES ($1, $2, $3, $4, $4)
+					)
+					SELECT $1, $2, $3, $4, $4
+					WHERE EXISTS (
+					  SELECT 1 FROM conversations WHERE id = $1 AND instance_id IS NOT DISTINCT FROM $5
+					)
+					AND ($2::integer IS NULL OR EXISTS (
+					  SELECT 1 FROM crm_contacts WHERE id = $2 AND instance_id IS NOT DISTINCT FROM $5
+					))
+					AND ($3::integer IS NULL OR EXISTS (
+					  SELECT 1 FROM crm_accounts WHERE id = $3 AND instance_id IS NOT DISTINCT FROM $5
+					))
 					ON CONFLICT (conversation_id) DO UPDATE
 					SET contact_id = EXCLUDED.contact_id,
 					    account_id = EXCLUDED.account_id,
@@ -428,9 +490,15 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 						input.contact_id,
 						input.account_id ?? null,
 						at,
+						tenantId,
 					],
 				);
 				const row = result.rows[0];
+				if (!row) {
+					throw new Error(
+						`Conversation CRM link ${input.conversation_id} cannot cross tenant boundaries`,
+					);
+				}
 				await recordAudit(client, {
 					actor_user_id: input.actor_user_id,
 					team_id: input.team_id ?? null,
@@ -458,42 +526,49 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 			}
 		},
 		async findDealById(id) {
+			const tenantId = await resolveTenantId(options);
 			const result = await db.query<CrmDealRow>(
-				"SELECT * FROM crm_deals WHERE id = $1 LIMIT 1",
-				[id],
+				"SELECT * FROM crm_deals WHERE id = $1 AND instance_id IS NOT DISTINCT FROM $2 LIMIT 1",
+				[id, tenantId],
 			);
 			return result.rows[0] ?? null;
 		},
 		async listDealsPipeline() {
+			const tenantId = await resolveTenantId(options);
 			const result = await db.query<CrmDealRow>(
-				"SELECT * FROM crm_deals ORDER BY updated_at DESC, id DESC",
+				"SELECT * FROM crm_deals WHERE instance_id IS NOT DISTINCT FROM $1 ORDER BY updated_at DESC, id DESC",
+				[tenantId],
 			);
 			return result.rows;
 		},
 		async listDealsByContactId(contactId) {
+			const tenantId = await resolveTenantId(options);
 			const result = await db.query<CrmDealRow>(
-				"SELECT * FROM crm_deals WHERE contact_id = $1 ORDER BY id DESC",
-				[contactId],
+				"SELECT * FROM crm_deals WHERE contact_id = $1 AND instance_id IS NOT DISTINCT FROM $2 ORDER BY id DESC",
+				[contactId, tenantId],
 			);
 			return result.rows;
 		},
 		async listDealsByAccountId(accountId) {
+			const tenantId = await resolveTenantId(options);
 			const result = await db.query<CrmDealRow>(
-				"SELECT * FROM crm_deals WHERE account_id = $1 ORDER BY id DESC",
-				[accountId],
+				"SELECT * FROM crm_deals WHERE account_id = $1 AND instance_id IS NOT DISTINCT FROM $2 ORDER BY id DESC",
+				[accountId, tenantId],
 			);
 			return result.rows;
 		},
 		async createDeal(input) {
+			const tenantId = await resolveTenantId(options);
 			const at = input.created_at ?? nowDate();
 			const result = await db.query<CrmDealRow>(
 				`INSERT INTO crm_deals (
-				  team_id, title, description, amount, currency, stage,
+				  instance_id, team_id, title, description, amount, currency, stage,
 				  contact_id, account_id, owner_user_id, expected_close_date,
 				  created_at, updated_at
-				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)
+				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12)
 				RETURNING *`,
 				[
+					tenantId,
 					input.team_id ?? null,
 					input.title,
 					input.description ?? null,
@@ -522,6 +597,7 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 			return row;
 		},
 		async updateDeal(id, patch) {
+			const tenantId = await resolveTenantId(options);
 			const at = patch.updated_at ?? nowDate();
 			const before = await this.findDealById(id);
 			if (!before) throw new Error(`CRM deal ${id} not found`);
@@ -538,7 +614,7 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 				     owner_user_id = COALESCE($8, owner_user_id),
 				     expected_close_date = COALESCE($9, expected_close_date),
 				     updated_at = $10
-				 WHERE id = $11
+				 WHERE id = $11 AND instance_id IS NOT DISTINCT FROM $12
 				 RETURNING *`,
 				[
 					patch.title ?? null,
@@ -552,6 +628,7 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 					patch.expected_close_date ?? null,
 					at,
 					id,
+					tenantId,
 				],
 			);
 			const row = result.rows[0];
@@ -573,13 +650,14 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 			return row;
 		},
 		async deleteDeal(id, input) {
+			const tenantId = await resolveTenantId(options);
 			const at = input?.deleted_at ?? nowDate();
 			const before = await this.findDealById(id);
 			if (!before) return false;
 
 			const result = await db.query(
-				"DELETE FROM crm_deals WHERE id = $1 RETURNING id",
-				[id],
+				"DELETE FROM crm_deals WHERE id = $1 AND instance_id IS NOT DISTINCT FROM $2 RETURNING id",
+				[id, tenantId],
 			);
 			if (result.rows.length === 0) return false;
 
@@ -597,14 +675,16 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 			return true;
 		},
 		async createAiSuggestion(input) {
+			const tenantId = await resolveTenantId(options);
 			const at = input.created_at ?? nowDate();
 			const result = await db.query<AiCrmSuggestionRow>(
 				`INSERT INTO crm_ai_suggestions (
-				  conversation_id, contact_id, deal_id, action_type, payload,
+				  instance_id, conversation_id, contact_id, deal_id, action_type, payload,
 				  confidence, reason, requires_confirmation, source, created_at, updated_at
-				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
+				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)
 				RETURNING *`,
 				[
+					tenantId,
 					input.conversation_id,
 					input.contact_id ?? null,
 					input.deal_id ?? null,
@@ -632,8 +712,10 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 			return row;
 		},
 		async listAiSuggestions(filter = {}) {
+			const tenantId = await resolveTenantId(options);
 			const clauses: string[] = [];
-			const values: unknown[] = [];
+			const values: unknown[] = [tenantId];
+			clauses.push("instance_id IS NOT DISTINCT FROM $1");
 			if (filter.conversation_id !== undefined) {
 				values.push(filter.conversation_id);
 				clauses.push(`conversation_id = $${values.length}`);
@@ -642,14 +724,14 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 				values.push(filter.status);
 				clauses.push(`status = $${values.length}`);
 			}
-			const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
 			const result = await db.query<AiCrmSuggestionRow>(
-				`SELECT * FROM crm_ai_suggestions ${where} ORDER BY created_at DESC, id DESC`,
+				`SELECT * FROM crm_ai_suggestions WHERE ${clauses.join(" AND ")} ORDER BY created_at DESC, id DESC`,
 				values,
 			);
 			return result.rows;
 		},
 		async updateAiSuggestionStatus(id, input) {
+			const tenantId = await resolveTenantId(options);
 			const at = input.resolved_at ?? nowDate();
 			const result = await db.query<AiCrmSuggestionRow>(
 				`UPDATE crm_ai_suggestions
@@ -658,7 +740,7 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 				     resolution_note = $3,
 				     resolved_at = $4,
 				     updated_at = $4
-				 WHERE id = $5
+				 WHERE id = $5 AND instance_id IS NOT DISTINCT FROM $6
 				 RETURNING *`,
 				[
 					input.status,
@@ -666,6 +748,7 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 					input.resolution_note ?? null,
 					at,
 					id,
+					tenantId,
 				],
 			);
 			const row = result.rows[0];
@@ -715,6 +798,7 @@ export function createInMemoryCrmRepository(): CrmRepository {
 			const at = input.created_at ?? nowDate();
 			const row: CrmAccountRow = {
 				id: nextAccountId++,
+				instance_id: null,
 				team_id: input.team_id ?? null,
 				name: input.name,
 				owner_user_id: input.owner_user_id ?? null,
@@ -728,6 +812,7 @@ export function createInMemoryCrmRepository(): CrmRepository {
 			const at = input.created_at ?? nowDate();
 			const row: CrmContactRow = {
 				id: nextContactId++,
+				instance_id: null,
 				team_id: input.team_id ?? null,
 				display_name: input.display_name ?? null,
 				owner_user_id: input.owner_user_id ?? null,
@@ -765,6 +850,7 @@ export function createInMemoryCrmRepository(): CrmRepository {
 		async addContactMethod(input) {
 			const row: CrmContactMethodRow = {
 				id: nextMethodId++,
+				instance_id: null,
 				contact_id: input.contact_id,
 				method_type: input.method_type,
 				value: input.value,
@@ -893,6 +979,7 @@ export function createInMemoryCrmRepository(): CrmRepository {
 			const at = input.created_at ?? nowDate();
 			const row: CrmDealRow = {
 				id: nextDealId++,
+				instance_id: null,
 				team_id: input.team_id ?? null,
 				title: input.title,
 				description: input.description ?? null,
@@ -979,6 +1066,7 @@ export function createInMemoryCrmRepository(): CrmRepository {
 			const at = input.created_at ?? nowDate();
 			const row: AiCrmSuggestionRow = {
 				id: nextSuggestionId++,
+				instance_id: null,
 				conversation_id: input.conversation_id,
 				contact_id: input.contact_id ?? null,
 				deal_id: input.deal_id ?? null,

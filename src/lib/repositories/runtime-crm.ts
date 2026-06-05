@@ -1,4 +1,4 @@
-import { ensureSchemaInitialized, pool } from "@/lib/db";
+import { ensureSchemaInitialized, getActiveWhatsAppInstance, pool } from "@/lib/db";
 import { createPostgresCrmRepository } from "./crm-repository";
 
 const crmDb = {
@@ -12,4 +12,6 @@ const crmDb = {
 	},
 };
 
-export const runtimeCrmRepository = createPostgresCrmRepository(crmDb);
+export const runtimeCrmRepository = createPostgresCrmRepository(crmDb, {
+	getTenantId: async () => (await getActiveWhatsAppInstance()).id,
+});

@@ -140,13 +140,14 @@ describe("in-memory crm repository", () => {
 		const changedAt = iso("2026-06-05T12:00:00.000Z");
 		pg.respondWith((text, values) => {
 			assert.match(text, /SELECT \* FROM crm_contacts/);
-			assert.deepEqual(values, [3]);
-			return { rows: [{ id: 3, team_id: 2, display_name: "Ana", owner_user_id: 4, created_at: changedAt, updated_at: changedAt }] };
+			assert.deepEqual(values, [3, 12]);
+			return { rows: [{ id: 3, instance_id: 12, team_id: 2, display_name: "Ana", owner_user_id: 4, created_at: changedAt, updated_at: changedAt }] };
 		});
 		pg.respondWith((text, values) => {
 			assert.match(text, /UPDATE crm_contacts/);
-			assert.deepEqual(values, [5, changedAt, 3]);
-			return { rows: [{ id: 3, team_id: 2, display_name: "Ana", owner_user_id: 5, created_at: changedAt, updated_at: changedAt }] };
+			assert.match(text, /instance_id IS NOT DISTINCT FROM/);
+			assert.deepEqual(values, [5, changedAt, 3, 12]);
+			return { rows: [{ id: 3, instance_id: 12, team_id: 2, display_name: "Ana", owner_user_id: 5, created_at: changedAt, updated_at: changedAt }] };
 		});
 		pg.respondWith((text, values) => {
 			assert.match(text, /INSERT INTO audit_events/);
@@ -157,14 +158,16 @@ describe("in-memory crm repository", () => {
 			return { rows: [{ id: 1, action: "crm_contact.owner_reassigned" }] };
 		});
 		pg.respondWith((text, values) => {
-			assert.match(text, /SELECT \* FROM conversation_crm_links/);
-			assert.deepEqual(values, [77]);
+			assert.match(text, /FROM conversation_crm_links/);
+			assert.match(text, /JOIN conversations/);
+			assert.deepEqual(values, [77, 12]);
 			return { rows: [{ id: 8, conversation_id: 77, contact_id: 1, account_id: 2, created_at: changedAt, updated_at: changedAt }] };
 		});
 		pg.respondWith((text, values) => {
 			assert.match(text, /INSERT INTO conversation_crm_links/);
+			assert.match(text, /instance_id IS NOT DISTINCT FROM/);
 			assert.match(text, /ON CONFLICT \(conversation_id\) DO UPDATE/);
-			assert.deepEqual(values, [77, 8, 13, changedAt]);
+			assert.deepEqual(values, [77, 8, 13, changedAt, 12]);
 			return { rows: [{ id: 9, conversation_id: 77, contact_id: 8, account_id: 13, created_at: changedAt, updated_at: changedAt }] };
 		});
 		pg.respondWith((text, values) => {
@@ -176,7 +179,7 @@ describe("in-memory crm repository", () => {
 			return { rows: [{ id: 2, action: "conversation.crm_linked" }] };
 		});
 
-		const repo = createPostgresCrmRepository(pg);
+		const repo = createPostgresCrmRepository(pg, { getTenantId: async () => 12 });
 
 		await repo.reassignContactOwner({
 			contact_id: 3,
@@ -202,11 +205,11 @@ describe("in-memory crm repository", () => {
 		const changedAt = iso("2026-06-05T13:00:00.000Z");
 		pg.respondWith((text, values) => {
 			assert.match(text, /SELECT \* FROM crm_contacts/);
-			assert.deepEqual(values, [404]);
+			assert.deepEqual(values, [404, 12]);
 			return { rows: [] };
 		});
 
-		const repo = createPostgresCrmRepository(pg);
+		const repo = createPostgresCrmRepository(pg, { getTenantId: async () => 12 });
 
 		await assert.rejects(
 			() =>

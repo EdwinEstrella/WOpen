@@ -51,6 +51,7 @@ const conversation = (
 	patch: Partial<ConversationRow> = {},
 ): ConversationRow => ({
 	id: 7,
+	instance_id: null,
 	phone: "5491111111111",
 	jid: "5491111111111@s.whatsapp.net",
 	name: null,
@@ -143,10 +144,12 @@ describe("postgres adapter", () => {
 	it("gets existing conversation before inserting a new one", async () => {
 		const pg = new FakePg();
 		pg.respondWith((text, values) => {
-			assert.match(text, /WHERE phone = \$1 OR jid = \$2/);
+			assert.match(text, /instance_id IS NOT DISTINCT FROM \$3/);
+			assert.match(text, /phone = \$1 OR jid = \$2/);
 			assert.deepEqual(values, [
 				"5491111111111",
 				"5491111111111@s.whatsapp.net",
+				null,
 			]);
 			return { rows: [conversation()] };
 		});
@@ -164,8 +167,9 @@ describe("postgres adapter", () => {
 	it("repairs an existing LID conversation phone when senderPn later provides the real phone", async () => {
 		const pg = new FakePg();
 		pg.respondWith((text, values) => {
-			assert.match(text, /WHERE phone = \$1 OR jid = \$2/);
-			assert.deepEqual(values, ["18299727934", "239917074530322@lid"]);
+			assert.match(text, /instance_id IS NOT DISTINCT FROM \$3/);
+			assert.match(text, /phone = \$1 OR jid = \$2/);
+			assert.deepEqual(values, ["18299727934", "239917074530322@lid", null]);
 			return {
 				rows: [
 					conversation({
@@ -211,6 +215,7 @@ describe("postgres adapter", () => {
 		pg.respondWith((text, values) => {
 			assert.match(text, /INSERT INTO conversations/);
 			assert.deepEqual(values, [
+				null,
 				"5491111111111",
 				"5491111111111@s.whatsapp.net",
 				"Ada",

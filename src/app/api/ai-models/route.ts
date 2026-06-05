@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { getSettings } from "../../../lib/db.ts";
 
 type Capability = "chat" | "audio" | "image";
-type Provider = "openai" | "google" | "deepseek";
+type Provider = "openai" | "google" | "deepseek" | "minimax";
 
 const PROVIDER_BASE_URL: Record<Provider, string> = {
 	openai: "https://api.openai.com/v1",
 	google: "https://generativelanguage.googleapis.com/v1beta",
 	deepseek: "https://api.deepseek.com",
+	minimax: "https://api.minimax.io/v1",
 };
 
 const FALLBACK_MODELS: Record<Provider, Record<Capability, string[]>> = {
@@ -26,10 +27,18 @@ const FALLBACK_MODELS: Record<Provider, Record<Capability, string[]>> = {
 		audio: [],
 		image: [],
 	},
+	minimax: {
+		chat: ["MiniMax-M2.7", "MiniMax-M2.7-highspeed", "MiniMax-M2.5", "MiniMax-M2.1"],
+		audio: [],
+		image: [],
+	},
 };
 
 function isProvider(value: unknown): value is Provider {
-	return value === "openai" || value === "google" || value === "deepseek";
+	return value === "openai" ||
+		value === "google" ||
+		value === "deepseek" ||
+		value === "minimax";
 }
 
 function isCapability(value: unknown): value is Capability {
@@ -39,7 +48,8 @@ function isCapability(value: unknown): value is Capability {
 function envApiKey(provider: Provider): string {
 	if (provider === "openai") return process.env.OPENAI_API_KEY || "";
 	if (provider === "google") return process.env.GEMINI_API_KEY || "";
-	return process.env.DEEPSEEK_API_KEY || "";
+	if (provider === "deepseek") return process.env.DEEPSEEK_API_KEY || "";
+	return process.env.MINIMAX_API_KEY || "";
 }
 
 function settingsApiKey(
@@ -75,6 +85,10 @@ function filterModels(
 		return uniqueModels(models.filter((model) => model.includes("deepseek")));
 	}
 
+	if (provider === "minimax") {
+		return uniqueModels(models.filter((model) => model.includes("MiniMax")));
+	}
+
 	if (capability === "audio") {
 		return uniqueModels(
 			models.filter(
@@ -89,10 +103,11 @@ function filterModels(
 }
 
 async function fetchOpenAiCompatibleModels(
-	provider: "openai" | "deepseek",
+	provider: "openai" | "deepseek" | "minimax",
 	apiKey: string,
 	capability: Capability,
 ) {
+	if (provider === "minimax") return FALLBACK_MODELS.minimax[capability];
 	const response = await fetch(`${PROVIDER_BASE_URL[provider]}/models`, {
 		headers: { authorization: `Bearer ${apiKey}` },
 	});
@@ -151,7 +166,10 @@ export async function POST(req: Request) {
 		const provider: Provider = body.provider;
 		const capability: Capability = body.capability;
 
-		if ((capability === "audio" || capability === "image") && provider === "deepseek") {
+		if (
+			(capability === "audio" || capability === "image") &&
+			(provider === "deepseek" || provider === "minimax")
+		) {
 			return NextResponse.json({ error: "Provider not supported for capability" }, { status: 400 });
 		}
 

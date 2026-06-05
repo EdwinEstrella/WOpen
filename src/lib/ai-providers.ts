@@ -13,7 +13,7 @@ import {
 } from "./deepseek-client.ts";
 
 type ProviderCapability = "chat" | "audio" | "image";
-type AiProvider = "openai" | "google" | "deepseek";
+type AiProvider = "openai" | "google" | "deepseek" | "minimax";
 
 export interface AiProviderSettings {
 	baseUrl: string;
@@ -43,6 +43,12 @@ const DEFAULT_PROVIDER_CONFIG: Record<
 		audioModel: "",
 		imageModel: "",
 	},
+	minimax: {
+		baseUrl: "https://api.minimax.io/v1",
+		chatModel: "MiniMax-M2.7",
+		audioModel: "",
+		imageModel: "",
+	},
 };
 
 function cleanBaseUrl(value: string): string {
@@ -69,7 +75,10 @@ function settingProvider(
 	fallback: AiProvider,
 ): AiProvider {
 	const value = settingString(settings, key, envKey, fallback);
-	return value === "openai" || value === "google" || value === "deepseek"
+	return value === "openai" ||
+		value === "google" ||
+		value === "deepseek" ||
+		value === "minimax"
 		? value
 		: fallback;
 }
@@ -77,7 +86,8 @@ function settingProvider(
 function providerEnvApiKey(provider: AiProvider): string {
 	if (provider === "openai") return process.env.OPENAI_API_KEY || "";
 	if (provider === "google") return process.env.GEMINI_API_KEY || "";
-	return process.env.DEEPSEEK_API_KEY || "";
+	if (provider === "deepseek") return process.env.DEEPSEEK_API_KEY || "";
+	return process.env.MINIMAX_API_KEY || "";
 }
 
 export function providerSettingsFor(
@@ -95,7 +105,8 @@ export function providerSettingsFor(
 		return {
 			baseUrl: cleanBaseUrl(
 				process.env.CHAT_AI_BASE_URL ||
-					process.env.DEEPSEEK_BASE_URL ||
+					(provider === "deepseek" ? process.env.DEEPSEEK_BASE_URL : "") ||
+					(provider === "minimax" ? process.env.MINIMAX_BASE_URL : "") ||
 					defaults.baseUrl,
 			),
 			apiKey: settingString(
@@ -108,7 +119,9 @@ export function providerSettingsFor(
 				settings,
 				"chat_ai_model",
 				"CHAT_AI_MODEL",
-				process.env.DEEPSEEK_MODEL || defaults.chatModel,
+				(provider === "deepseek" ? process.env.DEEPSEEK_MODEL : "") ||
+					(provider === "minimax" ? process.env.MINIMAX_MODEL : "") ||
+					defaults.chatModel,
 			),
 		};
 	}
@@ -120,7 +133,10 @@ export function providerSettingsFor(
 			"AUDIO_AI_PROVIDER",
 			"openai",
 		);
-		const defaults = DEFAULT_PROVIDER_CONFIG[provider === "deepseek" ? "openai" : provider];
+		const defaults =
+			DEFAULT_PROVIDER_CONFIG[
+				provider === "deepseek" || provider === "minimax" ? "openai" : provider
+			];
 		return {
 			baseUrl: cleanBaseUrl(
 				process.env.AUDIO_AI_BASE_URL || defaults.baseUrl,
@@ -129,7 +145,11 @@ export function providerSettingsFor(
 				settings,
 				"audio_ai_api_key",
 				"AUDIO_AI_API_KEY",
-				providerEnvApiKey(provider === "deepseek" ? "openai" : provider),
+				providerEnvApiKey(
+					provider === "deepseek" || provider === "minimax"
+						? "openai"
+						: provider,
+				),
 			),
 			model: settingString(
 				settings,
@@ -146,7 +166,10 @@ export function providerSettingsFor(
 		"IMAGE_AI_PROVIDER",
 		"openai",
 	);
-	const defaults = DEFAULT_PROVIDER_CONFIG[provider === "deepseek" ? "openai" : provider];
+	const defaults =
+		DEFAULT_PROVIDER_CONFIG[
+			provider === "deepseek" || provider === "minimax" ? "openai" : provider
+		];
 	return {
 		baseUrl: cleanBaseUrl(
 			process.env.IMAGE_AI_BASE_URL || defaults.baseUrl,
@@ -155,7 +178,9 @@ export function providerSettingsFor(
 			settings,
 			"image_ai_api_key",
 			"IMAGE_AI_API_KEY",
-			providerEnvApiKey(provider === "deepseek" ? "openai" : provider),
+			providerEnvApiKey(
+				provider === "deepseek" || provider === "minimax" ? "openai" : provider,
+			),
 		),
 		model: settingString(
 			settings,
@@ -177,7 +202,10 @@ function providerFor(
 		`${capability.toUpperCase()}_AI_PROVIDER`,
 		fallback,
 	);
-	if ((capability === "audio" || capability === "image") && provider === "deepseek") {
+	if (
+		(capability === "audio" || capability === "image") &&
+		(provider === "deepseek" || provider === "minimax")
+	) {
 		throw new Error(`${capability}_ai_provider_not_supported`);
 	}
 	return provider;

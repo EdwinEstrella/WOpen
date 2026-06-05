@@ -29,8 +29,9 @@ describe("crm deals schema", () => {
 			"contact_id INTEGER REFERENCES crm_contacts(id) ON DELETE CASCADE",
 			"account_id INTEGER REFERENCES crm_accounts(id) ON DELETE CASCADE",
 			"CONSTRAINT chk_deal_owner CHECK (contact_id IS NOT NULL OR account_id IS NOT NULL)",
-			"CREATE INDEX IF NOT EXISTS idx_crm_deals_contact ON crm_deals(contact_id)",
-			"CREATE INDEX IF NOT EXISTS idx_crm_deals_account ON crm_deals(account_id)",
+			"CREATE INDEX IF NOT EXISTS idx_crm_deals_contact ON crm_deals(instance_id, contact_id)",
+			"CREATE INDEX IF NOT EXISTS idx_crm_deals_account ON crm_deals(instance_id, account_id)",
+			"CREATE INDEX IF NOT EXISTS idx_crm_deals_pipeline ON crm_deals(instance_id, updated_at DESC, id DESC)",
 		]) {
 			assert.match(
 				DATABASE_SCHEMA_SQL,
@@ -112,15 +113,15 @@ describe("in-memory crm deals repository", () => {
 describe("postgres crm deals repository", () => {
 	it("translates deal operations to SQL queries and audits", async () => {
 		const pg = new FakePg();
-		const repo = createPostgresCrmRepository(pg);
+		const repo = createPostgresCrmRepository(pg, { getTenantId: async () => 44 });
 
 		// findDealById
 		pg.respondWith(() => ({ rows: [{ id: 10, title: "Postgres Deal" }] }));
 		const deal = await repo.findDealById(10);
 		assert.ok(deal);
 		assert.equal(deal.id, 10);
-		assert.equal(pg.calls[0].text, "SELECT * FROM crm_deals WHERE id = $1 LIMIT 1");
-		assert.deepEqual(pg.calls[0].values, [10]);
+		assert.match(pg.calls[0].text, /instance_id IS NOT DISTINCT FROM/);
+		assert.deepEqual(pg.calls[0].values, [10, 44]);
 
 		// createDeal
 		pg.respondWith(() => ({ rows: [{ id: 15, title: "SQL Deal", stage: "lead" }] }));
@@ -131,7 +132,31 @@ describe("postgres crm deals repository", () => {
 			actor_user_id: 5,
 		});
 		assert.match(pg.calls[1].text, /INSERT INTO crm_deals/);
+		assert.match(pg.calls[1].text, /instance_id/);
+		assert.equal(pg.calls[1].values?.[0], 44);
 		assert.match(pg.calls[2].text, /INSERT INTO audit_events/);
 		assert.equal(pg.calls[2].values?.[4], "crm.deal_created");
+	});
+
+	it("scopes pipeline and delete queries by tenant instance", async () => {
+		const pg = new FakePg();
+		const repo = createPostgresCrmRepository(pg, { getTenantId: async () => 44 });
+
+		pg.respondWith((text, values) => {
+			assert.match(text, /WHERE instance_id IS NOT DISTINCT FROM \$1/);
+			assert.deepEqual(values, [44]);
+			return { rows: [] };
+		});
+		await repo.listDealsPipeline();
+
+		pg.respondWith(() => ({ rows: [{ id: 12, instance_id: 44, title: "Deal" }] }));
+		pg.respondWith((text, values) => {
+			assert.match(text, /DELETE FROM crm_deals/);
+			assert.match(text, /instance_id IS NOT DISTINCT FROM/);
+			assert.deepEqual(values, [12, 44]);
+			return { rows: [{ id: 12 }] };
+		});
+		pg.respondWith(() => ({ rows: [] }));
+		assert.equal(await repo.deleteDeal(12), true);
 	});
 });

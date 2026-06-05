@@ -579,9 +579,153 @@ if (conversation.id !== prevConversationId) {
 				</div>
 			</div>
 
-			{profileOpen && (
-				<div className="z-30 flex shrink-0 justify-end border-b border-outline-variant/30 bg-background/80 p-3 backdrop-blur-sm">
-					<aside className="flex max-h-[46vh] min-h-0 w-full max-w-[420px] flex-col overflow-hidden rounded-2xl border border-outline-variant/30 bg-surface p-4 shadow-2xl animate-fade-in sm:p-5">
+			<div className="flex min-h-0 flex-1">
+				<div className="flex min-w-0 flex-1 flex-col">
+			{/* Contenedor de Mensajes con Scroll y Botón Flotante */}
+			<div className="flex-1 min-h-0 relative">
+				<div
+					ref={chatContainerRef}
+					className="h-full overflow-y-auto p-6 flex flex-col gap-4 bg-background/50"
+				>
+					{messages.length === 0 ? (
+						<div className="flex-1 flex flex-col items-center justify-center text-on-surface-variant/60 text-xs gap-2">
+							<MessagesIcon className="text-on-surface-variant/30 animate-pulse mb-1" size={32} />
+							<p>No hay mensajes en este chat. Escribí un mensaje para iniciar.</p>
+						</div>
+					) : (
+						messages.map((message) => <MessageBubble key={message.id} message={message} />)
+					)}
+					<div ref={chatEndRef} />
+				</div>
+
+				{/* Botón Flotante para bajar */}
+				{showScrollDown && (
+					<button type="button"
+						onClick={scrollToBottom}
+						className="absolute bottom-4 right-6 size-10 rounded-full bg-surface border border-outline-variant text-primary hover:text-primary-bright hover:bg-surface-bright flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 animate-fade-in z-20"
+						title="Ir al final de la conversación"
+					>
+						<ArrowDownIcon size={18} />
+					</button>
+				)}
+			</div>
+
+			{/* Composer / Input Inferior */}
+			<div className="p-4 bg-background border-t border-outline-variant shrink-0">
+				{isAi ? (
+					<div className="flex flex-wrap items-center justify-center gap-3 p-3 border border-outline-variant rounded-full text-on-surface-variant text-[11px] font-medium">
+						<RobotIcon className="text-primary" size={14} />
+						<span>El bot responde automaticamente. Cambiá a humano para intervenir manualmente.</span>
+						<ModeToggle
+							conversationId={conversation.id}
+							currentMode={conversation.mode}
+							onModeChange={onModeChanged}
+						/>
+					</div>
+				) : (
+					<form onSubmit={handleSend} className="flex w-full flex-col gap-2">
+						{selectedFile && (
+							<div className="flex items-center justify-between gap-3 rounded-2xl border border-primary/25 bg-primary/10 px-3 py-2 text-xs text-on-surface">
+								<div className="flex min-w-0 items-center gap-2">
+									{selectedFile.type.startsWith("audio/") ? (
+										<MicIcon className="size-4 shrink-0 text-primary" />
+									) : (
+										<ImagePlusIcon className="size-4 shrink-0 text-primary" />
+									)}
+									<span className="truncate font-medium">{selectedFile.name}</span>
+									<span className="shrink-0 text-[10px] text-on-surface-variant">
+										{Math.max(1, Math.round(selectedFile.size / 1024))} KB
+									</span>
+								</div>
+								<button
+									type="button"
+									onClick={clearSelectedFile}
+									className="rounded-full p-1 text-on-surface-variant hover:bg-surface hover:text-on-surface"
+									aria-label="Quitar adjunto"
+								>
+									<XIcon className="size-4" />
+								</button>
+							</div>
+						)}
+						<div className="flex gap-2.5">
+							<input
+								ref={fileInputRef}
+								type="file"
+								accept="image/png,image/jpeg,image/webp"
+								className="hidden"
+								onChange={handleFileSelected}
+							/>
+							<button
+								type="button"
+								onClick={() => fileInputRef.current?.click()}
+								disabled={sending || recording}
+								className="size-10 flex shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface text-on-surface-variant transition hover:border-primary/50 hover:text-primary disabled:opacity-50"
+								title="Adjuntar imagen"
+								aria-label="Adjuntar imagen"
+							>
+								<PaperclipIcon className="size-4" />
+							</button>
+							<button
+								type="button"
+								onClick={toggleRecording}
+								disabled={sending}
+								className={`size-10 flex shrink-0 items-center justify-center rounded-full border transition active:scale-95 disabled:opacity-50 ${
+									recording
+										? "border-error bg-error/15 text-error"
+										: "border-outline-variant bg-surface text-on-surface-variant hover:border-primary/50 hover:text-primary"
+								}`}
+								title={recording ? "Detener grabacion" : "Grabar audio"}
+								aria-label={recording ? "Detener grabacion" : "Grabar audio"}
+							>
+								{recording ? <SquareIcon className="size-4 fill-current" /> : <MicIcon className="size-4" />}
+							</button>
+							<div className="relative flex-1">
+								{showRepliesDropdown && filteredReplies.length > 0 && (
+									<div className="absolute bottom-full mb-2.5 left-0 w-full bg-surface-bright/95 border border-outline-variant/60 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden max-h-[200px] overflow-y-auto z-30 animate-fade-in flex flex-col py-1.5 text-on-surface">
+										{filteredReplies.map((reply, idx) => (
+											<div
+												key={reply.id}
+												onClick={() => handleSelectReply(reply.text)}
+												className={`px-4 py-2 text-xs flex justify-between items-center cursor-pointer transition-colors ${
+													idx === activeIndex
+														? "bg-primary/10 text-primary font-bold"
+														: "text-on-surface-variant hover:bg-surface-bright"
+												}`}
+											>
+												<span className="font-semibold">{reply.text}</span>
+												<span className="text-[10px] font-mono text-primary/70 bg-primary/5 px-2 py-0.5 rounded border border-primary/15 font-bold">
+													/{reply.shortcut}
+												</span>
+											</div>
+										))}
+									</div>
+								)}
+								<input
+									ref={inputRef}
+									type="text"
+									value={text}
+									onChange={(e) => setText(e.target.value)}
+									onKeyDown={handleKeyDown}
+									placeholder="Escribi un mensaje en modo Humano... (usa / para respuestas rapidas)"
+									aria-label="Escribir mensaje"
+									disabled={sending || recording}
+									className="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-full text-xs focus:outline-none focus:border-primary/50 transition-all duration-200 disabled:opacity-50 text-on-surface placeholder-on-surface-variant/50"
+								/>
+							</div>
+							<button
+								type="submit"
+								disabled={sending || recording || (!text.trim() && !selectedFile)}
+								className="size-10 flex items-center justify-center bg-transparent text-primary hover:bg-surface rounded-full transition-all duration-200 active:scale-95 disabled:opacity-50 cursor-pointer shrink-0"
+							>
+								{sending ? "..." : <ArrowRightIcon size={18} />}
+							</button>
+						</div>
+					</form>
+				)}
+			</div>
+				</div>
+				{profileOpen && (
+					<aside className="flex h-full w-[min(420px,38vw)] min-w-[360px] shrink-0 flex-col overflow-hidden border-l border-outline-variant/30 bg-surface p-4 shadow-2xl animate-fade-in sm:p-5">
 						<div className="mb-5 flex shrink-0 items-start justify-between gap-3 sm:mb-8">
 							<div className="min-w-0">
 								<p className="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">
@@ -833,150 +977,8 @@ if (conversation.id !== prevConversationId) {
 							</button>
 						</form>
 					</aside>
-				</div>
-			)}
-
-			{/* Contenedor de Mensajes con Scroll y Botón Flotante */}
-			<div className="flex-1 min-h-0 relative">
-				<div
-					ref={chatContainerRef}
-					className="h-full overflow-y-auto p-6 flex flex-col gap-4 bg-background/50"
-				>
-					{messages.length === 0 ? (
-						<div className="flex-1 flex flex-col items-center justify-center text-on-surface-variant/60 text-xs gap-2">
-							<MessagesIcon className="text-on-surface-variant/30 animate-pulse mb-1" size={32} />
-							<p>No hay mensajes en este chat. Escribí un mensaje para iniciar.</p>
-						</div>
-					) : (
-						messages.map((message) => <MessageBubble key={message.id} message={message} />)
-					)}
-					<div ref={chatEndRef} />
-				</div>
-
-				{/* Botón Flotante para bajar */}
-				{showScrollDown && (
-					<button type="button"
-						onClick={scrollToBottom}
-						className="absolute bottom-4 right-6 size-10 rounded-full bg-surface border border-outline-variant text-primary hover:text-primary-bright hover:bg-surface-bright flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 animate-fade-in z-20"
-						title="Ir al final de la conversación"
-					>
-						<ArrowDownIcon size={18} />
-					</button>
 				)}
-			</div>
 
-			{/* Composer / Input Inferior */}
-			<div className="p-4 bg-background border-t border-outline-variant shrink-0">
-				{isAi ? (
-					<div className="flex flex-wrap items-center justify-center gap-3 p-3 border border-outline-variant rounded-full text-on-surface-variant text-[11px] font-medium">
-						<RobotIcon className="text-primary" size={14} />
-						<span>El bot responde automaticamente. Cambiá a humano para intervenir manualmente.</span>
-						<ModeToggle
-							conversationId={conversation.id}
-							currentMode={conversation.mode}
-							onModeChange={onModeChanged}
-						/>
-					</div>
-				) : (
-					<form onSubmit={handleSend} className="flex w-full flex-col gap-2">
-						{selectedFile && (
-							<div className="flex items-center justify-between gap-3 rounded-2xl border border-primary/25 bg-primary/10 px-3 py-2 text-xs text-on-surface">
-								<div className="flex min-w-0 items-center gap-2">
-									{selectedFile.type.startsWith("audio/") ? (
-										<MicIcon className="size-4 shrink-0 text-primary" />
-									) : (
-										<ImagePlusIcon className="size-4 shrink-0 text-primary" />
-									)}
-									<span className="truncate font-medium">{selectedFile.name}</span>
-									<span className="shrink-0 text-[10px] text-on-surface-variant">
-										{Math.max(1, Math.round(selectedFile.size / 1024))} KB
-									</span>
-								</div>
-								<button
-									type="button"
-									onClick={clearSelectedFile}
-									className="rounded-full p-1 text-on-surface-variant hover:bg-surface hover:text-on-surface"
-									aria-label="Quitar adjunto"
-								>
-									<XIcon className="size-4" />
-								</button>
-							</div>
-						)}
-						<div className="flex gap-2.5">
-							<input
-								ref={fileInputRef}
-								type="file"
-								accept="image/png,image/jpeg,image/webp"
-								className="hidden"
-								onChange={handleFileSelected}
-							/>
-							<button
-								type="button"
-								onClick={() => fileInputRef.current?.click()}
-								disabled={sending || recording}
-								className="size-10 flex shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface text-on-surface-variant transition hover:border-primary/50 hover:text-primary disabled:opacity-50"
-								title="Adjuntar imagen"
-								aria-label="Adjuntar imagen"
-							>
-								<PaperclipIcon className="size-4" />
-							</button>
-							<button
-								type="button"
-								onClick={toggleRecording}
-								disabled={sending}
-								className={`size-10 flex shrink-0 items-center justify-center rounded-full border transition active:scale-95 disabled:opacity-50 ${
-									recording
-										? "border-error bg-error/15 text-error"
-										: "border-outline-variant bg-surface text-on-surface-variant hover:border-primary/50 hover:text-primary"
-								}`}
-								title={recording ? "Detener grabacion" : "Grabar audio"}
-								aria-label={recording ? "Detener grabacion" : "Grabar audio"}
-							>
-								{recording ? <SquareIcon className="size-4 fill-current" /> : <MicIcon className="size-4" />}
-							</button>
-							<div className="relative flex-1">
-								{showRepliesDropdown && filteredReplies.length > 0 && (
-									<div className="absolute bottom-full mb-2.5 left-0 w-full bg-surface-bright/95 border border-outline-variant/60 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden max-h-[200px] overflow-y-auto z-30 animate-fade-in flex flex-col py-1.5 text-on-surface">
-										{filteredReplies.map((reply, idx) => (
-											<div
-												key={reply.id}
-												onClick={() => handleSelectReply(reply.text)}
-												className={`px-4 py-2 text-xs flex justify-between items-center cursor-pointer transition-colors ${
-													idx === activeIndex
-														? "bg-primary/10 text-primary font-bold"
-														: "text-on-surface-variant hover:bg-surface-bright"
-												}`}
-											>
-												<span className="font-semibold">{reply.text}</span>
-												<span className="text-[10px] font-mono text-primary/70 bg-primary/5 px-2 py-0.5 rounded border border-primary/15 font-bold">
-													/{reply.shortcut}
-												</span>
-											</div>
-										))}
-									</div>
-								)}
-								<input
-									ref={inputRef}
-									type="text"
-									value={text}
-									onChange={(e) => setText(e.target.value)}
-									onKeyDown={handleKeyDown}
-									placeholder="Escribi un mensaje en modo Humano... (usa / para respuestas rapidas)"
-									aria-label="Escribir mensaje"
-									disabled={sending || recording}
-									className="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-full text-xs focus:outline-none focus:border-primary/50 transition-all duration-200 disabled:opacity-50 text-on-surface placeholder-on-surface-variant/50"
-								/>
-							</div>
-							<button
-								type="submit"
-								disabled={sending || recording || (!text.trim() && !selectedFile)}
-								className="size-10 flex items-center justify-center bg-transparent text-primary hover:bg-surface rounded-full transition-all duration-200 active:scale-95 disabled:opacity-50 cursor-pointer shrink-0"
-							>
-								{sending ? "..." : <ArrowRightIcon size={18} />}
-							</button>
-						</div>
-					</form>
-				)}
 			</div>
 
 		</div>

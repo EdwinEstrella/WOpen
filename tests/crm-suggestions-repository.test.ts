@@ -1,7 +1,25 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { DATABASE_SCHEMA_SQL } from "../src/lib/db-contract.ts";
-import { createInMemoryCrmRepository } from "../src/lib/repositories/crm-repository.ts";
+import {
+	createInMemoryCrmRepository,
+	createPostgresCrmRepository,
+} from "../src/lib/repositories/crm-repository.ts";
+
+class FakePg {
+	calls: { text: string; values?: unknown[] }[] = [];
+	private responders: ((text: string, values?: unknown[]) => { rows: unknown[] })[] = [];
+
+	respondWith(responder: (text: string, values?: unknown[]) => { rows: unknown[] }) {
+		this.responders.push(responder);
+	}
+
+	async query<T = unknown>(text: string, values?: readonly unknown[]) {
+		this.calls.push({ text, values: values ? [...values] : undefined });
+		const responder = this.responders.shift();
+		return (responder ? responder(text, values ? [...values] : undefined) : { rows: [] }) as { rows: T[] };
+	}
+}
 
 describe("crm AI suggestions schema", () => {
 	it("declares queryable suggestion records and indexes", () => {
@@ -91,5 +109,53 @@ describe("in-memory crm AI suggestions repository", () => {
 		assert.equal(profile?.account_links[0].account_id, account.id);
 		assert.equal(profile?.deals[0].title, "Annual plan");
 		assert.equal(profile?.ai_suggestions[0].action_type, "create_task");
+	});
+});
+
+describe("postgres crm AI suggestions repository", () => {
+	it("scopes suggestion create, list and status update by tenant instance", async () => {
+		const pg = new FakePg();
+		const repo = createPostgresCrmRepository(pg, { getTenantId: async () => 33 });
+
+		pg.respondWith((text, values) => {
+			assert.match(text, /INSERT INTO crm_ai_suggestions/);
+			assert.match(text, /instance_id/);
+			assert.equal(values?.[0], 33);
+			return {
+				rows: [{
+					id: 7,
+					instance_id: 33,
+					conversation_id: 9,
+					action_type: "create_task",
+					status: "pending",
+					source: "lead_qualification",
+					confidence: 0.7,
+				}],
+			};
+		});
+		pg.respondWith(() => ({ rows: [] }));
+		await repo.createAiSuggestion({
+			conversation_id: 9,
+			action_type: "create_task",
+			payload: { title: "Call" },
+			confidence: 0.7,
+			reason: "Needs follow-up",
+		});
+
+		pg.respondWith((text, values) => {
+			assert.match(text, /WHERE instance_id IS NOT DISTINCT FROM \$1/);
+			assert.deepEqual(values, [33, "pending"]);
+			return { rows: [] };
+		});
+		await repo.listAiSuggestions({ status: "pending" });
+
+		pg.respondWith((text, values) => {
+			assert.match(text, /UPDATE crm_ai_suggestions/);
+			assert.match(text, /instance_id IS NOT DISTINCT FROM/);
+			assert.equal(values?.[5], 33);
+			return { rows: [{ id: 7, instance_id: 33, status: "approved" }] };
+		});
+		pg.respondWith(() => ({ rows: [] }));
+		await repo.updateAiSuggestionStatus(7, { status: "approved" });
 	});
 });
