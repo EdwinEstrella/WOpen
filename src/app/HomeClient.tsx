@@ -11,6 +11,7 @@ import QRScreen from "../components/QRScreen.tsx";
 import DashboardOverview from "../components/DashboardOverview.tsx";
 import AutomationsOverview from "../components/AutomationsOverview.tsx";
 import ContactsOverview from "../components/ContactsOverview.tsx";
+import CrmDocumentation from "../components/CrmDocumentation.tsx";
 import TasksBoard from "../components/TasksBoard.tsx";
 import Sidebar from "../components/Sidebar.tsx";
 import {
@@ -25,6 +26,7 @@ type Tab =
 	| "prompts"
 	| "automations"
 	| "contacts"
+	| "docs"
 	| "settings";
 
 const UI_STATE_STORAGE_KEY = "wopen.ui-state";
@@ -35,6 +37,7 @@ const TABS: readonly Tab[] = [
 	"prompts",
 	"automations",
 	"contacts",
+	"docs",
 	"settings",
 ];
 
@@ -408,6 +411,8 @@ export default function HomeClient() {
 							{activeTab === "contacts" && (
 								<ContactsOverview conversations={contactsList} />
 							)}
+
+							{activeTab === "docs" && <CrmDocumentation />}
 
 							{activeTab === "deals" && (
 								<TasksBoard

@@ -349,7 +349,7 @@ export default function TasksBoard({
 	};
 
 	return (
-		<div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+		<div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1 pb-8">
 			<div className="flex flex-col gap-1">
 				<h2 className="font-display text-2xl font-bold text-on-surface">
 					Tareas CRM
@@ -538,7 +538,7 @@ export default function TasksBoard({
 				</CardContent>
 			</Card>
 
-			<div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-3">
+			<div className="grid min-h-[28rem] gap-4 lg:grid-cols-3">
 				{COLUMNS.map((column) => {
 					const columnTasks = tasks.filter((task) => task.status === column.status);
 					return (
@@ -551,7 +551,7 @@ export default function TasksBoard({
 								<CardDescription>{column.description}</CardDescription>
 							</CardHeader>
 							<CardContent className="min-h-0">
-								<ScrollArea className="h-[calc(100vh-29rem)] pr-2">
+								<ScrollArea className="h-[24rem] pr-2">
 									<div className="flex flex-col gap-3">
 										{isLoading && (
 											<p className="text-sm text-muted-foreground">Cargando tareas...</p>

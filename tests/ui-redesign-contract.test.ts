@@ -216,6 +216,26 @@ describe("shadcn/ui redesign foundation contract", () => {
 		assert.match(api, /setAutomationEnabled/);
 	});
 
+	it("keeps CRM profile, deals, and documentation screens usable without clipping", () => {
+		const home = readProjectFile("src/app/HomeClient.tsx");
+		const sidebar = readProjectFile("src/components/Sidebar.tsx");
+		const panel = readProjectFile("src/components/ConversationPanel.tsx");
+		const tasks = readProjectFile("src/components/TasksBoard.tsx");
+		const docs = readProjectFile("src/components/CrmDocumentation.tsx");
+
+		assert.match(home, /import CrmDocumentation/);
+		assert.match(home, /activeTab === "docs"/);
+		assert.match(sidebar, /value: "docs", label: "Document Review"/);
+		assert.doesNotMatch(panel, /absolute inset-0 z-40 flex justify-end bg-black\/20/);
+		assert.match(panel, /max-h-\[46vh\]/);
+		assert.match(tasks, /overflow-y-auto/);
+		assert.match(tasks, /h-\[24rem\]/);
+		assert.match(docs, /Manual operativo del CRM/);
+		assert.match(docs, /modo IA\/Humano/);
+		assert.match(docs, /Sugerencias IA/);
+		assert.match(docs, /Automatizaciones seguras/);
+	});
+
 	it("uses a persisted switch for AI/HUMAN mode instead of local-only buttons", () => {
 		const modeToggle = readProjectFile("src/components/ModeToggle.tsx");
 		const panel = readProjectFile("src/components/ConversationPanel.tsx");

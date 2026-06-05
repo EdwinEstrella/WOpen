@@ -52,6 +52,7 @@ type Tab =
 	| "prompts"
 	| "automations"
 	| "contacts"
+	| "docs"
 	| "settings";
 
 interface SidebarProps {
@@ -162,7 +163,7 @@ const libraryItems: NavItem[] = [
 	{ type: "placeholder", label: "Knowledge Base", icon: GraduationCap },
 	{ type: "placeholder", label: "Developers", icon: Code2, badge: "DEV" },
 	{ type: "placeholder", label: "Feedback", icon: MessageSquareText },
-	{ type: "placeholder", label: "Document Review", icon: FileClock },
+	{ type: "tab", value: "docs", label: "Document Review", icon: FileClock },
 ];
 
 function SidebarItem({

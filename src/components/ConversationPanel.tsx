@@ -580,8 +580,8 @@ if (conversation.id !== prevConversationId) {
 			</div>
 
 			{profileOpen && (
-				<div className="absolute inset-0 z-40 flex justify-end bg-black/20">
-					<aside className="flex h-full w-full max-w-[min(360px,100%)] min-h-0 flex-col overflow-hidden border-l border-outline-variant/30 bg-surface p-4 shadow-2xl animate-fade-in sm:p-6">
+				<div className="z-30 flex shrink-0 justify-end border-b border-outline-variant/30 bg-background/80 p-3 backdrop-blur-sm">
+					<aside className="flex max-h-[46vh] min-h-0 w-full max-w-[420px] flex-col overflow-hidden rounded-2xl border border-outline-variant/30 bg-surface p-4 shadow-2xl animate-fade-in sm:p-5">
 						<div className="mb-5 flex shrink-0 items-start justify-between gap-3 sm:mb-8">
 							<div className="min-w-0">
 								<p className="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">
