@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
-import { ImagePlusIcon, MicIcon, PaperclipIcon, SquareIcon, XIcon } from "lucide-react";
+import { ImagePlusIcon, MicIcon, PaperclipIcon, SquareIcon, XIcon, BriefcaseIcon, Trash2Icon } from "lucide-react";
 import { TrashIcon, MessagesIcon, RobotIcon, ArrowRightIcon, ArrowDownIcon, UserIcon, PhoneIcon, EditIcon, ArchiveIcon } from "./Icons.tsx";
 import type { ConversationListRow } from "../lib/db.ts";
 import type { MessageRow } from "../lib/db-contract.ts";
@@ -45,6 +45,14 @@ export default function ConversationPanel({
 	const [savingProfile, setSavingProfile] = useState(false);
 	const [avatarError, setAvatarError] = useState(false);
 	const [drawerAvatarError, setDrawerAvatarError] = useState(false);
+
+	// Oportunidades de Venta (Deals)
+	const [deals, setDeals] = useState<any[]>([]);
+	const [loadingDeals, setLoadingDeals] = useState(false);
+	const [newDealTitle, setNewDealTitle] = useState("");
+	const [newDealAmount, setNewDealAmount] = useState("");
+	const [showAddDeal, setShowAddDeal] = useState(false);
+	const [creatingDeal, setCreatingDeal] = useState(false);
 
 	const chatEndRef = useRef<HTMLDivElement>(null);
 	const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -141,6 +149,92 @@ if (conversation.id !== prevConversationId) {
 			console.error("[panel] Error cargando mensajes del chat:", error);
 		}
 	};
+
+	// Carga las oportunidades de venta (Deals) del contacto
+	const loadDeals = async () => {
+		if (!conversation.contact_id) return;
+		setLoadingDeals(true);
+		try {
+			const res = await fetch(`/api/crm/deals?contactId=${conversation.contact_id}`);
+			if (res.ok) {
+				const data = await res.json();
+				setDeals(data);
+			}
+		} catch (err) {
+			console.error("Error cargando deals:", err);
+		} finally {
+			setLoadingDeals(false);
+		}
+	};
+
+	// Crear trato comercial nuevo
+	const handleCreateDeal = async (e: React.FormEvent) => {
+		e.preventDefault();
+		if (!newDealTitle.trim() || !conversation.contact_id) return;
+		setCreatingDeal(true);
+		try {
+			const res = await fetch("/api/crm/deals", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					title: newDealTitle.trim(),
+					amount: newDealAmount ? Number(newDealAmount) : null,
+					contactId: conversation.contact_id,
+					stage: "lead",
+				}),
+			});
+			if (res.ok) {
+				setNewDealTitle("");
+				setNewDealAmount("");
+				setShowAddDeal(false);
+				await loadDeals();
+			}
+		} catch (err) {
+			console.error("Error creando deal:", err);
+		} finally {
+			setCreatingDeal(false);
+		}
+	};
+
+	// Cambiar etapa comercial del trato
+	const handleUpdateDealStage = async (dealId: number, newStage: string) => {
+		try {
+			const res = await fetch(`/api/crm/deals/${dealId}`, {
+				method: "PATCH",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ stage: newStage }),
+			});
+			if (res.ok) {
+				await loadDeals();
+			}
+		} catch (err) {
+			console.error("Error actualizando stage del deal:", err);
+		}
+	};
+
+	// Eliminar trato comercial
+	const handleDeleteDeal = async (dealId: number) => {
+		if (!confirm("¿Seguro que querés eliminar esta oportunidad de venta?")) return;
+		try {
+			const res = await fetch(`/api/crm/deals/${dealId}`, {
+				method: "DELETE",
+			});
+			if (res.ok) {
+				await loadDeals();
+			}
+		} catch (err) {
+			console.error("Error eliminando deal:", err);
+		}
+	};
+
+	// Cargar deals cuando se abre el perfil o cambia el contacto
+	useEffect(() => {
+		if (profileOpen && conversation.contact_id) {
+			loadDeals();
+		} else {
+			setDeals([]);
+		}
+	}, [profileOpen, conversation.contact_id]);
 
 	// Polling de 2 segundos
 	useEffect(() => {
@@ -359,11 +453,15 @@ if (conversation.id !== prevConversationId) {
 			if (res.ok) {
 				const updated = await res.json();
 				onConversationUpdated?.(updated);
+				setProfileOpen(false); // Cerrar panel lateral en caso de éxito como feedback de guardado
 			} else {
-				console.error("[profile] Error guardando perfil del contacto.");
+				const errData = await res.json().catch(() => ({}));
+				console.error("[profile] Error guardando perfil:", res.statusText);
+				alert(`No se pudo guardar el cliente: ${errData.error || res.statusText}`);
 			}
-		} catch (error) {
+		} catch (error: any) {
 			console.error("[profile] Error de red guardando perfil:", error);
+			alert(`Error de red al guardar cliente: ${error.message || "Error desconocido"}`);
 		} finally {
 			setSavingProfile(false);
 		}
@@ -567,6 +665,119 @@ if (conversation.id !== prevConversationId) {
 										className="min-h-20 w-full resize-none rounded-xl border border-outline-variant/40 bg-surface-container-lowest px-4 py-2.5 text-sm text-on-surface focus:border-primary focus:outline-none"
 									/>
 								</label>
+							</div>
+
+							{/* Sección de Oportunidades de Venta (Deals) */}
+							<div className="border-t border-outline-variant/30 pt-4 mt-2 mb-6">
+								<div className="flex items-center justify-between mb-3">
+									<span className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-bold text-on-surface-variant">
+										<BriefcaseIcon size={12} className="text-primary" /> Oportunidades de Venta
+									</span>
+									{!showAddDeal && conversation.contact_id && (
+										<button
+											type="button"
+											onClick={() => setShowAddDeal(true)}
+											className="text-[10px] font-bold text-primary hover:underline cursor-pointer bg-transparent border-0"
+										>
+											+ Agregar
+										</button>
+									)}
+								</div>
+
+								{/* Formulario para agregar Deal */}
+								{showAddDeal && (
+									<div className="mb-4 p-3 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
+										<div>
+											<span className="block text-[9px] uppercase tracking-wider font-bold text-on-surface-variant mb-1">Título</span>
+											<input
+												type="text"
+												value={newDealTitle}
+												onChange={(e) => setNewDealTitle(e.target.value)}
+												placeholder="Ej: Suscripción Anual"
+												className="w-full px-3 py-1.5 rounded-lg bg-surface-container-lowest border border-outline-variant/40 text-xs text-on-surface focus:outline-none focus:border-primary"
+											/>
+										</div>
+										<div>
+											<span className="block text-[9px] uppercase tracking-wider font-bold text-on-surface-variant mb-1">Monto (USD)</span>
+											<input
+												type="number"
+												value={newDealAmount}
+												onChange={(e) => setNewDealAmount(e.target.value)}
+												placeholder="Ej: 150"
+												className="w-full px-3 py-1.5 rounded-lg bg-surface-container-lowest border border-outline-variant/40 text-xs text-on-surface focus:outline-none focus:border-primary"
+											/>
+										</div>
+										<div className="flex gap-2 justify-end">
+											<button
+												type="button"
+												onClick={() => setShowAddDeal(false)}
+												className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border border-outline-variant text-on-surface hover:bg-surface-bright cursor-pointer bg-transparent"
+											>
+												Cancelar
+											</button>
+											<button
+												type="button"
+												disabled={creatingDeal || !newDealTitle.trim()}
+												onClick={handleCreateDeal}
+												className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-primary text-on-primary hover:brightness-110 disabled:opacity-50 cursor-pointer border-0"
+											>
+												{creatingDeal ? "Creando..." : "Crear"}
+											</button>
+										</div>
+									</div>
+								)}
+
+								{/* Listado de Deals */}
+								{loadingDeals ? (
+									<div className="text-center py-2 text-xs text-on-surface-variant/60">Cargando oportunidades...</div>
+								) : !conversation.contact_id ? (
+									<div className="text-center py-3 rounded-xl border border-dashed border-outline-variant/30 text-xs text-on-surface-variant/50">
+										Guardá el cliente primero para poder asignarle oportunidades comerciales.
+									</div>
+								) : deals.length === 0 ? (
+									<div className="text-center py-3 rounded-xl border border-dashed border-outline-variant/30 text-xs text-on-surface-variant/50">
+										No hay oportunidades comerciales registradas.
+									</div>
+								) : (
+									<div className="space-y-2.5 max-h-56 overflow-y-auto pr-0.5">
+										{deals.map((deal) => (
+											<div key={deal.id} className="p-3 rounded-xl bg-surface-container-lowest border border-outline-variant/20 flex flex-col gap-2 shadow-sm">
+												<div className="flex justify-between items-start gap-2">
+													<div className="min-w-0">
+														<p className="font-semibold text-xs text-on-surface truncate" title={deal.title}>
+															{deal.title}
+														</p>
+														<p className="text-[10px] text-primary font-bold mt-0.5">
+															{deal.amount !== null ? `${deal.amount} ${deal.currency}` : "Monto sin definir"}
+														</p>
+													</div>
+													<button
+														type="button"
+														onClick={() => handleDeleteDeal(deal.id)}
+														className="text-on-surface-variant/60 hover:text-error transition p-1 hover:bg-error/5 rounded-full cursor-pointer bg-transparent border-0"
+														title="Eliminar oportunidad"
+													>
+														<Trash2Icon size={12} />
+													</button>
+												</div>
+												<div className="flex items-center justify-between gap-2 border-t border-outline-variant/10 pt-2 mt-0.5">
+													<span className="text-[9px] uppercase tracking-wider font-bold text-on-surface-variant">Etapa</span>
+													<select
+														value={deal.stage}
+														onChange={(e) => handleUpdateDealStage(deal.id, e.target.value)}
+														className="text-[10px] font-bold bg-surface border border-outline-variant/40 rounded-lg px-2 py-1 focus:outline-none focus:border-primary text-on-surface cursor-pointer"
+													>
+														<option value="lead">Prospecto</option>
+														<option value="contacted">Contactado</option>
+														<option value="proposal_sent">Propuesta Enviada</option>
+														<option value="won">Ganado</option>
+														<option value="lost">Perdido</option>
+													</select>
+												</div>
+											</div>
+										))}
+									</div>
+								)}
 							</div>
 
 							<button

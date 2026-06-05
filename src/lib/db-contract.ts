@@ -209,6 +209,25 @@ CREATE TABLE IF NOT EXISTS conversation_crm_links (
   CHECK (contact_id IS NOT NULL OR account_id IS NOT NULL)
 );
 
+CREATE TABLE IF NOT EXISTS crm_deals (
+  id SERIAL PRIMARY KEY,
+  team_id INTEGER REFERENCES teams(id) ON DELETE SET NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  amount NUMERIC(15, 2),
+  currency TEXT NOT NULL DEFAULT 'USD',
+  stage TEXT CHECK(stage IN ('lead','contacted','proposal_sent','won','lost')) NOT NULL DEFAULT 'lead',
+  contact_id INTEGER REFERENCES crm_contacts(id) ON DELETE CASCADE,
+  account_id INTEGER REFERENCES crm_accounts(id) ON DELETE CASCADE,
+  owner_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  expected_close_date TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  CONSTRAINT chk_deal_owner CHECK (contact_id IS NOT NULL OR account_id IS NOT NULL)
+);
+CREATE INDEX IF NOT EXISTS idx_crm_deals_contact ON crm_deals(contact_id);
+CREATE INDEX IF NOT EXISTS idx_crm_deals_account ON crm_deals(account_id);
+
 CREATE TABLE IF NOT EXISTS system_prompts (
   id SERIAL PRIMARY KEY,
   title TEXT NOT NULL,
@@ -446,6 +465,21 @@ export interface ConversationCrmLinkRow {
 	conversation_id: number;
 	contact_id: number | null;
 	account_id: number | null;
+	created_at: Date;
+	updated_at: Date;
+}
+export interface CrmDealRow {
+	id: number;
+	team_id: number | null;
+	title: string;
+	description: string | null;
+	amount: number | null;
+	currency: string;
+	stage: "lead" | "contacted" | "proposal_sent" | "won" | "lost";
+	contact_id: number | null;
+	account_id: number | null;
+	owner_user_id: number | null;
+	expected_close_date: Date | null;
 	created_at: Date;
 	updated_at: Date;
 }

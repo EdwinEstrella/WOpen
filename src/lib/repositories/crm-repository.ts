@@ -5,6 +5,7 @@ import type {
 	CrmContactAccountLinkRow,
 	CrmContactMethodRow,
 	CrmContactRow,
+	CrmDealRow,
 } from "../db-contract.ts";
 
 type Queryable = {
@@ -77,6 +78,48 @@ export interface CrmRepository {
 		request_metadata?: Record<string, unknown>;
 		updated_at?: Date;
 	}): Promise<ConversationCrmLinkRow>;
+	findDealById(id: number): Promise<CrmDealRow | null>;
+	listDealsByContactId(contactId: number): Promise<CrmDealRow[]>;
+	listDealsByAccountId(accountId: number): Promise<CrmDealRow[]>;
+	createDeal(input: {
+		team_id?: number | null;
+		title: string;
+		description?: string | null;
+		amount?: number | null;
+		currency?: string;
+		stage?: "lead" | "contacted" | "proposal_sent" | "won" | "lost";
+		contact_id?: number | null;
+		account_id?: number | null;
+		owner_user_id?: number | null;
+		expected_close_date?: Date | null;
+		created_at?: Date;
+		actor_user_id?: number | null;
+		request_metadata?: Record<string, unknown>;
+	}): Promise<CrmDealRow>;
+	updateDeal(
+		id: number,
+		patch: {
+			title?: string;
+			description?: string | null;
+			amount?: number | null;
+			currency?: string;
+			stage?: "lead" | "contacted" | "proposal_sent" | "won" | "lost";
+			contact_id?: number | null;
+			account_id?: number | null;
+			owner_user_id?: number | null;
+			expected_close_date?: Date | null;
+			actor_user_id?: number | null;
+			team_id?: number | null;
+			request_metadata?: Record<string, unknown>;
+			updated_at?: Date;
+		},
+	): Promise<CrmDealRow>;
+	deleteDeal(id: number, input?: {
+		actor_user_id?: number | null;
+		team_id?: number | null;
+		request_metadata?: Record<string, unknown>;
+		deleted_at?: Date;
+	}): Promise<boolean>;
 	listAuditEvents(): Promise<AuditEventRow[]>;
 }
 
@@ -254,6 +297,139 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 			});
 			return row;
 		},
+		async findDealById(id) {
+			const result = await db.query<CrmDealRow>(
+				"SELECT * FROM crm_deals WHERE id = $1 LIMIT 1",
+				[id],
+			);
+			return result.rows[0] ?? null;
+		},
+		async listDealsByContactId(contactId) {
+			const result = await db.query<CrmDealRow>(
+				"SELECT * FROM crm_deals WHERE contact_id = $1 ORDER BY id DESC",
+				[contactId],
+			);
+			return result.rows;
+		},
+		async listDealsByAccountId(accountId) {
+			const result = await db.query<CrmDealRow>(
+				"SELECT * FROM crm_deals WHERE account_id = $1 ORDER BY id DESC",
+				[accountId],
+			);
+			return result.rows;
+		},
+		async createDeal(input) {
+			const at = input.created_at ?? nowDate();
+			const result = await db.query<CrmDealRow>(
+				`INSERT INTO crm_deals (
+				  team_id, title, description, amount, currency, stage,
+				  contact_id, account_id, owner_user_id, expected_close_date,
+				  created_at, updated_at
+				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)
+				RETURNING *`,
+				[
+					input.team_id ?? null,
+					input.title,
+					input.description ?? null,
+					input.amount ?? null,
+					input.currency ?? "USD",
+					input.stage ?? "lead",
+					input.contact_id ?? null,
+					input.account_id ?? null,
+					input.owner_user_id ?? null,
+					input.expected_close_date ?? null,
+					at,
+				],
+			);
+			const row = result.rows[0];
+			await recordAudit(db, {
+				actor_user_id: input.actor_user_id,
+				team_id: input.team_id ?? null,
+				entity_type: "crm_deal",
+				entity_id: String(row.id),
+				action: "crm.deal_created",
+				before_json: {},
+				after_json: { ...row },
+				request_metadata: input.request_metadata,
+				created_at: at,
+			});
+			return row;
+		},
+		async updateDeal(id, patch) {
+			const at = patch.updated_at ?? nowDate();
+			const before = await this.findDealById(id);
+			if (!before) throw new Error(`CRM deal ${id} not found`);
+
+			const result = await db.query<CrmDealRow>(
+				`UPDATE crm_deals
+				 SET title = COALESCE($1, title),
+				     description = COALESCE($2, description),
+				     amount = COALESCE($3, amount),
+				     currency = COALESCE($4, currency),
+				     stage = COALESCE($5, stage),
+				     contact_id = COALESCE($6, contact_id),
+				     account_id = COALESCE($7, account_id),
+				     owner_user_id = COALESCE($8, owner_user_id),
+				     expected_close_date = COALESCE($9, expected_close_date),
+				     updated_at = $10
+				 WHERE id = $11
+				 RETURNING *`,
+				[
+					patch.title ?? null,
+					patch.description ?? null,
+					patch.amount ?? null,
+					patch.currency ?? null,
+					patch.stage ?? null,
+					patch.contact_id ?? null,
+					patch.account_id ?? null,
+					patch.owner_user_id ?? null,
+					patch.expected_close_date ?? null,
+					at,
+					id,
+				],
+			);
+			const row = result.rows[0];
+			if (!row) throw new Error(`CRM deal ${id} not found`);
+
+			if (patch.stage !== undefined || patch.amount !== undefined) {
+				await recordAudit(db, {
+					actor_user_id: patch.actor_user_id,
+					team_id: patch.team_id ?? null,
+					entity_type: "crm_deal",
+					entity_id: String(id),
+					action: "crm.deal_updated",
+					before_json: { stage: before.stage, amount: before.amount },
+					after_json: { stage: row.stage, amount: row.amount },
+					request_metadata: patch.request_metadata,
+					created_at: at,
+				});
+			}
+			return row;
+		},
+		async deleteDeal(id, input) {
+			const at = input?.deleted_at ?? nowDate();
+			const before = await this.findDealById(id);
+			if (!before) return false;
+
+			const result = await db.query(
+				"DELETE FROM crm_deals WHERE id = $1 RETURNING id",
+				[id],
+			);
+			if (result.rows.length === 0) return false;
+
+			await recordAudit(db, {
+				actor_user_id: input?.actor_user_id,
+				team_id: input?.team_id ?? null,
+				entity_type: "crm_deal",
+				entity_id: String(id),
+				action: "crm.deal_deleted",
+				before_json: { ...before },
+				after_json: {},
+				request_metadata: input?.request_metadata,
+				created_at: at,
+			});
+			return true;
+		},
 		async listAuditEvents() {
 			const result = await db.query<AuditEventRow>(
 				"SELECT * FROM audit_events ORDER BY id ASC",
@@ -270,12 +446,14 @@ export function createInMemoryCrmRepository(): CrmRepository {
 	const accountLinks: CrmContactAccountLinkRow[] = [];
 	const conversationLinks: ConversationCrmLinkRow[] = [];
 	const audits: AuditEventRow[] = [];
+	const deals: CrmDealRow[] = [];
 	let nextAccountId = 1;
 	let nextContactId = 1;
 	let nextMethodId = 1;
 	let nextAccountLinkId = 1;
 	let nextConversationLinkId = 1;
 	let nextAuditId = 1;
+	let nextDealId = 1;
 
 	return {
 		async createAccount(input) {
@@ -392,6 +570,101 @@ export function createInMemoryCrmRepository(): CrmRepository {
 				created_at: at,
 			});
 			return row;
+		},
+		async findDealById(id) {
+			return deals.find((d) => d.id === id) ?? null;
+		},
+		async listDealsByContactId(contactId) {
+			return deals.filter((d) => d.contact_id === contactId).sort((a, b) => b.id - a.id);
+		},
+		async listDealsByAccountId(accountId) {
+			return deals.filter((d) => d.account_id === accountId).sort((a, b) => b.id - a.id);
+		},
+		async createDeal(input) {
+			const at = input.created_at ?? nowDate();
+			const row: CrmDealRow = {
+				id: nextDealId++,
+				team_id: input.team_id ?? null,
+				title: input.title,
+				description: input.description ?? null,
+				amount: input.amount ?? null,
+				currency: input.currency ?? "USD",
+				stage: input.stage ?? "lead",
+				contact_id: input.contact_id ?? null,
+				account_id: input.account_id ?? null,
+				owner_user_id: input.owner_user_id ?? null,
+				expected_close_date: input.expected_close_date ?? null,
+				created_at: at,
+				updated_at: at,
+			};
+			deals.push(row);
+			audits.push({
+				id: nextAuditId++,
+				actor_user_id: input.actor_user_id ?? null,
+				team_id: input.team_id ?? null,
+				entity_type: "crm_deal",
+				entity_id: String(row.id),
+				action: "crm.deal_created",
+				before_json: {},
+				after_json: { ...row },
+				request_metadata: input.request_metadata ?? {},
+				created_at: at,
+			});
+			return row;
+		},
+		async updateDeal(id, patch) {
+			const at = patch.updated_at ?? nowDate();
+			const row = deals.find((d) => d.id === id);
+			if (!row) throw new Error(`CRM deal ${id} not found`);
+			const beforeStage = row.stage;
+			const beforeAmount = row.amount;
+
+			if (patch.title !== undefined) row.title = patch.title;
+			if (patch.description !== undefined) row.description = patch.description;
+			if (patch.amount !== undefined) row.amount = patch.amount;
+			if (patch.currency !== undefined) row.currency = patch.currency;
+			if (patch.stage !== undefined) row.stage = patch.stage;
+			if (patch.contact_id !== undefined) row.contact_id = patch.contact_id;
+			if (patch.account_id !== undefined) row.account_id = patch.account_id;
+			if (patch.owner_user_id !== undefined) row.owner_user_id = patch.owner_user_id;
+			if (patch.expected_close_date !== undefined) row.expected_close_date = patch.expected_close_date;
+			row.updated_at = at;
+
+			if (patch.stage !== undefined || patch.amount !== undefined) {
+				audits.push({
+					id: nextAuditId++,
+					actor_user_id: patch.actor_user_id ?? null,
+					team_id: patch.team_id ?? null,
+					entity_type: "crm_deal",
+					entity_id: String(id),
+					action: "crm.deal_updated",
+					before_json: { stage: beforeStage, amount: beforeAmount },
+					after_json: { stage: row.stage, amount: row.amount },
+					request_metadata: patch.request_metadata ?? {},
+					created_at: at,
+				});
+			}
+			return row;
+		},
+		async deleteDeal(id, input) {
+			const idx = deals.findIndex((d) => d.id === id);
+			if (idx === -1) return false;
+			const before = deals[idx];
+			deals.splice(idx, 1);
+			const at = input?.deleted_at ?? nowDate();
+			audits.push({
+				id: nextAuditId++,
+				actor_user_id: input?.actor_user_id ?? null,
+				team_id: input?.team_id ?? null,
+				entity_type: "crm_deal",
+				entity_id: String(id),
+				action: "crm.deal_deleted",
+				before_json: { ...before },
+				after_json: {},
+				request_metadata: input?.request_metadata ?? {},
+				created_at: at,
+			});
+			return true;
 		},
 		async listAuditEvents() {
 			return [...audits];
