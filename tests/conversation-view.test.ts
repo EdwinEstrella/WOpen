@@ -57,7 +57,7 @@ describe("conversation compatibility view service", () => {
 		const service = createConversationViewService({
 			listConversations: async () => [
 				{
-					...makeConversation(),
+					...makeConversation({ name: null }),
 					last_message_content: "Hola",
 					last_message_role: "user",
 				},
@@ -111,7 +111,37 @@ describe("conversation compatibility view service", () => {
 		assert.equal(rows[0]?.owner_user_id, null);
 		assert.equal(rows[0]?.phone, "5491112345678");
 		assert.equal(rows[0]?.jid, null);
-		assert.equal(rows[0]?.name, null);
+	});
+
+	it("preserves manual/friendly conversation names and does not overwrite with CRM contact name", async () => {
+		const service = createConversationViewService({
+			listConversations: async () => [
+				{
+					...makeConversation({ name: "Custom Nickname" }),
+					last_message_content: "Hola",
+					last_message_role: "user",
+				},
+			],
+			getConversationById: async () => null,
+			listCrmIdentityByConversationIds: async () => [
+				{
+					conversation_id: 41,
+					contact_id: 7,
+					contact_name: "Ana CRM",
+					contact_phone: "5491199988877",
+					contact_jid: "5491199988877@s.whatsapp.net",
+					account_id: 11,
+					account_name: "Acme SA",
+					owner_user_id: 99,
+				},
+			],
+		});
+
+		const rows = await service.listConversations();
+
+		assert.equal(rows.length, 1);
+		assert.equal(rows[0]?.name, "Custom Nickname");
+		assert.equal(rows[0]?.contact_name, "Ana CRM");
 	});
 });
 

@@ -27,6 +27,10 @@ const mappingSnapshot = (
 	account_id: row?.account_id ?? null,
 });
 
+const hasConnect = (db: any): db is { connect: () => Promise<any> } => {
+	return db && typeof db.connect === "function";
+};
+
 export interface CrmRepository {
 	createAccount(input: {
 		team_id?: number | null;
@@ -264,31 +268,63 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 			return result.rows;
 		},
 		async reassignContactOwner(input) {
-			const at = input.changed_at ?? nowDate();
-			const before = await this.getContactById(input.contact_id);
-			const result = await db.query<CrmContactRow>(
-				`UPDATE crm_contacts
-				 SET owner_user_id = $1, updated_at = $2
-				 WHERE id = $3
-				 RETURNING *`,
-				[input.owner_user_id, at, input.contact_id],
-			);
-			const row = result.rows[0];
-			if (!row) {
-				throw new Error(`CRM contact ${input.contact_id} not found`);
+			const client = (hasConnect(db) ? await db.connect() : db) as Queryable;
+			try {
+				if (hasConnect(db)) {
+					await client.query("BEGIN");
+				}
+				const beforeResult = await client.query<CrmContactRow>(
+					"SELECT * FROM crm_contacts WHERE id = $1 LIMIT 1",
+					[input.contact_id]
+				);
+				const before = beforeResult.rows[0];
+				if (!before) {
+					throw new Error(`CRM contact ${input.contact_id} not found`);
+				}
+				if (before.owner_user_id === input.owner_user_id) {
+					if (hasConnect(db)) {
+						await client.query("COMMIT");
+					}
+					return before;
+				}
+
+				const at = input.changed_at ?? nowDate();
+				const result = await client.query<CrmContactRow>(
+					`UPDATE crm_contacts
+					 SET owner_user_id = $1, updated_at = $2
+					 WHERE id = $3
+					 RETURNING *`,
+					[input.owner_user_id, at, input.contact_id],
+				);
+				const row = result.rows[0];
+				if (!row) {
+					throw new Error(`CRM contact ${input.contact_id} not found`);
+				}
+				await recordAudit(client, {
+					actor_user_id: input.actor_user_id,
+					team_id: input.team_id ?? row.team_id ?? before.team_id ?? null,
+					entity_type: "crm_contact",
+					entity_id: String(input.contact_id),
+					action: "crm_contact.owner_reassigned",
+					before_json: { owner_user_id: before.owner_user_id ?? null },
+					after_json: { owner_user_id: row.owner_user_id ?? null },
+					request_metadata: input.request_metadata,
+					created_at: at,
+				});
+				if (hasConnect(db)) {
+					await client.query("COMMIT");
+				}
+				return row;
+			} catch (error) {
+				if (hasConnect(db)) {
+					await client.query("ROLLBACK").catch(() => {});
+				}
+				throw error;
+			} finally {
+				if (hasConnect(db) && typeof (client as any).release === "function") {
+					(client as any).release();
+				}
 			}
-			await recordAudit(db, {
-				actor_user_id: input.actor_user_id,
-				team_id: input.team_id ?? row.team_id ?? before?.team_id ?? null,
-				entity_type: "crm_contact",
-				entity_id: String(input.contact_id),
-				action: "crm_contact.owner_reassigned",
-				before_json: { owner_user_id: before?.owner_user_id ?? null },
-				after_json: { owner_user_id: row.owner_user_id ?? null },
-				request_metadata: input.request_metadata,
-				created_at: at,
-			});
-			return row;
 		},
 		async getConversationCrmLink(conversationId) {
 			const result = await db.query<ConversationCrmLinkRow>(
@@ -298,37 +334,69 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 			return result.rows[0] ?? null;
 		},
 		async setConversationCrmLink(input) {
-			const at = input.updated_at ?? nowDate();
-			const before = await this.getConversationCrmLink(input.conversation_id);
-			const result = await db.query<ConversationCrmLinkRow>(
-				`INSERT INTO conversation_crm_links (
-				 conversation_id, contact_id, account_id, created_at, updated_at
-				) VALUES ($1, $2, $3, $4, $4)
-				ON CONFLICT (conversation_id) DO UPDATE
-				SET contact_id = EXCLUDED.contact_id,
-				    account_id = EXCLUDED.account_id,
-				    updated_at = EXCLUDED.updated_at
-				RETURNING *`,
-				[
-					input.conversation_id,
-					input.contact_id,
-					input.account_id ?? null,
-					at,
-				],
-			);
-			const row = result.rows[0];
-			await recordAudit(db, {
-				actor_user_id: input.actor_user_id,
-				team_id: input.team_id ?? null,
-				entity_type: "conversation_crm_link",
-				entity_id: String(input.conversation_id),
-				action: before ? "conversation.crm_remapped" : "conversation.crm_linked",
-				before_json: mappingSnapshot(before),
-				after_json: mappingSnapshot(row),
-				request_metadata: input.request_metadata,
-				created_at: at,
-			});
-			return row;
+			const client = (hasConnect(db) ? await db.connect() : db) as Queryable;
+			try {
+				if (hasConnect(db)) {
+					await client.query("BEGIN");
+				}
+				const beforeResult = await client.query<ConversationCrmLinkRow>(
+					"SELECT * FROM conversation_crm_links WHERE conversation_id = $1 LIMIT 1",
+					[input.conversation_id]
+				);
+				const before = beforeResult.rows[0] ?? null;
+				const isNoOp = before &&
+					before.contact_id === input.contact_id &&
+					(input.account_id === undefined || before.account_id === input.account_id);
+				if (isNoOp) {
+					if (hasConnect(db)) {
+						await client.query("COMMIT");
+					}
+					return before!;
+				}
+
+				const at = input.updated_at ?? nowDate();
+				const result = await client.query<ConversationCrmLinkRow>(
+					`INSERT INTO conversation_crm_links (
+					 conversation_id, contact_id, account_id, created_at, updated_at
+					) VALUES ($1, $2, $3, $4, $4)
+					ON CONFLICT (conversation_id) DO UPDATE
+					SET contact_id = EXCLUDED.contact_id,
+					    account_id = EXCLUDED.account_id,
+					    updated_at = EXCLUDED.updated_at
+					RETURNING *`,
+					[
+						input.conversation_id,
+						input.contact_id,
+						input.account_id ?? null,
+						at,
+					],
+				);
+				const row = result.rows[0];
+				await recordAudit(client, {
+					actor_user_id: input.actor_user_id,
+					team_id: input.team_id ?? null,
+					entity_type: "conversation_crm_link",
+					entity_id: String(input.conversation_id),
+					action: before ? "conversation.crm_remapped" : "conversation.crm_linked",
+					before_json: mappingSnapshot(before),
+					after_json: mappingSnapshot(row),
+					request_metadata: input.request_metadata,
+					created_at: at,
+				});
+				if (hasConnect(db)) {
+					await client.query("COMMIT");
+				}
+				return row;
+			} catch (error) {
+				if (hasConnect(db)) {
+					await client.query("ROLLBACK").catch(() => {});
+				}
+				throw error;
+			} finally {
+				if (hasConnect(db) && typeof (client as any).release === "function") {
+					(client as any).release();
+				}
+			}
 		},
 		async findDealById(id) {
 			const result = await db.query<CrmDealRow>(
@@ -560,6 +628,9 @@ export function createInMemoryCrmRepository(): CrmRepository {
 			const row = contacts.find((contact) => contact.id === input.contact_id);
 			if (!row) throw new Error(`CRM contact ${input.contact_id} not found`);
 			const beforeOwner = row.owner_user_id;
+			if (beforeOwner === input.owner_user_id) {
+				return row;
+			}
 			row.owner_user_id = input.owner_user_id;
 			row.updated_at = input.changed_at ?? nowDate();
 			audits.push({
@@ -582,10 +653,36 @@ export function createInMemoryCrmRepository(): CrmRepository {
 			);
 		},
 		async setConversationCrmLink(input) {
-			const at = input.updated_at ?? nowDate();
+			// 1. CHECK constraint: contact_id and account_id cannot both be null
+			if (input.contact_id === null && (input.account_id === undefined || input.account_id === null)) {
+				throw new Error("CHECK constraint violation: conversation_crm_links must link to a contact or an account");
+			}
+			// 2. Foreign Key constraint: contact_id must exist if not null
+			if (input.contact_id !== null) {
+				const contactExists = contacts.some((c) => c.id === input.contact_id);
+				if (!contactExists) {
+					throw new Error("Foreign key constraint violation: contact does not exist");
+				}
+			}
+			// 3. Foreign Key constraint: account_id must exist if not null/undefined
+			if (input.account_id !== undefined && input.account_id !== null) {
+				const accountExists = accounts.some((a) => a.id === input.account_id);
+				if (!accountExists) {
+					throw new Error("Foreign key constraint violation: account does not exist");
+				}
+			}
+
 			const existing =
 				conversationLinks.find((row) => row.conversation_id === input.conversation_id) ??
 				null;
+			const isNoOp = existing &&
+				existing.contact_id === input.contact_id &&
+				(input.account_id === undefined || existing.account_id === input.account_id);
+			if (isNoOp) {
+				return existing!;
+			}
+
+			const at = input.updated_at ?? nowDate();
 			const before = existing ? mappingSnapshot(existing) : { contact_id: null, account_id: null };
 			const row = existing ?? {
 				id: nextConversationLinkId++,

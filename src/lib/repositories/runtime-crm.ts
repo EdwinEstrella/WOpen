@@ -6,6 +6,10 @@ const crmDb = {
 		await ensureSchemaInitialized();
 		return pool.query(text, values ? [...values] : undefined) as unknown as Promise<{ rows: T[] }>;
 	},
+	async connect() {
+		await ensureSchemaInitialized();
+		return pool.connect();
+	},
 };
 
 export const runtimeCrmRepository = createPostgresCrmRepository(crmDb);

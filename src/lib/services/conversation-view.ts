@@ -41,10 +41,18 @@ interface ConversationViewDeps {
 	) => Promise<ConversationCrmIdentityRow[]>;
 }
 
+function isDefaultName(name: string | null | undefined, phone: string | null | undefined): boolean {
+	if (!name) return true;
+	const cleanName = name.replace(/\+/g, "").trim();
+	const cleanPhone = phone?.replace(/\+/g, "").trim();
+	return cleanName === cleanPhone;
+}
+
 function enrichConversation(
 	conversation: BaseConversation,
 	identity?: ConversationCrmIdentityRow,
 ): ConversationCompatibilityRow {
+	const hasFriendlyName = conversation.name && !isDefaultName(conversation.name, conversation.phone);
 	return {
 		...conversation,
 		contact_id: identity?.contact_id ?? null,
@@ -54,7 +62,7 @@ function enrichConversation(
 		account_id: identity?.account_id ?? null,
 		account_name: identity?.account_name ?? null,
 		owner_user_id: identity?.owner_user_id ?? null,
-		name: identity?.contact_name ?? conversation.name,
+		name: hasFriendlyName ? conversation.name : (identity?.contact_name ?? conversation.name),
 		phone: identity?.contact_phone ?? conversation.phone,
 		jid: identity?.contact_jid ?? conversation.jid,
 	};

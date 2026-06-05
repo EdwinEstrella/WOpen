@@ -205,11 +205,6 @@ describe("in-memory crm repository", () => {
 			assert.deepEqual(values, [404]);
 			return { rows: [] };
 		});
-		pg.respondWith((text, values) => {
-			assert.match(text, /UPDATE crm_contacts/);
-			assert.deepEqual(values, [9, changedAt, 404]);
-			return { rows: [] };
-		});
 
 		const repo = createPostgresCrmRepository(pg);
 
@@ -225,6 +220,95 @@ describe("in-memory crm repository", () => {
 			/CRM contact 404 not found/i,
 		);
 
-		assert.equal(pg.calls.length, 2);
+		assert.equal(pg.calls.length, 1);
+	});
+
+	it("enforces in-memory repository constraints and no-ops", async () => {
+		const repo = createInMemoryCrmRepository();
+
+		// 1. CHECK constraint: contact_id and account_id cannot both be null
+		await assert.rejects(
+			() => repo.setConversationCrmLink({ conversation_id: 1, contact_id: null, account_id: null }),
+			/CHECK constraint violation/i,
+		);
+
+		// 2. FK constraint: contact_id must exist
+		await assert.rejects(
+			() => repo.setConversationCrmLink({ conversation_id: 1, contact_id: 999 }),
+			/Foreign key constraint violation/i,
+		);
+
+		// 3. FK constraint: account_id must exist
+		await assert.rejects(
+			() => repo.setConversationCrmLink({ conversation_id: 1, contact_id: null, account_id: 999 }),
+			/Foreign key constraint violation/i,
+		);
+
+		// Setup valid contact & account
+		const contact = await repo.createContact({ display_name: "Val" });
+		const account = await repo.createAccount({ name: "ValCorp" });
+
+		// Successful link
+		const link = await repo.setConversationCrmLink({ conversation_id: 1, contact_id: contact.id, account_id: account.id });
+		assert.equal(link.contact_id, contact.id);
+
+		const audits1 = await repo.listAuditEvents();
+		assert.equal(audits1.length, 1);
+
+		// No-op link should not produce another audit event
+		await repo.setConversationCrmLink({ conversation_id: 1, contact_id: contact.id, account_id: account.id });
+		const audits2 = await repo.listAuditEvents();
+		assert.equal(audits2.length, 1); // unchanged!
+	});
+
+	it("executes postgres operations in a transaction client if connect method is present", async () => {
+		const client = new FakePg();
+		const pg = {
+			connect: async () => client,
+			query: async () => ({ rows: [] }),
+		};
+
+		const changedAt = iso("2026-06-05T13:00:00.000Z");
+
+		// Transaction begin
+		client.respondWith((text) => {
+			assert.match(text, /BEGIN/);
+			return { rows: [] };
+		});
+		// Mock the initial contact fetch on pg first
+		client.respondWith((text) => {
+			assert.match(text, /SELECT \* FROM crm_contacts/);
+			return { rows: [{ id: 3, owner_user_id: 1, team_id: 2, created_at: changedAt, updated_at: changedAt }] };
+		});
+		// Update
+		client.respondWith((text) => {
+			assert.match(text, /UPDATE crm_contacts/);
+			return { rows: [{ id: 3, owner_user_id: 5, team_id: 2 }] };
+		});
+		// Audit log
+		client.respondWith((text) => {
+			assert.match(text, /INSERT INTO audit_events/);
+			return { rows: [] };
+		});
+		// Commit
+		client.respondWith((text) => {
+			assert.match(text, /COMMIT/);
+			return { rows: [] };
+		});
+
+		let released = false;
+		(client as any).release = () => {
+			released = true;
+		};
+
+		const repo = createPostgresCrmRepository(pg as any);
+		await repo.reassignContactOwner({
+			contact_id: 3,
+			owner_user_id: 5,
+			changed_at: changedAt,
+		});
+
+		assert.ok(released);
+		assert.equal(client.calls.length, 5); // SELECT, BEGIN, UPDATE, INSERT, COMMIT
 	});
 });
