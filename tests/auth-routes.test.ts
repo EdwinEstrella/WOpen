@@ -6,12 +6,12 @@ import { bootstrapAuthOwner } from "../src/lib/auth/bootstrap.ts";
 import { createSessionService } from "../src/lib/auth/session.ts";
 import { createLoginRoute } from "../src/app/api/auth/login/route.ts";
 import { createLogoutRoute } from "../src/app/api/auth/logout/route.ts";
-import { middleware } from "../src/middleware.ts";
+import { proxy } from "../src/proxy.ts";
 import { createInMemoryAuthRepository } from "../src/lib/repositories/auth-repository.ts";
 
 const NOW = new Date("2026-06-04T21:00:00.000Z");
 
-describe("auth routes and middleware", () => {
+describe("auth routes and proxy", () => {
 	it("logs in against DB credentials and sets an opaque cookie", async () => {
 		const repo = createInMemoryAuthRepository();
 		await bootstrapAuthOwner({
@@ -87,18 +87,18 @@ describe("auth routes and middleware", () => {
 
 	it("gates unauthenticated API/page requests while allowing public auth routes", () => {
 		const apiRequest = new NextRequest("http://localhost/api/settings");
-		const apiResponse = middleware(apiRequest);
+		const apiResponse = proxy(apiRequest);
 		assert.equal(apiResponse.status, 401);
 
 		const pageRequest = new NextRequest("http://localhost/");
-		const pageResponse = middleware(pageRequest);
+		const pageResponse = proxy(pageRequest);
 		assert.equal(pageResponse.status, 307);
 		assert.equal(pageResponse.headers.get("location"), "http://localhost/login");
 
 		const loginRequest = new NextRequest("http://localhost/login");
-		assert.equal(middleware(loginRequest).status, 200);
+		assert.equal(proxy(loginRequest).status, 200);
 
 		const publicAuthRequest = new NextRequest("http://localhost/api/auth/login");
-		assert.equal(middleware(publicAuthRequest).status, 200);
+		assert.equal(proxy(publicAuthRequest).status, 200);
 	});
 });

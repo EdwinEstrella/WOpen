@@ -1,34 +1,34 @@
-﻿import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
 	const { pathname } = request.nextUrl;
-	
+
 	// Permitir rutas de API públicas, de autenticación o archivos multimedia
-	if (pathname.startsWith('/api/auth/') || pathname.startsWith('/media/')) {
+	if (pathname.startsWith("/api/auth/") || pathname.startsWith("/media/")) {
 		return NextResponse.next();
 	}
 
-	if (pathname === '/login') {
-		const sessionCookie = request.cookies.get('bot_session');
+	if (pathname === "/login") {
+		const sessionCookie = request.cookies.get("bot_session");
 		if (sessionCookie?.value) {
-			return NextResponse.redirect(new URL('/', request.url));
+			return NextResponse.redirect(new URL("/", request.url));
 		}
 		return NextResponse.next();
 	}
 
 	// Proteger todas las demás rutas (raíz, páginas y otras APIs)
-	const sessionCookie = request.cookies.get('bot_session');
+	const sessionCookie = request.cookies.get("bot_session");
 
 	// Si no hay cookie de sesión, bloquear antes de exponer datos protegidos
 	if (!sessionCookie?.value) {
 		// Si es una petición a la API (no auth), devolver 401
-		if (pathname.startsWith('/api/')) {
-			return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+		if (pathname.startsWith("/api/")) {
+			return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 		}
 
 		// Redirigir al login
-		return NextResponse.redirect(new URL('/login', request.url));
+		return NextResponse.redirect(new URL("/login", request.url));
 	}
 
 	return NextResponse.next();
@@ -43,6 +43,6 @@ export const config = {
 		 * - media (whatsapp media)
 		 * - favicon.ico, sitemap.xml, robots.txt (metadata files)
 		 */
-		'/((?!_next/static|_next/image|media|favicon.ico|sitemap.xml|robots.txt).*)',
+		"/((?!_next/static|_next/image|media|favicon.ico|sitemap.xml|robots.txt).*)",
 	],
 };

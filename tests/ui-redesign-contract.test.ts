@@ -84,6 +84,7 @@ describe("shadcn/ui redesign foundation contract", () => {
 			"src/components/ui/dialog.tsx",
 			"src/components/ui/dropdown-menu.tsx",
 			"src/components/ui/input.tsx",
+			"src/components/ui/neon-button.tsx",
 			"src/components/ui/scroll-area.tsx",
 			"src/components/ui/separator.tsx",
 			"src/components/ui/sheet.tsx",
@@ -106,6 +107,10 @@ describe("shadcn/ui redesign foundation contract", () => {
 		assert.match(switchComponent, /from "react-aria-components"/);
 		assert.match(switchComponent, /composeRenderProps/);
 		assert.match(switchComponent, /group-data-\[selected\]:bg-primary/);
+
+		const neonButton = readProjectFile("src/components/ui/neon-button.tsx");
+		assert.match(neonButton, /class-variance-authority/);
+		assert.match(neonButton, /group-hover:opacity-100/);
 	});
 
 	it("uses the design-system foundation in chat message bubbles", () => {
@@ -230,10 +235,12 @@ describe("shadcn/ui redesign foundation contract", () => {
 		assert.match(panel, /from "react-dom"/);
 		assert.match(panel, /createPortal/);
 		assert.match(panel, /conversation-profile-sidebar-root/);
+		assert.match(panel, /from "@\/components\/ui\/neon-button"/);
 		assert.doesNotMatch(panel, /absolute inset-0 z-40 flex justify-end bg-black\/20/);
 		assert.match(panel, /flex min-h-0 flex-1/);
 		assert.match(panel, /w-\[min\(420px,38vw\)\]/);
-		assert.match(panel, /border-l border-outline-variant\/30/);
+		assert.match(panel, /rounded-2xl border border-outline-variant\/30/);
+		assert.doesNotMatch(panel, /border-l border-outline-variant\/30/);
 		assert.match(tasks, /overflow-y-auto/);
 		assert.match(tasks, /h-\[24rem\]/);
 		assert.match(docs, /Manual operativo del CRM/);
