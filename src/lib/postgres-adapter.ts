@@ -37,7 +37,44 @@ const actorFor = (changedBy: ModeChangedBy): EventActorRole =>
 
 const SCHEMA_INIT_ADVISORY_LOCK_ID = 756_709_401;
 
-const SCHEMA_MIGRATION_SQL = `${DATABASE_SCHEMA_SQL}
+const LEGACY_INSTANCE_ID_PREFLIGHT_SQL = `
+DO $$
+BEGIN
+	IF to_regclass('public.conversations') IS NOT NULL THEN
+		ALTER TABLE conversations ADD COLUMN IF NOT EXISTS instance_id INTEGER;
+	END IF;
+	IF to_regclass('public.outbox') IS NOT NULL THEN
+		ALTER TABLE outbox ADD COLUMN IF NOT EXISTS instance_id INTEGER;
+	END IF;
+	IF to_regclass('public.crm_accounts') IS NOT NULL THEN
+		ALTER TABLE crm_accounts ADD COLUMN IF NOT EXISTS instance_id INTEGER;
+	END IF;
+	IF to_regclass('public.crm_contacts') IS NOT NULL THEN
+		ALTER TABLE crm_contacts ADD COLUMN IF NOT EXISTS instance_id INTEGER;
+	END IF;
+	IF to_regclass('public.crm_contact_methods') IS NOT NULL THEN
+		ALTER TABLE crm_contact_methods ADD COLUMN IF NOT EXISTS instance_id INTEGER;
+	END IF;
+	IF to_regclass('public.crm_deals') IS NOT NULL THEN
+		ALTER TABLE crm_deals ADD COLUMN IF NOT EXISTS instance_id INTEGER;
+	END IF;
+	IF to_regclass('public.crm_ai_suggestions') IS NOT NULL THEN
+		ALTER TABLE crm_ai_suggestions ADD COLUMN IF NOT EXISTS instance_id INTEGER;
+	END IF;
+	IF to_regclass('public.system_prompts') IS NOT NULL THEN
+		ALTER TABLE system_prompts ADD COLUMN IF NOT EXISTS instance_id INTEGER;
+	END IF;
+	IF to_regclass('public.automations') IS NOT NULL THEN
+		ALTER TABLE automations ADD COLUMN IF NOT EXISTS instance_id INTEGER;
+	END IF;
+	IF to_regclass('public.crm_tasks') IS NOT NULL THEN
+		ALTER TABLE crm_tasks ADD COLUMN IF NOT EXISTS instance_id INTEGER;
+	END IF;
+END $$;
+`;
+
+const SCHEMA_MIGRATION_SQL = `${LEGACY_INSTANCE_ID_PREFLIGHT_SQL}
+${DATABASE_SCHEMA_SQL}
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS instance_id INTEGER;
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS unread_count INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS profile_picture_url TEXT;
@@ -77,7 +114,29 @@ WHERE cs.id = 1
   AND NOT EXISTS (SELECT 1 FROM whatsapp_instances);
 INSERT INTO whatsapp_instances (name, is_active, created_at, updated_at)
 SELECT 'Principal', TRUE, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM whatsapp_instances);`;
+WHERE NOT EXISTS (SELECT 1 FROM whatsapp_instances);
+DO $$
+DECLARE
+	default_instance_id INTEGER;
+BEGIN
+	SELECT id INTO default_instance_id
+	FROM whatsapp_instances
+	ORDER BY is_active DESC, id ASC
+	LIMIT 1;
+
+	IF default_instance_id IS NOT NULL THEN
+		UPDATE conversations SET instance_id = default_instance_id WHERE instance_id IS NULL;
+		UPDATE outbox SET instance_id = default_instance_id WHERE instance_id IS NULL;
+		UPDATE crm_accounts SET instance_id = default_instance_id WHERE instance_id IS NULL;
+		UPDATE crm_contacts SET instance_id = default_instance_id WHERE instance_id IS NULL;
+		UPDATE crm_contact_methods SET instance_id = default_instance_id WHERE instance_id IS NULL;
+		UPDATE crm_deals SET instance_id = default_instance_id WHERE instance_id IS NULL;
+		UPDATE crm_ai_suggestions SET instance_id = default_instance_id WHERE instance_id IS NULL;
+		UPDATE system_prompts SET instance_id = default_instance_id WHERE instance_id IS NULL;
+		UPDATE automations SET instance_id = default_instance_id WHERE instance_id IS NULL;
+		UPDATE crm_tasks SET instance_id = default_instance_id WHERE instance_id IS NULL;
+	END IF;
+END $$;`;
 
 export async function initializePostgresSchema(pool: PostgresPool) {
 	if (!pool.connect) {

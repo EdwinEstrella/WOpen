@@ -104,11 +104,14 @@ describe("postgres adapter", () => {
 		const pg = new FakePg();
 		await initializePostgresSchema(pg);
 		assert.equal(pg.calls.length, 1);
+		assert.match(pg.calls[0].text, /to_regclass\('public\.conversations'\)/);
+		assert.match(pg.calls[0].text, /ALTER TABLE conversations ADD COLUMN IF NOT EXISTS instance_id/);
 		assert.match(pg.calls[0].text, /CREATE TABLE IF NOT EXISTS conversations/);
 		assert.match(
 			pg.calls[0].text,
 			/CREATE TABLE IF NOT EXISTS conversation_events/,
 		);
+		assert.match(pg.calls[0].text, /UPDATE crm_contacts SET instance_id = default_instance_id WHERE instance_id IS NULL/);
 	});
 
 	it("serializes real schema initialization with a transaction-level advisory lock", async () => {
