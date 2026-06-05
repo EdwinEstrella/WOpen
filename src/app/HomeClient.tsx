@@ -155,6 +155,33 @@ export default function HomeClient() {
 
 	const prevConversationsRef = useRef<ConversationListRow[]>([]);
 
+	// Intercepta peticiones fetch para manejar sesiones expiradas/inválidas en la DB (error 401)
+	useEffect(() => {
+		const originalFetch = window.fetch;
+		window.fetch = async (...args) => {
+			const res = await originalFetch(...args);
+			if (res.status === 401) {
+				const url = typeof args[0] === "string" ? args[0] : (args[0] as Request).url;
+				// Evitar recursión infinita con rutas de autenticación
+				if (!url.includes("/api/auth/logout") && !url.includes("/api/auth/login")) {
+					try {
+						await originalFetch("/api/auth/logout", { method: "POST" });
+					} catch (e) {
+						console.error("[auth] Error al cerrar sesión en el servidor:", e);
+					}
+					// Borrar cookie local para asegurar que el middleware de Next.js bloquee reentradas
+					document.cookie = "bot_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+					window.location.href = "/login";
+				}
+			}
+			return res;
+		};
+
+		return () => {
+			window.fetch = originalFetch;
+		};
+	}, []);
+
 	useEffect(() => {
 		window.localStorage.setItem(UI_STATE_STORAGE_KEY, JSON.stringify(uiState));
 	}, [uiState]);

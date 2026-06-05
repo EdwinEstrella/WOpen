@@ -382,6 +382,7 @@ export async function startWASocket() {
 		if (connection === "open") {
 			console.log("[bot] Conexión abierta con éxito.");
 			const rawId = sock.user?.id || "";
+			const selfName = typeof sock.user?.name === "string" ? sock.user.name.trim() : "";
 			const numericPhone = rawId.split(":")[0] || rawId.split("@")[0] || "";
 			console.log(`[bot] Número de teléfono conectado: ${numericPhone}`);
 
@@ -436,6 +437,7 @@ export async function startWASocket() {
 				}
 
 				await setSetting("bot_profile", {
+					name: selfName || null,
 					phone: numericPhone,
 					profile_picture_url: selfPpUrl,
 					status: selfStatus,

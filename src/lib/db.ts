@@ -203,6 +203,13 @@ export async function setSetting(key: string, value: unknown): Promise<void> {
 export interface ConversationListRow extends ConversationRow {
 	last_message_content?: string | null;
 	last_message_role?: string | null;
+	contact_id?: number | null;
+	contact_name?: string | null;
+	contact_phone?: string | null;
+	contact_jid?: string | null;
+	account_id?: number | null;
+	account_name?: string | null;
+	owner_user_id?: number | null;
 }
 export async function listConversations(options: { archived?: boolean; hasMessages?: boolean } = {}): Promise<ConversationListRow[]> {
 	await ensureSchemaInitialized();

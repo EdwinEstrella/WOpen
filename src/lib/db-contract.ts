@@ -30,6 +30,12 @@ export type ConversationEventType =
 export type EventActorRole = MessageRole | "system";
 export type UserStatus = "active" | "disabled";
 export type TeamMembershipRole = "owner" | "manager" | "agent" | "viewer";
+export type CrmContactMethodType =
+	| "whatsapp_phone"
+	| "whatsapp_jid"
+	| "email"
+	| "phone"
+	| "other";
 
 export const DEFAULT_SETTINGS = {
 	bot_on_keyword: "ok.",
@@ -157,6 +163,51 @@ CREATE TABLE IF NOT EXISTS audit_events (
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_audit_events_entity_created ON audit_events(entity_type, entity_id, created_at DESC);
+CREATE TABLE IF NOT EXISTS crm_accounts (
+  id SERIAL PRIMARY KEY,
+  team_id INTEGER REFERENCES teams(id) ON DELETE SET NULL,
+  name TEXT NOT NULL,
+  owner_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS crm_contacts (
+  id SERIAL PRIMARY KEY,
+  team_id INTEGER REFERENCES teams(id) ON DELETE SET NULL,
+  display_name TEXT,
+  owner_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS crm_contact_methods (
+  id SERIAL PRIMARY KEY,
+  contact_id INTEGER NOT NULL REFERENCES crm_contacts(id) ON DELETE CASCADE,
+  method_type TEXT NOT NULL,
+  value TEXT NOT NULL,
+  normalized_value TEXT NOT NULL,
+  is_primary BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  UNIQUE(method_type, normalized_value)
+);
+CREATE INDEX IF NOT EXISTS idx_crm_contact_methods_contact ON crm_contact_methods(contact_id, id);
+CREATE TABLE IF NOT EXISTS crm_contact_account_links (
+  id SERIAL PRIMARY KEY,
+  contact_id INTEGER NOT NULL REFERENCES crm_contacts(id) ON DELETE CASCADE,
+  account_id INTEGER NOT NULL REFERENCES crm_accounts(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  UNIQUE(contact_id, account_id)
+);
+CREATE INDEX IF NOT EXISTS idx_crm_contact_account_links_account ON crm_contact_account_links(account_id, contact_id);
+CREATE TABLE IF NOT EXISTS conversation_crm_links (
+  id SERIAL PRIMARY KEY,
+  conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  contact_id INTEGER REFERENCES crm_contacts(id) ON DELETE SET NULL,
+  account_id INTEGER REFERENCES crm_accounts(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  UNIQUE(conversation_id),
+  CHECK (contact_id IS NOT NULL OR account_id IS NOT NULL)
+);
 
 CREATE TABLE IF NOT EXISTS system_prompts (
   id SERIAL PRIMARY KEY,
@@ -358,6 +409,45 @@ export interface AuditEventRow {
 	after_json: Record<string, unknown>;
 	request_metadata: Record<string, unknown>;
 	created_at: Date;
+}
+export interface CrmAccountRow {
+	id: number;
+	team_id: number | null;
+	name: string;
+	owner_user_id: number | null;
+	created_at: Date;
+	updated_at: Date;
+}
+export interface CrmContactRow {
+	id: number;
+	team_id: number | null;
+	display_name: string | null;
+	owner_user_id: number | null;
+	created_at: Date;
+	updated_at: Date;
+}
+export interface CrmContactMethodRow {
+	id: number;
+	contact_id: number;
+	method_type: CrmContactMethodType | string;
+	value: string;
+	normalized_value: string;
+	is_primary: boolean;
+	created_at: Date;
+}
+export interface CrmContactAccountLinkRow {
+	id: number;
+	contact_id: number;
+	account_id: number;
+	created_at: Date;
+}
+export interface ConversationCrmLinkRow {
+	id: number;
+	conversation_id: number;
+	contact_id: number | null;
+	account_id: number | null;
+	created_at: Date;
+	updated_at: Date;
 }
 export interface InsertMessageInput {
 	conversation_id: number;

@@ -21,6 +21,18 @@ function formatLastInteraction(
 	return lastInteractionFormatter.format(date);
 }
 
+function contactDisplayName(conversation: ConversationListRow) {
+	return conversation.contact_name ?? conversation.name ?? "Sin nombre";
+}
+
+function contactDisplayPhone(conversation: ConversationListRow) {
+	return conversation.contact_phone ?? conversation.phone;
+}
+
+function contactDisplayJid(conversation: ConversationListRow) {
+	return conversation.contact_jid ?? conversation.jid;
+}
+
 export default function ContactsOverview({
 	conversations,
 }: ContactsOverviewProps) {
@@ -43,7 +55,7 @@ export default function ContactsOverview({
 			const matchesMode =
 				modeFilter === "ALL" || conversation.mode === modeFilter;
 			const haystack =
-				`${conversation.name ?? ""} ${conversation.phone} ${conversation.jid ?? ""}`.toLocaleLowerCase();
+				`${contactDisplayName(conversation)} ${contactDisplayPhone(conversation)} ${contactDisplayJid(conversation) ?? ""} ${conversation.account_name ?? ""}`.toLocaleLowerCase();
 			return matchesMode && (!normalized || haystack.includes(normalized));
 		});
 	}, [conversations, modeFilter, query]);
@@ -129,7 +141,7 @@ export default function ContactsOverview({
 											{contact.profile_picture_url && !failedAvatarUrls.has(contact.profile_picture_url) ? (
 												<Image
 													src={contact.profile_picture_url}
-													alt={contact.name || contact.phone}
+													alt={contactDisplayName(contact)}
 													width={32}
 													height={32}
 													className="size-8 rounded-full object-cover border border-primary/30 shrink-0 cursor-pointer hover:scale-105 hover:brightness-95 transition-all"
@@ -139,18 +151,25 @@ export default function ContactsOverview({
 												/>
 											) : (
 												<div className="size-8 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center font-display text-primary text-xs font-bold shrink-0">
-													{(contact.name || contact.phone)
+													{contactDisplayName(contact)
 														.charAt(0)
 														.toLocaleUpperCase()}
 												</div>
 											)}
-											{contact.name || "Sin nombre"}
+											<div>
+												<div>{contactDisplayName(contact)}</div>
+												{contact.account_name ? (
+													<div className="text-[10px] font-normal text-on-surface-variant">
+														{contact.account_name}
+													</div>
+												) : null}
+											</div>
 										</td>
 										<td className="px-6 py-4 text-on-surface-variant font-mono">
-											{contact.phone}
+											{contactDisplayPhone(contact)}
 										</td>
 										<td className="px-6 py-4 text-on-surface-variant/80 font-mono max-w-[220px] truncate">
-											{contact.jid ?? "—"}
+											{contactDisplayJid(contact) ?? "—"}
 										</td>
 										<td className="px-6 py-4">
 											<span

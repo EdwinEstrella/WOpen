@@ -40,12 +40,12 @@ Chain strategy: stacked-to-main
 
 ## Phase 3: CRM identity and mapping persistence
 
-- [ ] 3.1 RED: add `tests/crm-repository.test.ts` for contacts independent of conversations, multi-method account links, owner reassignment, and auditable remaps.
-- [ ] 3.2 GREEN: extend `src/lib/db-contract.ts` with `crm_accounts`, `crm_contacts`, `crm_contact_methods`, `crm_contact_account_links`, and `conversation_crm_links`.
-- [ ] 3.3 GREEN: add `src/lib/repositories/crm-repository.ts` for identity, ownership, and mapping CRUD plus `audit_events` writes.
+- [x] 3.1 RED: add `tests/crm-repository.test.ts` for contacts independent of conversations, multi-method account links, owner reassignment, and auditable remaps.
+- [x] 3.2 GREEN: extend `src/lib/db-contract.ts` with `crm_accounts`, `crm_contacts`, `crm_contact_methods`, `crm_contact_account_links`, and `conversation_crm_links`.
+- [x] 3.3 GREEN: add `src/lib/repositories/crm-repository.ts` for identity, ownership, and mapping CRUD plus `audit_events` writes.
 
 ## Phase 4: Compatibility view and verification
 
-- [ ] 4.1 RED: add `tests/conversation-view.test.ts` and API coverage for `/api/conversations` returning compatible rows plus `contact_*`, `account_*`, and `owner_user_id` fields.
-- [ ] 4.2 GREEN: add `src/lib/services/conversation-view.ts` and update `src/app/api/conversations/route.ts`, `src/app/api/conversations/[conversationId]/route.ts`, and `src/components/ContactsOverview.tsx` to use linked CRM fields without breaking current consumers.
-- [ ] 4.3 REFACTOR/VERIFY: run `npm test` and `npx tsc --noEmit`, keeping `tests/inbound-handler.test.ts` and `tests/followup-scheduler.test.ts` green as migration guards.
+- [x] 4.1 RED: add `tests/conversation-view.test.ts` and API coverage for `/api/conversations` returning compatible rows plus `contact_*`, `account_*`, and `owner_user_id` fields.
+- [x] 4.2 GREEN: add `src/lib/services/conversation-view.ts` and update `src/app/api/conversations/route.ts`, `src/app/api/conversations/[conversationId]/route.ts`, and `src/components/ContactsOverview.tsx` to use linked CRM fields without breaking current consumers.
+- [x] 4.3 REFACTOR/VERIFY: run `npm test` and `npx tsc --noEmit`, keeping `tests/inbound-handler.test.ts` and `tests/followup-scheduler.test.ts` green as migration guards.

@@ -248,13 +248,20 @@ export default function Sidebar({
 	const [instanceBusy, setInstanceBusy] = useState(false);
 	const [instanceError, setInstanceError] = useState<string | null>(null);
 	const activeInstance = instances.find((instance) => instance.is_active) ?? null;
+	const appLabel = "WOpen";
 	const configuredPhone = phone || botProfile?.phone || activeInstance?.phone || null;
 	const accountLabel = configuredPhone ? `+${configuredPhone}` : "Sin WhatsApp conectado";
-	const companyLabel =
+	const rawWhatsAppLabel =
 		botProfile?.business?.name?.trim() ||
 		botProfile?.name?.trim() ||
 		activeInstance?.name?.trim() ||
-		accountLabel;
+		"";
+	const normalizedRawWhatsAppLabel = rawWhatsAppLabel.replace(/^\+/, "").trim();
+	const normalizedPhoneLabel = (configuredPhone || "").replace(/^\+/, "").trim();
+	const whatsappLabel =
+		normalizedRawWhatsAppLabel && normalizedRawWhatsAppLabel !== normalizedPhoneLabel
+			? rawWhatsAppLabel
+			: appLabel;
 
 	const loadInstances = async () => {
 		try {
@@ -368,7 +375,7 @@ export default function Sidebar({
 											<motion.span variants={labelVariants} className="flex w-fit items-center gap-2">
 												{!isCollapsed && (
 													<>
-														<span className="text-sm font-medium">{companyLabel}</span>
+													<span className="text-sm font-medium">{appLabel}</span>
 														<ChevronsUpDown className="size-4 text-muted-foreground/50" />
 													</>
 												)}
@@ -508,7 +515,7 @@ export default function Sidebar({
 												</AvatarFallback>
 											</Avatar>
 											<div className="flex flex-col text-left">
-												<span className="text-sm font-medium">{companyLabel}</span>
+												<span className="text-sm font-medium">{whatsappLabel}</span>
 												<span className="line-clamp-1 text-xs text-muted-foreground">{accountLabel}</span>
 											</div>
 										</div>
