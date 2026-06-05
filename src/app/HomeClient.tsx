@@ -362,7 +362,8 @@ export default function HomeClient() {
 									{activeTab === "dashboard" && <DashboardOverview conversations={conversations} />}
 
 							{activeTab === "chats" && (
-								<div className="flex-1 glass-panel rounded-2xl overflow-hidden flex min-h-[500px] shadow-2xl">
+								<div className="flex min-h-0 flex-1 gap-4">
+									<div className="min-w-0 flex-1 glass-panel rounded-2xl overflow-hidden flex min-h-[500px] shadow-2xl">
 									{/* Columna Izquierda: Lista de Chats */}
 									<div className="w-80 flex-shrink-0 border-r border-outline-variant/10">
 										<ConversationList
@@ -401,6 +402,8 @@ export default function HomeClient() {
 											</div>
 										)}
 									</div>
+									</div>
+									<div id="conversation-profile-sidebar-root" className="contents" />
 								</div>
 							)}
 

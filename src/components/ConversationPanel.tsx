@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { ImagePlusIcon, MicIcon, PaperclipIcon, SquareIcon, XIcon, BriefcaseIcon, Trash2Icon, ChevronDown } from "lucide-react";
 import { TrashIcon, MessagesIcon, RobotIcon, ArrowRightIcon, ArrowDownIcon, UserIcon, PhoneIcon, EditIcon, ArchiveIcon } from "./Icons.tsx";
 import type { ConversationListRow } from "../lib/db.ts";
@@ -43,6 +44,7 @@ export default function ConversationPanel({
 	const [archiving, setArchiving] = useState(false);
 	const [showScrollDown, setShowScrollDown] = useState(false);
 	const [profileOpen, setProfileOpen] = useState(false);
+	const [profilePortalElement, setProfilePortalElement] = useState<HTMLElement | null>(null);
 	const [profileName, setProfileName] = useState(conversation.name?.trim() || "");
 	const [profileLeadLabels, setProfileLeadLabels] = useState<LeadLabel[]>(conversation.lead_labels ?? []);
 	const [profileLeadScore, setProfileLeadScore] = useState(
@@ -52,6 +54,10 @@ export default function ConversationPanel({
 	const [savingProfile, setSavingProfile] = useState(false);
 	const [avatarError, setAvatarError] = useState(false);
 	const [drawerAvatarError, setDrawerAvatarError] = useState(false);
+
+	useEffect(() => {
+		setProfilePortalElement(document.getElementById("conversation-profile-sidebar-root"));
+	}, []);
 
 	useEffect(() => {
 		setProfileName(conversation.name?.trim() || "");
@@ -724,7 +730,7 @@ if (conversation.id !== prevConversationId) {
 				)}
 			</div>
 				</div>
-				{profileOpen && (
+				{profileOpen && profilePortalElement && createPortal((
 					<aside className="flex h-full w-[min(420px,38vw)] min-w-[360px] shrink-0 flex-col overflow-hidden border-l border-outline-variant/30 bg-surface p-4 shadow-2xl animate-fade-in sm:p-5">
 						<div className="mb-5 flex shrink-0 items-start justify-between gap-3 sm:mb-8">
 							<div className="min-w-0">
@@ -977,7 +983,7 @@ if (conversation.id !== prevConversationId) {
 							</button>
 						</form>
 					</aside>
-				)}
+				), profilePortalElement)}
 
 			</div>
 

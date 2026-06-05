@@ -225,7 +225,11 @@ describe("shadcn/ui redesign foundation contract", () => {
 
 		assert.match(home, /import CrmDocumentation/);
 		assert.match(home, /activeTab === "docs"/);
+		assert.match(home, /id="conversation-profile-sidebar-root"/);
 		assert.match(sidebar, /value: "docs", label: "Document Review"/);
+		assert.match(panel, /from "react-dom"/);
+		assert.match(panel, /createPortal/);
+		assert.match(panel, /conversation-profile-sidebar-root/);
 		assert.doesNotMatch(panel, /absolute inset-0 z-40 flex justify-end bg-black\/20/);
 		assert.match(panel, /flex min-h-0 flex-1/);
 		assert.match(panel, /w-\[min\(420px,38vw\)\]/);
