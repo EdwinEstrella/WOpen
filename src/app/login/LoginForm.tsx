@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function LoginForm() {
 	const [email, setEmail] = useState("");
@@ -39,7 +40,15 @@ export default function LoginForm() {
 	return (
 		<div className="min-h-screen bg-black flex items-center justify-center p-4">
 			<div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl">
-				<div className="text-center mb-8">
+				<div className="text-center mb-8 flex flex-col items-center">
+					<Image
+						src="/logoWOPEN.png"
+						width={96}
+						height={96}
+						className="mb-4 object-contain"
+						alt="Logo WOpen"
+						priority
+					/>
 					<h1 className="text-2xl font-bold text-white mb-2">
 						Acceso al Sistema
 					</h1>

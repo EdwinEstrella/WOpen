@@ -36,6 +36,14 @@ export type CrmContactMethodType =
 	| "email"
 	| "phone"
 	| "other";
+export type AiSuggestionStatus = "pending" | "approved" | "rejected" | "expired";
+export type AiSuggestionAction =
+	| "create_task"
+	| "update_lead"
+	| "route_to_human"
+	| "create_deal"
+	| "update_deal_stage"
+	| "send_reply";
 
 export const DEFAULT_SETTINGS = {
 	bot_on_keyword: "ok.",
@@ -227,6 +235,27 @@ CREATE TABLE IF NOT EXISTS crm_deals (
 );
 CREATE INDEX IF NOT EXISTS idx_crm_deals_contact ON crm_deals(contact_id);
 CREATE INDEX IF NOT EXISTS idx_crm_deals_account ON crm_deals(account_id);
+
+CREATE TABLE IF NOT EXISTS crm_ai_suggestions (
+  id SERIAL PRIMARY KEY,
+  conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  contact_id INTEGER REFERENCES crm_contacts(id) ON DELETE SET NULL,
+  deal_id INTEGER REFERENCES crm_deals(id) ON DELETE SET NULL,
+  action_type TEXT CHECK(action_type IN ('create_task','update_lead','route_to_human','create_deal','update_deal_stage','send_reply')) NOT NULL,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  confidence NUMERIC(5, 4),
+  reason TEXT NOT NULL,
+  status TEXT CHECK(status IN ('pending','approved','rejected','expired')) NOT NULL DEFAULT 'pending',
+  requires_confirmation BOOLEAN NOT NULL DEFAULT TRUE,
+  source TEXT NOT NULL DEFAULT 'lead_qualification',
+  resolved_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  resolution_note TEXT,
+  resolved_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_crm_ai_suggestions_conversation_status ON crm_ai_suggestions(conversation_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_crm_ai_suggestions_status_created ON crm_ai_suggestions(status, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS system_prompts (
   id SERIAL PRIMARY KEY,
@@ -480,6 +509,24 @@ export interface CrmDealRow {
 	account_id: number | null;
 	owner_user_id: number | null;
 	expected_close_date: Date | null;
+	created_at: Date;
+	updated_at: Date;
+}
+export interface AiCrmSuggestionRow {
+	id: number;
+	conversation_id: number;
+	contact_id: number | null;
+	deal_id: number | null;
+	action_type: AiSuggestionAction;
+	payload: Record<string, unknown>;
+	confidence: number | null;
+	reason: string;
+	status: AiSuggestionStatus;
+	requires_confirmation: boolean;
+	source: string;
+	resolved_by_user_id: number | null;
+	resolution_note: string | null;
+	resolved_at: Date | null;
 	created_at: Date;
 	updated_at: Date;
 }

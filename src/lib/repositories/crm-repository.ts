@@ -1,4 +1,7 @@
 import type {
+	AiCrmSuggestionRow,
+	AiSuggestionAction,
+	AiSuggestionStatus,
 	AuditEventRow,
 	ConversationCrmLinkRow,
 	CrmAccountRow,
@@ -45,6 +48,13 @@ export interface CrmRepository {
 		created_at?: Date;
 	}): Promise<CrmContactRow>;
 	getContactById(contactId: number): Promise<CrmContactRow | null>;
+	getContact360(contactId: number): Promise<{
+		contact: CrmContactRow;
+		methods: CrmContactMethodRow[];
+		account_links: CrmContactAccountLinkRow[];
+		deals: CrmDealRow[];
+		ai_suggestions: AiCrmSuggestionRow[];
+	} | null>;
 	updateContact(
 		id: number,
 		patch: {
@@ -92,6 +102,7 @@ export interface CrmRepository {
 		updated_at?: Date;
 	}): Promise<ConversationCrmLinkRow>;
 	findDealById(id: number): Promise<CrmDealRow | null>;
+	listDealsPipeline(): Promise<CrmDealRow[]>;
 	listDealsByContactId(contactId: number): Promise<CrmDealRow[]>;
 	listDealsByAccountId(accountId: number): Promise<CrmDealRow[]>;
 	createDeal(input: {
@@ -133,6 +144,34 @@ export interface CrmRepository {
 		request_metadata?: Record<string, unknown>;
 		deleted_at?: Date;
 	}): Promise<boolean>;
+	createAiSuggestion(input: {
+		conversation_id: number;
+		contact_id?: number | null;
+		deal_id?: number | null;
+		action_type: AiSuggestionAction;
+		payload: Record<string, unknown>;
+		confidence?: number | null;
+		reason: string;
+		requires_confirmation?: boolean;
+		source?: string;
+		actor_user_id?: number | null;
+		team_id?: number | null;
+		created_at?: Date;
+	}): Promise<AiCrmSuggestionRow>;
+	listAiSuggestions(filter?: {
+		conversation_id?: number;
+		status?: AiSuggestionStatus;
+	}): Promise<AiCrmSuggestionRow[]>;
+	updateAiSuggestionStatus(
+		id: number,
+		input: {
+			status: Extract<AiSuggestionStatus, "approved" | "rejected" | "expired">;
+			actor_user_id?: number | null;
+			team_id?: number | null;
+			resolution_note?: string | null;
+			resolved_at?: Date;
+		},
+	): Promise<AiCrmSuggestionRow>;
 	listAuditEvents(): Promise<AuditEventRow[]>;
 }
 
@@ -202,6 +241,26 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 				[contactId],
 			);
 			return result.rows[0] ?? null;
+		},
+		async getContact360(contactId) {
+			const contact = await this.getContactById(contactId);
+			if (!contact) return null;
+			const [methods, accountLinks, deals, suggestions] = await Promise.all([
+				this.listContactMethods(contactId),
+				this.listAccountLinksByContactId(contactId),
+				this.listDealsByContactId(contactId),
+				db.query<AiCrmSuggestionRow>(
+					"SELECT * FROM crm_ai_suggestions WHERE contact_id = $1 ORDER BY created_at DESC, id DESC",
+					[contactId],
+				).then((result) => result.rows),
+			]);
+			return {
+				contact,
+				methods,
+				account_links: accountLinks,
+				deals,
+				ai_suggestions: suggestions,
+			};
 		},
 		async updateContact(id, patch) {
 			const at = patch.updated_at ?? nowDate();
@@ -405,6 +464,12 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 			);
 			return result.rows[0] ?? null;
 		},
+		async listDealsPipeline() {
+			const result = await db.query<CrmDealRow>(
+				"SELECT * FROM crm_deals ORDER BY updated_at DESC, id DESC",
+			);
+			return result.rows;
+		},
 		async listDealsByContactId(contactId) {
 			const result = await db.query<CrmDealRow>(
 				"SELECT * FROM crm_deals WHERE contact_id = $1 ORDER BY id DESC",
@@ -531,6 +596,93 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 			});
 			return true;
 		},
+		async createAiSuggestion(input) {
+			const at = input.created_at ?? nowDate();
+			const result = await db.query<AiCrmSuggestionRow>(
+				`INSERT INTO crm_ai_suggestions (
+				  conversation_id, contact_id, deal_id, action_type, payload,
+				  confidence, reason, requires_confirmation, source, created_at, updated_at
+				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
+				RETURNING *`,
+				[
+					input.conversation_id,
+					input.contact_id ?? null,
+					input.deal_id ?? null,
+					input.action_type,
+					input.payload,
+					input.confidence ?? null,
+					input.reason,
+					input.requires_confirmation ?? true,
+					input.source ?? "lead_qualification",
+					at,
+				],
+			);
+			const row = result.rows[0];
+			await recordAudit(db, {
+				actor_user_id: input.actor_user_id,
+				team_id: input.team_id ?? null,
+				entity_type: "crm_ai_suggestion",
+				entity_id: String(row.id),
+				action: "crm.ai_suggestion_created",
+				before_json: {},
+				after_json: { action_type: row.action_type, status: row.status },
+				request_metadata: { source: row.source, confidence: row.confidence },
+				created_at: at,
+			});
+			return row;
+		},
+		async listAiSuggestions(filter = {}) {
+			const clauses: string[] = [];
+			const values: unknown[] = [];
+			if (filter.conversation_id !== undefined) {
+				values.push(filter.conversation_id);
+				clauses.push(`conversation_id = $${values.length}`);
+			}
+			if (filter.status !== undefined) {
+				values.push(filter.status);
+				clauses.push(`status = $${values.length}`);
+			}
+			const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
+			const result = await db.query<AiCrmSuggestionRow>(
+				`SELECT * FROM crm_ai_suggestions ${where} ORDER BY created_at DESC, id DESC`,
+				values,
+			);
+			return result.rows;
+		},
+		async updateAiSuggestionStatus(id, input) {
+			const at = input.resolved_at ?? nowDate();
+			const result = await db.query<AiCrmSuggestionRow>(
+				`UPDATE crm_ai_suggestions
+				 SET status = $1,
+				     resolved_by_user_id = $2,
+				     resolution_note = $3,
+				     resolved_at = $4,
+				     updated_at = $4
+				 WHERE id = $5
+				 RETURNING *`,
+				[
+					input.status,
+					input.actor_user_id ?? null,
+					input.resolution_note ?? null,
+					at,
+					id,
+				],
+			);
+			const row = result.rows[0];
+			if (!row) throw new Error(`CRM AI suggestion ${id} not found`);
+			await recordAudit(db, {
+				actor_user_id: input.actor_user_id,
+				team_id: input.team_id ?? null,
+				entity_type: "crm_ai_suggestion",
+				entity_id: String(id),
+				action: `crm.ai_suggestion_${input.status}`,
+				before_json: { status: "pending" },
+				after_json: { status: input.status },
+				request_metadata: { resolution_note: input.resolution_note ?? null },
+				created_at: at,
+			});
+			return row;
+		},
 		async listAuditEvents() {
 			const result = await db.query<AuditEventRow>(
 				"SELECT * FROM audit_events ORDER BY id ASC",
@@ -548,6 +700,7 @@ export function createInMemoryCrmRepository(): CrmRepository {
 	const conversationLinks: ConversationCrmLinkRow[] = [];
 	const audits: AuditEventRow[] = [];
 	const deals: CrmDealRow[] = [];
+	const suggestions: AiCrmSuggestionRow[] = [];
 	let nextAccountId = 1;
 	let nextContactId = 1;
 	let nextMethodId = 1;
@@ -555,6 +708,7 @@ export function createInMemoryCrmRepository(): CrmRepository {
 	let nextConversationLinkId = 1;
 	let nextAuditId = 1;
 	let nextDealId = 1;
+	let nextSuggestionId = 1;
 
 	return {
 		async createAccount(input) {
@@ -585,6 +739,19 @@ export function createInMemoryCrmRepository(): CrmRepository {
 		},
 		async getContactById(contactId) {
 			return contacts.find((row) => row.id === contactId) ?? null;
+		},
+		async getContact360(contactId) {
+			const contact = await this.getContactById(contactId);
+			if (!contact) return null;
+			return {
+				contact,
+				methods: await this.listContactMethods(contactId),
+				account_links: await this.listAccountLinksByContactId(contactId),
+				deals: await this.listDealsByContactId(contactId),
+				ai_suggestions: suggestions
+					.filter((item) => item.contact_id === contactId)
+					.sort((a, b) => b.id - a.id),
+			};
 		},
 		async updateContact(id, patch) {
 			const row = contacts.find((c) => c.id === id);
@@ -713,6 +880,9 @@ export function createInMemoryCrmRepository(): CrmRepository {
 		async findDealById(id) {
 			return deals.find((d) => d.id === id) ?? null;
 		},
+		async listDealsPipeline() {
+			return [...deals].sort((a, b) => b.id - a.id);
+		},
 		async listDealsByContactId(contactId) {
 			return deals.filter((d) => d.contact_id === contactId).sort((a, b) => b.id - a.id);
 		},
@@ -804,6 +974,73 @@ export function createInMemoryCrmRepository(): CrmRepository {
 				created_at: at,
 			});
 			return true;
+		},
+		async createAiSuggestion(input) {
+			const at = input.created_at ?? nowDate();
+			const row: AiCrmSuggestionRow = {
+				id: nextSuggestionId++,
+				conversation_id: input.conversation_id,
+				contact_id: input.contact_id ?? null,
+				deal_id: input.deal_id ?? null,
+				action_type: input.action_type,
+				payload: input.payload,
+				confidence: input.confidence ?? null,
+				reason: input.reason,
+				status: "pending",
+				requires_confirmation: input.requires_confirmation ?? true,
+				source: input.source ?? "lead_qualification",
+				resolved_by_user_id: null,
+				resolution_note: null,
+				resolved_at: null,
+				created_at: at,
+				updated_at: at,
+			};
+			suggestions.push(row);
+			audits.push({
+				id: nextAuditId++,
+				actor_user_id: input.actor_user_id ?? null,
+				team_id: input.team_id ?? null,
+				entity_type: "crm_ai_suggestion",
+				entity_id: String(row.id),
+				action: "crm.ai_suggestion_created",
+				before_json: {},
+				after_json: { action_type: row.action_type, status: row.status },
+				request_metadata: { source: row.source, confidence: row.confidence },
+				created_at: at,
+			});
+			return row;
+		},
+		async listAiSuggestions(filter = {}) {
+			return suggestions
+				.filter((row) =>
+					filter.conversation_id === undefined ||
+					row.conversation_id === filter.conversation_id
+				)
+				.filter((row) => filter.status === undefined || row.status === filter.status)
+				.sort((a, b) => b.id - a.id);
+		},
+		async updateAiSuggestionStatus(id, input) {
+			const row = suggestions.find((item) => item.id === id);
+			if (!row) throw new Error(`CRM AI suggestion ${id} not found`);
+			const at = input.resolved_at ?? nowDate();
+			row.status = input.status;
+			row.resolved_by_user_id = input.actor_user_id ?? null;
+			row.resolution_note = input.resolution_note ?? null;
+			row.resolved_at = at;
+			row.updated_at = at;
+			audits.push({
+				id: nextAuditId++,
+				actor_user_id: input.actor_user_id ?? null,
+				team_id: input.team_id ?? null,
+				entity_type: "crm_ai_suggestion",
+				entity_id: String(id),
+				action: `crm.ai_suggestion_${input.status}`,
+				before_json: { status: "pending" },
+				after_json: { status: input.status },
+				request_metadata: { resolution_note: input.resolution_note ?? null },
+				created_at: at,
+			});
+			return row;
 		},
 		async listAuditEvents() {
 			return [...audits];

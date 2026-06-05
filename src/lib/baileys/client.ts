@@ -19,6 +19,7 @@ import {
 	describeImage,
 	transcribeAudio,
 } from "../ai-providers.ts";
+import { qualifyLeadAndCreateSuggestions } from "../ai-qualification-service.ts";
 import {
 	getConnectionState,
 	setConnectionState,
@@ -43,6 +44,7 @@ import {
 	enqueueOutbox,
 	listConversations,
 } from "../db.ts";
+import { runtimeCrmRepository } from "../repositories/runtime-crm.ts";
 import { outboxDestinationForConversation } from "../outbox-routing.ts";
 
 const logger = pino({ level: process.env.LOG_LEVEL || "warn" });
@@ -93,6 +95,28 @@ export const inboundHandler = createInboundHandler({
 			throw new Error(res.reason);
 		}
 		return res.rawContent;
+	},
+	qualifyLead: async (input) => {
+		const settings = await getSettings();
+		const chatClient = createConfiguredChatClient(settings);
+		const crmLink = await runtimeCrmRepository.getConversationCrmLink(
+			input.conversation.id,
+		);
+		await qualifyLeadAndCreateSuggestions({
+			conversation: {
+				id: input.conversation.id,
+				contact_id: crmLink?.contact_id ?? null,
+			},
+			history: [
+				...input.history,
+				...input.queuedMessages.map((message) => ({
+					role: "user" as const,
+					content: message.text,
+				})),
+			],
+			crmRepo: runtimeCrmRepository,
+			aiClient: chatClient,
+		});
 	},
 	sendMessage: async (jid, text) => {
 		if (globalSock) {

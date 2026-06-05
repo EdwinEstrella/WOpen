@@ -39,6 +39,10 @@ export interface FollowUpRequest {
 	history: DeepSeekHistoryMessage[];
 }
 
+export interface LeadQualificationRequest {
+	history: DeepSeekHistoryMessage[];
+}
+
 export type DeepSeekAdapterResult<T> =
 	| { ok: true; parsed: T; rawContent: string; attempts: number }
 	| {
@@ -146,14 +150,66 @@ function followUpMessages(input: FollowUpRequest): ChatMessage[] {
 	];
 }
 
+function qualificationMessages(input: LeadQualificationRequest): ChatMessage[] {
+	return [
+		{
+			role: "system",
+			content: [
+				"You are a lead qualification analyst for a WhatsApp CRM.",
+				"Return strict JSON only. Do not include markdown.",
+				"Required keys: intent, urgency, budget, fit, objections, next_step, qualification_status, confidence, reason.",
+				"urgency and fit must be one of: high, medium, low, unknown.",
+				"qualification_status must be one of: qualified, nurture, unqualified, unknown.",
+				"confidence must be a number from 0 to 1.",
+			].join("\n"),
+		},
+		...toChatHistory(input.history),
+		{
+			role: "user",
+			content:
+				"Perform lead qualification for the conversation above and return strict JSON.",
+		},
+	];
+}
+
+type LeadQualificationParseResult =
+	| ({ ok: true } & Record<string, unknown>)
+	| { ok: false; reason: string };
+
+function parseLeadQualification(raw: string): LeadQualificationParseResult {
+	try {
+		const parsed = JSON.parse(raw);
+		if (!isRecord(parsed)) return { ok: false as const, reason: "qualification_not_object" };
+		for (const key of [
+			"intent",
+			"urgency",
+			"budget",
+			"fit",
+			"next_step",
+			"qualification_status",
+			"confidence",
+			"reason",
+		]) {
+			if (!(key in parsed)) {
+				return { ok: false as const, reason: `qualification_missing_${key}` };
+			}
+		}
+		return { ok: true as const, ...parsed };
+	} catch {
+		return { ok: false as const, reason: "qualification_invalid_json" };
+	}
+}
+
 function repairMessages(
 	raw: string,
-	kind: "normal" | "followup",
+	kind: "normal" | "followup" | "qualification",
 ): ChatMessage[] {
 	const schema =
 		kind === "normal"
 			? '{"response":{"part_1":"...","part_2":"...","part_3":"..."},"handoff":{"required":false,"reason":""},"lead":{"labels":["frio"|"neutro"|"caliente"|"cliente_potencial"],"score":0-100,"reason":"..."}}'
-			: '{"respuesta":"SI"|"NO","mensaje":"..."}';
+			: kind === "followup"
+				? '{"respuesta":"SI"|"NO","mensaje":"..."}'
+				: '{"intent":"...","urgency":"high|medium|low|unknown","budget":"confirmed|mentioned|unknown|...","fit":"high|medium|low|unknown","objections":["..."],"next_step":"...","qualification_status":"qualified|nurture|unqualified|unknown","confidence":0.0,"reason":"..."}';
 	return [
 		{
 			role: "user",
@@ -187,7 +243,7 @@ export function createDeepSeekClient(config: DeepSeekClientConfig) {
 
 	async function requestWithRepair<T extends { ok: boolean }>(input: {
 		messages: ChatMessage[];
-		kind: "normal" | "followup";
+		kind: "normal" | "followup" | "qualification";
 		parse: Parser<T>;
 	}): Promise<DeepSeekAdapterResult<T>> {
 		let attempts = 0;
@@ -224,6 +280,13 @@ export function createDeepSeekClient(config: DeepSeekClientConfig) {
 				messages: followUpMessages(input),
 				kind: "followup",
 				parse: parseFollowUpDecision,
+			});
+		},
+		qualifyLead(input: LeadQualificationRequest) {
+			return requestWithRepair<ReturnType<typeof parseLeadQualification>>({
+				messages: qualificationMessages(input),
+				kind: "qualification",
+				parse: parseLeadQualification,
 			});
 		},
 	};

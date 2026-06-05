@@ -124,6 +124,11 @@ export interface InboundHandlerDeps {
 		systemPrompt: string;
 		queuedMessages: QueuedTurnMessage[];
 	}) => Promise<string>;
+	qualifyLead?: (input: {
+		conversation: ConversationRow;
+		history: HistoryMessage[];
+		queuedMessages: QueuedTurnMessage[];
+	}) => Promise<void>;
 	sendMessage: (jid: string, text: string) => Promise<void>;
 	notifyTelegramHumanNeeded: (payload: {
 		conversationId: number;
@@ -611,6 +616,15 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 					lead_score_reason: parsed.lead.reason || null,
 					lead_updated_at: now,
 					lead_updated_by: "assistant",
+				});
+			}
+			if (deps.qualifyLead) {
+				await deps.qualifyLead({
+					conversation: beforeConversation,
+					history,
+					queuedMessages,
+				}).catch((error) => {
+					console.error("[bot] AI CRM qualification failed:", error);
 				});
 			}
 

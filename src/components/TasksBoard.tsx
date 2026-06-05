@@ -74,6 +74,45 @@ interface TasksBoardProps {
 	onConversationUpdated: (conversation: ConversationListRow) => void;
 }
 
+interface AiSuggestionRow {
+	id: number;
+	conversation_id: number;
+	action_type: string;
+	payload: Record<string, unknown>;
+	confidence: number | null;
+	reason: string;
+	requires_confirmation: boolean;
+	status: "pending" | "approved" | "rejected" | "expired";
+}
+
+interface DealRow {
+	id: number;
+	title: string;
+	amount: number | null;
+	currency: string;
+	stage: "lead" | "contacted" | "proposal_sent" | "won" | "lost";
+}
+
+interface PipelineStage {
+	count: number;
+	amount: number;
+	deals: DealRow[];
+}
+
+interface PipelineSummary {
+	total_count: number;
+	total_amount: number;
+	stages: Record<DealRow["stage"], PipelineStage>;
+}
+
+const DEAL_STAGES: Array<{ key: DealRow["stage"]; label: string }> = [
+	{ key: "lead", label: "Lead" },
+	{ key: "contacted", label: "Contactado" },
+	{ key: "proposal_sent", label: "Propuesta" },
+	{ key: "won", label: "Ganado" },
+	{ key: "lost", label: "Perdido" },
+];
+
 function selectClassName() {
 	return "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 }
@@ -152,6 +191,8 @@ export default function TasksBoard({
 	onConversationUpdated,
 }: TasksBoardProps) {
 	const [tasks, setTasks] = useState<CrmTaskListRow[]>([]);
+	const [suggestions, setSuggestions] = useState<AiSuggestionRow[]>([]);
+	const [pipeline, setPipeline] = useState<PipelineSummary | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isSaving, setIsSaving] = useState(false);
 	const [title, setTitle] = useState("");
@@ -197,8 +238,30 @@ export default function TasksBoard({
 		}
 	};
 
+	const loadSuggestions = async () => {
+		try {
+			const res = await fetch("/api/crm/suggestions?status=pending");
+			if (!res.ok) throw new Error("No se pudieron cargar las sugerencias IA");
+			setSuggestions(await res.json());
+		} catch (loadError: any) {
+			setError(loadError.message || "No se pudieron cargar las sugerencias IA");
+		}
+	};
+
+	const loadPipeline = async () => {
+		try {
+			const res = await fetch("/api/crm/pipeline");
+			if (!res.ok) throw new Error("No se pudo cargar el pipeline");
+			setPipeline(await res.json());
+		} catch (loadError: any) {
+			setError(loadError.message || "No se pudo cargar el pipeline");
+		}
+	};
+
 	useEffect(() => {
 		loadTasks();
+		loadSuggestions();
+		loadPipeline();
 	}, []);
 
 	const createTask = async () => {
@@ -272,6 +335,19 @@ export default function TasksBoard({
 		await updateTask(task.id, { status: "done" });
 	};
 
+	const resolveSuggestion = async (
+		suggestionId: number,
+		status: "approved" | "rejected",
+	) => {
+		const res = await fetch(`/api/crm/suggestions/${suggestionId}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ status }),
+		});
+		if (!res.ok) throw new Error("No se pudo resolver la sugerencia IA");
+		setSuggestions((current) => current.filter((item) => item.id !== suggestionId));
+	};
+
 	return (
 		<div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
 			<div className="flex flex-col gap-1">
@@ -339,6 +415,126 @@ export default function TasksBoard({
 						/>
 					</div>
 					{error && <p className="mt-3 text-sm text-destructive">{error}</p>}
+				</CardContent>
+			</Card>
+
+			<Card className="shrink-0 border-outline-variant/20 bg-surface-container-low/70">
+				<CardHeader>
+					<CardTitle className="flex items-center justify-between gap-2">
+						<span>Pipeline comercial</span>
+						<Badge variant="secondary">
+							{pipeline?.total_count ?? 0} deals · US${Math.round(pipeline?.total_amount ?? 0)}
+						</Badge>
+					</CardTitle>
+					<CardDescription>
+						Etapas reales de oportunidad: desde lead hasta ganado o perdido.
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<div className="grid gap-3 xl:grid-cols-5">
+						{DEAL_STAGES.map((stage) => {
+							const summary = pipeline?.stages?.[stage.key] ?? {
+								count: 0,
+								amount: 0,
+								deals: [],
+							};
+							return (
+								<div
+									key={stage.key}
+									className="rounded-xl border border-outline-variant/20 bg-background/40 p-3"
+								>
+									<div className="mb-3 flex items-center justify-between gap-2">
+										<div>
+											<p className="text-sm font-semibold text-on-surface">{stage.label}</p>
+											<p className="text-xs text-muted-foreground">
+												{summary.count} · US${Math.round(summary.amount)}
+											</p>
+										</div>
+										<Badge variant="outline">{summary.count}</Badge>
+									</div>
+									<div className="space-y-2">
+										{summary.deals.slice(0, 3).map((deal) => (
+											<div
+												key={deal.id}
+												className="rounded-lg border border-outline-variant/20 bg-card/70 p-2"
+											>
+												<p className="truncate text-xs font-semibold">{deal.title}</p>
+												<p className="text-[11px] text-muted-foreground">
+													{deal.currency} {Number(deal.amount ?? 0).toLocaleString("es")}
+												</p>
+											</div>
+										))}
+										{summary.deals.length === 0 && (
+											<p className="rounded-lg border border-dashed border-outline-variant/25 p-2 text-xs text-muted-foreground">
+												Sin oportunidades.
+											</p>
+										)}
+									</div>
+								</div>
+							);
+						})}
+					</div>
+				</CardContent>
+			</Card>
+
+			<Card className="shrink-0 border-primary/20 bg-primary/5">
+				<CardHeader>
+					<CardTitle className="flex items-center justify-between gap-2">
+						<span>Sugerencias IA para calificar leads</span>
+						<Badge variant="secondary">{suggestions.length}</Badge>
+					</CardTitle>
+					<CardDescription>
+						La IA propone acciones; el equipo humano aprueba lo importante.
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					{suggestions.length === 0 ? (
+						<p className="text-sm text-muted-foreground">
+							Sin sugerencias pendientes. Los leads de baja confianza quedan para revisión manual.
+						</p>
+					) : (
+						<div className="grid gap-3 xl:grid-cols-3">
+							{suggestions.slice(0, 6).map((suggestion) => (
+								<Card key={suggestion.id} size="sm" className="bg-card/90">
+									<CardHeader>
+										<CardTitle className="text-sm">
+											{String(suggestion.payload.title ?? suggestion.action_type)}
+										</CardTitle>
+										<CardDescription className="flex flex-wrap gap-2">
+											<Badge variant="outline">{suggestion.action_type}</Badge>
+											<Badge variant={suggestion.requires_confirmation ? "destructive" : "secondary"}>
+												{suggestion.requires_confirmation ? "Requiere aprobación" : "Bajo riesgo"}
+											</Badge>
+											{typeof suggestion.confidence === "number" && (
+												<Badge variant="secondary">
+													{Math.round(suggestion.confidence * 100)}% confianza
+												</Badge>
+											)}
+										</CardDescription>
+									</CardHeader>
+									<CardContent className="space-y-3">
+										<p className="text-sm text-muted-foreground">{suggestion.reason}</p>
+										<div className="flex gap-2">
+											<Button
+												size="sm"
+												onClick={() => resolveSuggestion(suggestion.id, "approved")}
+											>
+												<Check data-icon="inline-start" />
+												Aprobar
+											</Button>
+											<Button
+												size="sm"
+												variant="outline"
+												onClick={() => resolveSuggestion(suggestion.id, "rejected")}
+											>
+												Rechazar
+											</Button>
+										</div>
+									</CardContent>
+								</Card>
+							))}
+						</div>
+					)}
 				</CardContent>
 			</Card>
 

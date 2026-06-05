@@ -8,6 +8,7 @@ import {
 	createDeepSeekClient,
 	type DeepSeekFetch,
 	type FollowUpRequest,
+	type LeadQualificationRequest,
 	type NormalReplyRequest,
 } from "./deepseek-client.ts";
 
@@ -219,6 +220,27 @@ function followUpPrompt(input: FollowUpRequest): string {
 	].join("\n");
 }
 
+function qualificationPrompt(input: LeadQualificationRequest): string {
+	return [
+		"You are a lead qualification analyst for a WhatsApp CRM.",
+		"Return strict JSON only with keys: intent, urgency, budget, fit, objections, next_step, qualification_status, confidence, reason.",
+		"Historial:",
+		...input.history.map((item) => `${item.role}: ${item.content}`),
+	].join("\n");
+}
+
+function parseProviderQualification(raw: string) {
+	try {
+		const parsed = JSON.parse(raw);
+		if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+			return { ok: false as const, reason: "qualification_not_object" };
+		}
+		return { ok: true as const, ...(parsed as Record<string, unknown>) };
+	} catch {
+		return { ok: false as const, reason: "qualification_invalid_json" };
+	}
+}
+
 function createGoogleChatClient(provider: AiProviderSettings) {
 	async function generateContent(prompt: string) {
 		requireProvider(provider, "chat");
@@ -285,6 +307,12 @@ function createGoogleChatClient(provider: AiProviderSettings) {
 			return request<FollowUpDecisionParseResult>(
 				followUpPrompt(input),
 				parseFollowUpDecision,
+			);
+		},
+		qualifyLead(input: LeadQualificationRequest) {
+			return request<ReturnType<typeof parseProviderQualification>>(
+				qualificationPrompt(input),
+				parseProviderQualification,
 			);
 		},
 	};
