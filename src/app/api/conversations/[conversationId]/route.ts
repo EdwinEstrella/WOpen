@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { deleteConversation, getConversationById, updateConversation } from "../../../../lib/db.ts";
 import { normalizeLeadLabels } from "../../../../domain/whatsapp-rules.ts";
+import { authErrorToResponse, requireRequestRole } from "@/lib/auth/session";
+import { runtimeSessionDeps as authDeps } from "@/lib/auth/runtime";
 
 interface Ctx {
 	params: Promise<{ conversationId: string }>;
@@ -8,6 +10,7 @@ interface Ctx {
 
 export async function DELETE(_req: Request, { params }: Ctx) {
 	try {
+		await requireRequestRole(_req, authDeps, "agent");
 		const { conversationId } = await params;
 		const parsedId = Number.parseInt(conversationId, 10);
 		
@@ -18,6 +21,8 @@ export async function DELETE(_req: Request, { params }: Ctx) {
 		await deleteConversation(parsedId);
 		return NextResponse.json({ ok: true, message: "Conversation deleted successfully." });
 	} catch (error: any) {
+		const authResponse = authErrorToResponse(error);
+		if (authResponse) return authResponse;
 		console.error("[api] Error en DELETE /api/conversations/[conversationId]:", error);
 		return NextResponse.json(
 			{ error: "Internal Server Error", message: error.message },
@@ -28,6 +33,7 @@ export async function DELETE(_req: Request, { params }: Ctx) {
 
 export async function PATCH(req: Request, { params }: Ctx) {
 	try {
+		await requireRequestRole(req, authDeps, "agent");
 		const { conversationId } = await params;
 		const parsedId = Number.parseInt(conversationId, 10);
 
@@ -77,6 +83,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
 		const updated = await updateConversation(parsedId, patch);
 		return NextResponse.json(updated);
 	} catch (error: any) {
+		const authResponse = authErrorToResponse(error);
+		if (authResponse) return authResponse;
 		console.error("[api] Error en PATCH /api/conversations/[conversationId]:", error);
 		return NextResponse.json(
 			{ error: "Internal Server Error", message: error.message },

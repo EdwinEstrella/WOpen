@@ -1,4 +1,6 @@
 ﻿import { NextResponse } from "next/server";
+import { authErrorToResponse, requireRequestRole } from "@/lib/auth/session";
+import { runtimeSessionDeps as authDeps } from "@/lib/auth/runtime";
 import {
 	getAllSystemPrompts,
 	saveSystemPrompt,
@@ -7,11 +9,14 @@ import {
 } from "../../../lib/db.ts";
 
 // Lista todos los prompts cargados en el sistema
-export async function GET() {
+export async function GET(req: Request) {
 	try {
+		await requireRequestRole(req, authDeps, "viewer");
 		const prompts = await getAllSystemPrompts();
 		return NextResponse.json(prompts);
 	} catch (error: any) {
+		const authResponse = authErrorToResponse(error);
+		if (authResponse) return authResponse;
 		console.error("[api] Error en GET /api/prompts:", error);
 		return NextResponse.json(
 			{ error: "Internal Server Error", message: error.message },
@@ -23,6 +28,7 @@ export async function GET() {
 // Crea un nuevo prompt del sistema
 export async function POST(req: Request) {
 	try {
+		await requireRequestRole(req, authDeps, "manager");
 		const body = await req.json();
 		const { title, content } = body;
 
@@ -36,6 +42,8 @@ export async function POST(req: Request) {
 		const prompt = await saveSystemPrompt(title.trim(), content.trim());
 		return NextResponse.json(prompt);
 	} catch (error: any) {
+		const authResponse = authErrorToResponse(error);
+		if (authResponse) return authResponse;
 		console.error("[api] Error en POST /api/prompts:", error);
 		return NextResponse.json(
 			{ error: "Internal Server Error", message: error.message },
@@ -47,6 +55,7 @@ export async function POST(req: Request) {
 // Actualiza un prompt: activarlo o editarlo
 export async function PUT(req: Request) {
 	try {
+		await requireRequestRole(req, authDeps, "manager");
 		const body = await req.json();
 		const { action, id, title, content } = body;
 
@@ -82,6 +91,8 @@ export async function PUT(req: Request) {
 
 		return NextResponse.json({ ok: true, prompt: res.rows[0] });
 	} catch (error: any) {
+		const authResponse = authErrorToResponse(error);
+		if (authResponse) return authResponse;
 		console.error("[api] Error en PUT /api/prompts:", error);
 		return NextResponse.json(
 			{ error: "Internal Server Error", message: error.message },
@@ -93,6 +104,7 @@ export async function PUT(req: Request) {
 // Elimina un prompt del sistema (pasándole id por query param ?id=X)
 export async function DELETE(req: Request) {
 	try {
+		await requireRequestRole(req, authDeps, "manager");
 		const { searchParams } = new URL(req.url);
 		const idStr = searchParams.get("id");
 
@@ -117,6 +129,8 @@ export async function DELETE(req: Request) {
 		await pool.query("DELETE FROM system_prompts WHERE id = $1", [id]);
 		return NextResponse.json({ ok: true, message: "Prompt deleted successfully." });
 	} catch (error: any) {
+		const authResponse = authErrorToResponse(error);
+		if (authResponse) return authResponse;
 		console.error("[api] Error en DELETE /api/prompts:", error);
 		return NextResponse.json(
 			{ error: "Internal Server Error", message: error.message },

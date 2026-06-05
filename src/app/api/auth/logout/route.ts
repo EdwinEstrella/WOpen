@@ -1,7 +1,17 @@
 import { NextResponse } from "next/server";
 
-export async function POST() {
-	const response = NextResponse.json({ success: true });
-	response.cookies.delete("bot_session");
-	return response;
+import {
+	clearSessionCookie,
+	createSessionService,
+	type SessionRouteDeps,
+} from "@/lib/auth/session";
+import { runtimeSessionDeps } from "@/lib/auth/runtime";
+
+export function createLogoutRoute(deps: SessionRouteDeps) {
+	return async function POST(request: Request) {
+		await createSessionService(deps).revokeFromRequest(request);
+		return clearSessionCookie(NextResponse.json({ success: true }));
+	};
 }
+
+export const POST = createLogoutRoute(runtimeSessionDeps);

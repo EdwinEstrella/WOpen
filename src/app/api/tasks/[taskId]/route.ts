@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { authErrorToResponse, requireRequestRole } from "@/lib/auth/session";
+import { runtimeSessionDeps as authDeps } from "@/lib/auth/runtime";
 import { deleteCrmTask, updateCrmTask } from "@/lib/db";
 
 interface Ctx {
@@ -17,6 +19,7 @@ function badRequest(message: string) {
 
 export async function PATCH(req: Request, { params }: Ctx) {
 	try {
+		await requireRequestRole(req, authDeps, "agent");
 		const { taskId } = await params;
 		const parsedId = parseTaskId(taskId);
 		if (!parsedId) return badRequest("Invalid task ID");
@@ -27,6 +30,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
 		return NextResponse.json(task);
 	} catch (error: any) {
+		const authResponse = authErrorToResponse(error);
+		if (authResponse) return authResponse;
 		console.error("[api] Error en PATCH /api/tasks/[taskId]:", error);
 		return badRequest(error.message || "Invalid task");
 	}
@@ -34,6 +39,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
 export async function DELETE(_req: Request, { params }: Ctx) {
 	try {
+		await requireRequestRole(_req, authDeps, "agent");
 		const { taskId } = await params;
 		const parsedId = parseTaskId(taskId);
 		if (!parsedId) return badRequest("Invalid task ID");
@@ -41,6 +47,8 @@ export async function DELETE(_req: Request, { params }: Ctx) {
 		await deleteCrmTask(parsedId);
 		return NextResponse.json({ ok: true });
 	} catch (error: any) {
+		const authResponse = authErrorToResponse(error);
+		if (authResponse) return authResponse;
 		console.error("[api] Error en DELETE /api/tasks/[taskId]:", error);
 		return NextResponse.json(
 			{ error: "Internal Server Error", message: error.message },

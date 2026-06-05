@@ -1,5 +1,7 @@
 ﻿import { NextResponse } from "next/server";
 import fs from "node:fs";
+import { authErrorToResponse, requireRequestRole } from "@/lib/auth/session";
+import { runtimeSessionDeps as authDeps } from "@/lib/auth/runtime";
 import {
 	deleteWhatsAppInstance,
 	setActiveWhatsAppInstance,
@@ -28,6 +30,7 @@ function parseInstanceId(value: string) {
 
 export async function PATCH(req: Request, { params }: Ctx) {
 	try {
+		await requireRequestRole(req, authDeps, "manager");
 		const { instanceId } = await params;
 		const id = parseInstanceId(instanceId);
 		const body = await req.json().catch(() => ({}));
@@ -38,6 +41,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
 		requestBotRestart();
 		return NextResponse.json(instance);
 	} catch (error: any) {
+		const authResponse = authErrorToResponse(error);
+		if (authResponse) return authResponse;
 		console.error("[api] Error en PATCH /api/instances/[instanceId]:", error);
 		const status = error.message?.startsWith("whatsapp_instance_not_found") ? 404 : 500;
 		return NextResponse.json({ error: "Could not update instance", message: error.message }, { status });
@@ -46,6 +51,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
 export async function DELETE(_req: Request, { params }: Ctx) {
 	try {
+		await requireRequestRole(_req, authDeps, "manager");
 		const { instanceId } = await params;
 		const id = parseInstanceId(instanceId);
 		await deleteWhatsAppInstance(id);
@@ -54,6 +60,8 @@ export async function DELETE(_req: Request, { params }: Ctx) {
 		requestBotRestart();
 		return NextResponse.json({ ok: true });
 	} catch (error: any) {
+		const authResponse = authErrorToResponse(error);
+		if (authResponse) return authResponse;
 		console.error("[api] Error en DELETE /api/instances/[instanceId]:", error);
 		const status = error.message === "cannot_delete_last_instance" ? 400 : error.message?.startsWith("whatsapp_instance_not_found") ? 404 : 500;
 		return NextResponse.json({ error: "Could not delete instance", message: error.message }, { status });

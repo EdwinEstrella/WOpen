@@ -28,6 +28,8 @@ export type ConversationEventType =
 	| "deepseek_json_invalid"
 	| "turn_failed";
 export type EventActorRole = MessageRole | "system";
+export type UserStatus = "active" | "disabled";
+export type TeamMembershipRole = "owner" | "manager" | "agent" | "viewer";
 
 export const DEFAULT_SETTINGS = {
 	bot_on_keyword: "ok.",
@@ -106,6 +108,55 @@ CREATE TABLE IF NOT EXISTS conversation_events (
   metadata JSONB NOT NULL DEFAULT '{}'::jsonb, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_conversation_events_conv_created ON conversation_events(conversation_id, created_at);
+CREATE TABLE IF NOT EXISTS teams (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  display_name TEXT,
+  status TEXT CHECK(status IN ('active','disabled')) NOT NULL DEFAULT 'active',
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS team_memberships (
+  id SERIAL PRIMARY KEY,
+  team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role TEXT CHECK(role IN ('owner','manager','agent','viewer')) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  UNIQUE(team_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS user_password_credentials (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  password_hash TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS user_sessions (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  session_token_hash TEXT UNIQUE NOT NULL,
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  revoked_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_active_lookup ON user_sessions(session_token_hash, expires_at) WHERE revoked_at IS NULL;
+CREATE TABLE IF NOT EXISTS audit_events (
+  id SERIAL PRIMARY KEY,
+  actor_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  team_id INTEGER REFERENCES teams(id) ON DELETE SET NULL,
+  entity_type TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  action TEXT NOT NULL,
+  before_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  after_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  request_metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_audit_events_entity_created ON audit_events(entity_type, entity_id, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS system_prompts (
   id SERIAL PRIMARY KEY,
@@ -260,6 +311,52 @@ export interface ConversationEventRow {
 	actor_role: EventActorRole;
 	reason: string | null;
 	metadata: Record<string, unknown>;
+	created_at: Date;
+}
+export interface TeamRow {
+	id: number;
+	name: string;
+	created_at: Date;
+}
+export interface UserRow {
+	id: number;
+	email: string;
+	display_name: string | null;
+	status: UserStatus;
+	created_at: Date;
+	updated_at: Date;
+}
+export interface TeamMembershipRow {
+	id: number;
+	team_id: number;
+	user_id: number;
+	role: TeamMembershipRole;
+	created_at: Date;
+}
+export interface UserPasswordCredentialRow {
+	user_id: number;
+	password_hash: string;
+	created_at: Date;
+	updated_at: Date;
+}
+export interface UserSessionRow {
+	id: number;
+	user_id: number;
+	session_token_hash: string;
+	expires_at: Date;
+	revoked_at: Date | null;
+	created_at: Date;
+}
+export interface AuditEventRow {
+	id: number;
+	actor_user_id: number | null;
+	team_id: number | null;
+	entity_type: string;
+	entity_id: string;
+	action: string;
+	before_json: Record<string, unknown>;
+	after_json: Record<string, unknown>;
+	request_metadata: Record<string, unknown>;
 	created_at: Date;
 }
 export interface InsertMessageInput {
