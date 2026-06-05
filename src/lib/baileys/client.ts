@@ -280,7 +280,8 @@ async function refreshAllProfilePictures() {
 		const conversations = await listConversations();
 		const now = new Date();
 		for (const convo of conversations) {
-			const jid = convo.jid || (convo.phone.includes("@") ? convo.phone : `${convo.phone}@s.whatsapp.net`);
+			const phoneOrJid = convo.phone;
+			const jid = convo.jid || (phoneOrJid.endsWith("@s.whatsapp.net") || phoneOrJid.endsWith("@lid") ? phoneOrJid : `${phoneOrJid}@s.whatsapp.net`);
 			const shouldRefresh = !convo.profile_picture_url || 
 				!convo.profile_picture_fetched_at || 
 				(now.getTime() - new Date(convo.profile_picture_fetched_at).getTime() > 24 * 60 * 60 * 1000);
