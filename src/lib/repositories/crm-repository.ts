@@ -41,6 +41,15 @@ export interface CrmRepository {
 		created_at?: Date;
 	}): Promise<CrmContactRow>;
 	getContactById(contactId: number): Promise<CrmContactRow | null>;
+	updateContact(
+		id: number,
+		patch: {
+			display_name?: string | null;
+			owner_user_id?: number | null;
+			team_id?: number | null;
+			updated_at?: Date;
+		},
+	): Promise<CrmContactRow>;
 	addContactMethod(input: {
 		contact_id: number;
 		method_type: string;
@@ -189,6 +198,30 @@ export function createPostgresCrmRepository(db: Queryable): CrmRepository {
 				[contactId],
 			);
 			return result.rows[0] ?? null;
+		},
+		async updateContact(id, patch) {
+			const at = patch.updated_at ?? nowDate();
+			const result = await db.query<CrmContactRow>(
+				`UPDATE crm_contacts
+				 SET display_name = COALESCE($1, display_name),
+				     owner_user_id = COALESCE($2, owner_user_id),
+				     team_id = COALESCE($3, team_id),
+				     updated_at = $4
+				 WHERE id = $5
+				 RETURNING *`,
+				[
+					patch.display_name ?? null,
+					patch.owner_user_id ?? null,
+					patch.team_id ?? null,
+					at,
+					id,
+				],
+			);
+			const row = result.rows[0];
+			if (!row) {
+				throw new Error(`CRM contact ${id} not found`);
+			}
+			return row;
 		},
 		async addContactMethod(input) {
 			const result = await db.query<CrmContactMethodRow>(
@@ -484,6 +517,15 @@ export function createInMemoryCrmRepository(): CrmRepository {
 		},
 		async getContactById(contactId) {
 			return contacts.find((row) => row.id === contactId) ?? null;
+		},
+		async updateContact(id, patch) {
+			const row = contacts.find((c) => c.id === id);
+			if (!row) throw new Error(`CRM contact ${id} not found`);
+			if (patch.display_name !== undefined) row.display_name = patch.display_name;
+			if (patch.owner_user_id !== undefined) row.owner_user_id = patch.owner_user_id;
+			if (patch.team_id !== undefined) row.team_id = patch.team_id;
+			row.updated_at = patch.updated_at ?? nowDate();
+			return row;
 		},
 		async addContactMethod(input) {
 			const row: CrmContactMethodRow = {

@@ -4,6 +4,8 @@ import { normalizeLeadLabels } from "../../../../domain/whatsapp-rules.ts";
 import { authErrorToResponse, requireRequestRole } from "@/lib/auth/session";
 import { runtimeSessionDeps as authDeps } from "@/lib/auth/runtime";
 import { runtimeConversationViewService } from "@/lib/services/conversation-view";
+import type { CrmRepository } from "@/lib/repositories/crm-repository";
+import { runtimeCrmRepository } from "@/lib/repositories/runtime-crm";
 
 interface Ctx {
 	params: Promise<{ conversationId: string }>;
@@ -22,6 +24,7 @@ export function createConversationPatchRoute(deps: {
 	getConversationById: (conversationId: number) => Promise<any>;
 	updateConversation: (conversationId: number, patch: Record<string, unknown>) => Promise<any>;
 	getConversationViewById: (conversationId: number) => Promise<unknown | null>;
+	crmRepo?: CrmRepository;
 }) {
 	return async function PATCH(req: Request, { params }: Ctx) {
 		try {
@@ -72,6 +75,41 @@ export function createConversationPatchRoute(deps: {
 				return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
 			}
 
+			if (deps.crmRepo && typeof body.name === "string" && body.name.trim().length > 0) {
+				const link = await deps.crmRepo.getConversationCrmLink(parsedId);
+				if (!link) {
+					const contact = await deps.crmRepo.createContact({
+						display_name: body.name.trim(),
+					});
+					if (existing.phone) {
+						await deps.crmRepo.addContactMethod({
+							contact_id: contact.id,
+							method_type: "whatsapp_phone",
+							value: existing.phone,
+							normalized_value: existing.phone,
+							is_primary: true,
+						});
+					}
+					if (existing.jid) {
+						await deps.crmRepo.addContactMethod({
+							contact_id: contact.id,
+							method_type: "whatsapp_jid",
+							value: existing.jid,
+							normalized_value: existing.jid,
+							is_primary: false,
+						});
+					}
+					await deps.crmRepo.setConversationCrmLink({
+						conversation_id: parsedId,
+						contact_id: contact.id,
+					});
+				} else if (link.contact_id) {
+					await deps.crmRepo.updateContact(link.contact_id, {
+						display_name: body.name.trim(),
+					});
+				}
+			}
+
 			const updatedBase = await deps.updateConversation(parsedId, patch);
 			const updated = await deps.getConversationViewById(parsedId);
 			return NextResponse.json(mergePatchedConversationResponse(updatedBase, updated));
@@ -116,4 +154,5 @@ export const PATCH = createConversationPatchRoute({
 	updateConversation,
 	getConversationViewById: (conversationId) =>
 		runtimeConversationViewService.getConversationById(conversationId),
+	crmRepo: runtimeCrmRepository,
 });

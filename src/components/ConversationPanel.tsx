@@ -46,6 +46,19 @@ export default function ConversationPanel({
 	const [avatarError, setAvatarError] = useState(false);
 	const [drawerAvatarError, setDrawerAvatarError] = useState(false);
 
+	useEffect(() => {
+		setProfileName(conversation.name?.trim() || "");
+		setProfileLeadLabels(conversation.lead_labels ?? []);
+		setProfileLeadScore(typeof conversation.lead_score === "number" ? String(conversation.lead_score) : "");
+		setProfileLeadReason(conversation.lead_score_reason ?? "");
+	}, [
+		conversation.id,
+		conversation.name,
+		conversation.lead_labels,
+		conversation.lead_score,
+		conversation.lead_score_reason,
+	]);
+
 	// Oportunidades de Venta (Deals)
 	const [deals, setDeals] = useState<any[]>([]);
 	const [loadingDeals, setLoadingDeals] = useState(false);
@@ -467,6 +480,19 @@ if (conversation.id !== prevConversationId) {
 		}
 	};
 
+	const hasChanges =
+		profileName.trim() !== (conversation.name?.trim() || "") ||
+		profileLeadScore.trim() !==
+			(typeof conversation.lead_score === "number" ? String(conversation.lead_score) : "") ||
+		profileLeadReason.trim() !== (conversation.lead_score_reason?.trim() || "") ||
+		(() => {
+			const orig = conversation.lead_labels ?? [];
+			if (orig.length !== profileLeadLabels.length) return true;
+			const origSorted = [...orig].sort();
+			const currSorted = [...profileLeadLabels].sort();
+			return origSorted.some((val, idx) => val !== currSorted[idx]);
+		})();
+
 	return (
 		<div className="relative flex flex-col h-full bg-background rounded-r-3xl overflow-hidden">
 			
@@ -782,7 +808,7 @@ if (conversation.id !== prevConversationId) {
 
 							<button
 								type="submit"
-								disabled={savingProfile}
+								disabled={savingProfile || !hasChanges}
 								className="sticky bottom-0 w-full rounded-full bg-primary py-2.5 text-xs font-bold uppercase tracking-wider text-on-primary shadow-lg hover:brightness-110 disabled:opacity-50"
 							>
 								{savingProfile ? "Guardando..." : "Guardar cliente"}

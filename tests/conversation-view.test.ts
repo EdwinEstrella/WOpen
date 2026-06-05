@@ -13,6 +13,7 @@ import {
 } from "../src/lib/services/conversation-view.ts";
 import { createConversationListRoute } from "../src/app/api/conversations/route.ts";
 import { createConversationPatchRoute } from "../src/app/api/conversations/[conversationId]/route.ts";
+import { createInMemoryCrmRepository } from "../src/lib/repositories/crm-repository.ts";
 
 const NOW = new Date("2026-06-05T15:00:00.000Z");
 
@@ -278,5 +279,75 @@ describe("conversation routes compatibility payload", () => {
 		assert.equal(json.account_name, "Mapped Account");
 		assert.equal(json.owner_user_id, 15);
 		assert.equal(json.phone, "5491144445555");
+	});
+
+	it("creates a new CRM contact on PATCH if it does not exist, and updates it on subsequent edits", async () => {
+		const crmRepo = createInMemoryCrmRepository();
+		const conversation = makeConversation({ id: 101, name: "Original Name", phone: "5491199998888", jid: "5491199998888@s.whatsapp.net" });
+		
+		const PATCH = createConversationPatchRoute({
+			requireAgent: async () => undefined,
+			getConversationById: async (id) => (id === 101 ? conversation : null),
+			updateConversation: async (id, patch) => {
+				if (patch.name !== undefined) conversation.name = patch.name as string | null;
+				return conversation;
+			},
+			getConversationViewById: async (id) => {
+				const link = await crmRepo.getConversationCrmLink(id);
+				const contact = link ? await crmRepo.getContactById(link.contact_id!) : null;
+				return {
+					...conversation,
+					contact_id: contact?.id ?? null,
+					contact_name: contact?.display_name ?? null,
+				};
+			},
+			crmRepo,
+		});
+
+		// 1. Primer PATCH: Debería crear un contacto CRM y el enlace correspondiente
+		const res1 = await PATCH(
+			new Request("http://localhost/api/conversations/101", {
+				method: "PATCH",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ name: "Cliente CRM" }),
+			}),
+			{ params: Promise.resolve({ conversationId: "101" }) },
+		);
+
+		assert.equal(res1.status, 200);
+		const data1 = await res1.json();
+		assert.equal(data1.name, "Cliente CRM");
+		assert.equal(data1.contact_name, "Cliente CRM");
+		assert.ok(data1.contact_id);
+
+		// Verificar que el contacto y métodos existan en crmRepo
+		const contactId = data1.contact_id;
+		const contact = await crmRepo.getContactById(contactId);
+		assert.ok(contact);
+		assert.equal(contact.display_name, "Cliente CRM");
+
+		const methods = await crmRepo.listContactMethods(contactId);
+		const phoneMethod = methods.find((m) => m.method_type === "whatsapp_phone");
+		assert.ok(phoneMethod);
+		assert.equal(phoneMethod.value, "5491199998888");
+
+		// 2. Segundo PATCH: Debería actualizar el contacto CRM existente en lugar de duplicarlo
+		const res2 = await PATCH(
+			new Request("http://localhost/api/conversations/101", {
+				method: "PATCH",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ name: "Cliente CRM Modificado" }),
+			}),
+			{ params: Promise.resolve({ conversationId: "101" }) },
+		);
+
+		assert.equal(res2.status, 200);
+		const data2 = await res2.json();
+		assert.equal(data2.name, "Cliente CRM Modificado");
+		assert.equal(data2.contact_name, "Cliente CRM Modificado");
+		assert.equal(data2.contact_id, contactId);
+
+		const contactUpdated = await crmRepo.getContactById(contactId);
+		assert.equal(contactUpdated?.display_name, "Cliente CRM Modificado");
 	});
 });
