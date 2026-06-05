@@ -11,6 +11,7 @@ import QRScreen from "../components/QRScreen.tsx";
 import DashboardOverview from "../components/DashboardOverview.tsx";
 import AutomationsOverview from "../components/AutomationsOverview.tsx";
 import ContactsOverview from "../components/ContactsOverview.tsx";
+import TasksBoard from "../components/TasksBoard.tsx";
 import Sidebar from "../components/Sidebar.tsx";
 import {
 	MessagesIcon,
@@ -20,6 +21,7 @@ import type { ConversationListRow } from "../lib/db.ts";
 type Tab =
 	| "dashboard"
 	| "chats"
+	| "deals"
 	| "prompts"
 	| "automations"
 	| "contacts"
@@ -29,6 +31,7 @@ const UI_STATE_STORAGE_KEY = "wopen.ui-state";
 const TABS: readonly Tab[] = [
 	"dashboard",
 	"chats",
+	"deals",
 	"prompts",
 	"automations",
 	"contacts",
@@ -404,6 +407,13 @@ export default function HomeClient() {
 
 							{activeTab === "contacts" && (
 								<ContactsOverview conversations={contactsList} />
+							)}
+
+							{activeTab === "deals" && (
+								<TasksBoard
+									conversations={conversations}
+									onConversationUpdated={handleConversationUpdated}
+								/>
 							)}
 
 									{activeTab === "settings" && <SettingsPanel />}

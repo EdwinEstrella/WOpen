@@ -8,9 +8,16 @@ import {
 	Plus,
 	Tag,
 	Trash2,
+	ChevronDown,
 } from "lucide-react";
 
 import { LEAD_LABELS, type LeadLabel } from "@/domain/whatsapp-rules.ts";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { ConversationListRow } from "@/lib/db.ts";
 import type {
 	CrmTaskListRow,
@@ -87,6 +94,59 @@ function conversationLabel(conversation: ConversationListRow) {
 	return conversation.name?.trim() || `+${conversation.phone}`;
 }
 
+interface CustomSelectProps<T> {
+	value: T;
+	onChange: (value: T) => void;
+	options: Array<{ value: T; label: string }>;
+	placeholder?: string;
+	className?: string;
+}
+
+function CustomSelect<T extends string | number>({
+	value,
+	onChange,
+	options,
+	placeholder = "Seleccionar...",
+	className,
+}: CustomSelectProps<T>) {
+	const selected = options.find((opt) => opt.value === value);
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<Button
+					type="button"
+					variant="outline"
+					className={cn(
+						"w-full justify-between text-left font-normal h-8 px-3 text-xs bg-transparent border-input text-muted-foreground hover:bg-muted/30 focus-visible:ring-3 focus-visible:ring-ring/50",
+						selected && "text-foreground font-medium",
+						className,
+					)}
+				>
+					<span className="truncate">{selected ? selected.label : placeholder}</span>
+					<ChevronDown className="size-3.5 opacity-50 shrink-0 ml-1" />
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent
+				className="max-h-60 overflow-y-auto min-w-[200px] bg-popover border border-border text-popover-foreground shadow-md"
+				align="start"
+			>
+				{options.map((opt) => (
+					<DropdownMenuItem
+						key={String(opt.value)}
+						onClick={() => onChange(opt.value)}
+						className={cn(
+							"text-xs cursor-pointer focus:bg-accent focus:text-accent-foreground",
+							opt.value === value && "bg-accent/40 text-foreground font-semibold",
+						)}
+					>
+						{opt.label}
+					</DropdownMenuItem>
+				))}
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+}
+
 export default function TasksBoard({
 	conversations,
 	onConversationUpdated,
@@ -106,6 +166,22 @@ export default function TasksBoard({
 	const conversationById = useMemo(
 		() => new Map(conversations.map((conversation) => [conversation.id, conversation])),
 		[conversations],
+	);
+
+	const clientOptions = useMemo(
+		() => [
+			{ value: "", label: "Sin cliente" },
+			...conversations.map((c) => ({ value: String(c.id), label: conversationLabel(c) })),
+		],
+		[conversations],
+	);
+
+	const labelOptions = useMemo<Array<{ value: "" | LeadLabel; label: string }>>(
+		() => [
+			{ value: "", label: "Sin etiqueta" },
+			...LEAD_LABELS.map((l) => ({ value: l, label: l.replace("_", " ") })),
+		],
+		[],
 	);
 
 	const loadTasks = async () => {
@@ -221,44 +297,24 @@ export default function TasksBoard({
 							onChange={(event) => setTitle(event.target.value)}
 							placeholder="Ej: llamar para cerrar presupuesto"
 						/>
-						<select
-							className={selectClassName()}
+						<CustomSelect
 							value={conversationId}
-							onChange={(event) => setConversationId(event.target.value)}
-							aria-label="Cliente"
-						>
-							<option value="">Sin cliente</option>
-							{conversations.map((conversation) => (
-								<option key={conversation.id} value={conversation.id}>
-									{conversationLabel(conversation)}
-								</option>
-							))}
-						</select>
-						<select
-							className={selectClassName()}
+							onChange={setConversationId}
+							options={clientOptions}
+							placeholder="Cliente"
+						/>
+						<CustomSelect
 							value={taskType}
-							onChange={(event) => setTaskType(event.target.value as CrmTaskType)}
-							aria-label="Tipo de tarea"
-						>
-							{TASK_TYPES.map((type) => (
-								<option key={type.value} value={type.value}>
-									{type.label}
-								</option>
-							))}
-						</select>
-						<select
-							className={selectClassName()}
+							onChange={setTaskType}
+							options={TASK_TYPES}
+							placeholder="Tipo de tarea"
+						/>
+						<CustomSelect
 							value={leadLabel}
-							onChange={(event) => setLeadLabel(event.target.value as "" | LeadLabel)}
-							aria-label="Etiqueta de evaluación"
-						>
-							<option value="">Sin etiqueta</option>
-							{LEAD_LABELS.map((label) => (
-								<option key={label} value={label}>
-									{label.replace("_", " ")}
-								</option>
-							))}
-						</select>
+							onChange={setLeadLabel}
+							options={labelOptions}
+							placeholder="Etiqueta de evaluación"
+						/>
 						<Button onClick={createTask} disabled={isSaving || !title.trim()}>
 							<Plus data-icon="inline-start" />
 							Crear
@@ -270,18 +326,12 @@ export default function TasksBoard({
 							onChange={(event) => setDescription(event.target.value)}
 							placeholder="Notas internas para ejecutar la tarea..."
 						/>
-						<select
-							className={selectClassName()}
+						<CustomSelect
 							value={priority}
-							onChange={(event) => setPriority(event.target.value as CrmTaskPriority)}
-							aria-label="Prioridad"
-						>
-							{PRIORITIES.map((item) => (
-								<option key={item.value} value={item.value}>
-									{item.label}
-								</option>
-							))}
-						</select>
+							onChange={setPriority}
+							options={PRIORITIES}
+							placeholder="Prioridad"
+						/>
 						<Input
 							type="datetime-local"
 							value={dueAt}

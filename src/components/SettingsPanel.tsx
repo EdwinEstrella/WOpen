@@ -1,8 +1,73 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { KeyIcon, MailIcon, BellIcon } from "./Icons.tsx";
+import { cn } from "@/lib/utils";
+import { ChevronDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
+
+interface CustomSelectProps<T> {
+	value: T;
+	onChange: (value: T) => void;
+	options: Array<{ value: T; label: string }>;
+	placeholder?: string;
+	disabled?: boolean;
+	id?: string;
+}
+
+function CustomSelect<T extends string | number>({
+	value,
+	onChange,
+	options,
+	placeholder = "Seleccionar...",
+	disabled,
+	id,
+}: CustomSelectProps<T>) {
+	const selected = options.find((opt) => opt.value === value);
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild disabled={disabled}>
+				<Button
+					id={id}
+					type="button"
+					variant="outline"
+					disabled={disabled}
+					className={cn(
+						"w-full justify-between text-left font-normal h-9 px-4 text-xs bg-surface-container-low border border-outline-variant/30 text-on-surface rounded-xl hover:bg-surface-bright/20 focus:ring-1 focus:ring-primary/20",
+						selected && "font-medium",
+					)}
+				>
+					<span className="truncate">{selected ? selected.label : placeholder}</span>
+					<ChevronDown className="size-3.5 opacity-50 shrink-0 ml-1" />
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent
+				className="max-h-60 overflow-y-auto min-w-[200px] bg-popover border border-border text-popover-foreground shadow-md"
+				align="start"
+			>
+				{options.map((opt) => (
+					<DropdownMenuItem
+						key={String(opt.value)}
+						onClick={() => onChange(opt.value)}
+						className={cn(
+							"text-xs cursor-pointer focus:bg-accent focus:text-accent-foreground",
+							opt.value === value && "bg-accent/40 text-foreground font-semibold",
+						)}
+					>
+						{opt.label}
+					</DropdownMenuItem>
+				))}
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+}
 
 function CapabilityProviderFields({
 	title,
@@ -30,6 +95,13 @@ function CapabilityProviderFields({
 	const modelKey = `${prefix}_model`;
 	const availableModels = models.length > 0 ? models : settings[modelKey] ? [settings[modelKey]] : [];
 
+	const modelOptions = useMemo(() => {
+		if (availableModels.length === 0) {
+			return [{ value: "", label: "Conecta el proveedor para cargar modelos" }];
+		}
+		return availableModels.map((m) => ({ value: m, label: m }));
+	}, [availableModels]);
+
 	return (
 		<div className="rounded-2xl border border-outline-variant/20 bg-surface-container-low/60 p-4 space-y-3">
 			<div>
@@ -39,19 +111,15 @@ function CapabilityProviderFields({
 			<div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-end">
 				<div className="flex flex-col gap-1.5">
 					<label htmlFor={providerKey} className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Proveedor</label>
-					<select
+					<CustomSelect
 						id={providerKey}
 						value={settings[providerKey] || providers[0]?.value || ""}
-						onChange={(e) => {
-							onChange(providerKey, e.target.value);
+						onChange={(val) => {
+							onChange(providerKey, val);
 							onChange(modelKey, "");
 						}}
-						className="px-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
-					>
-						{providers.map((provider) => (
-							<option key={provider.value} value={provider.value}>{provider.label}</option>
-						))}
-					</select>
+						options={providers}
+					/>
 				</div>
 				<div className="flex flex-col gap-1.5">
 					<label htmlFor={apiKeyKey} className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">API Key</label>
@@ -76,18 +144,13 @@ function CapabilityProviderFields({
 			</div>
 			<div className="flex flex-col gap-1.5">
 				<label htmlFor={modelKey} className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Modelo</label>
-				<select
+				<CustomSelect
 					id={modelKey}
 					value={settings[modelKey] || ""}
-					onChange={(e) => onChange(modelKey, e.target.value)}
+					onChange={(val) => onChange(modelKey, val)}
 					disabled={availableModels.length === 0}
-					className="px-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all disabled:opacity-60"
-				>
-					<option value="">Conecta el proveedor para cargar modelos</option>
-					{availableModels.map((model) => (
-						<option key={model} value={model}>{model}</option>
-					))}
-				</select>
+					options={modelOptions}
+				/>
 			</div>
 		</div>
 	);

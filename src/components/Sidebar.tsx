@@ -48,6 +48,7 @@ import { cn } from "@/lib/utils";
 type Tab =
 	| "dashboard"
 	| "chats"
+	| "deals"
 	| "prompts"
 	| "automations"
 	| "contacts"
@@ -141,7 +142,7 @@ const primaryItems: NavItem[] = [
 ];
 
 const workspaceItems: NavItem[] = [
-	{ type: "placeholder", label: "Deals", icon: Layout },
+	{ type: "tab", value: "deals", label: "Deals", icon: Layout },
 	{ type: "tab", value: "contacts", label: "Contactos CRM", icon: UserCircle },
 	{ type: "placeholder", label: "Competitors", icon: UserSearch },
 	{ type: "placeholder", label: "Integrations", icon: Plug, badge: "DEV" },

@@ -2,13 +2,20 @@
 
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
-import { ImagePlusIcon, MicIcon, PaperclipIcon, SquareIcon, XIcon, BriefcaseIcon, Trash2Icon } from "lucide-react";
+import { ImagePlusIcon, MicIcon, PaperclipIcon, SquareIcon, XIcon, BriefcaseIcon, Trash2Icon, ChevronDown } from "lucide-react";
 import { TrashIcon, MessagesIcon, RobotIcon, ArrowRightIcon, ArrowDownIcon, UserIcon, PhoneIcon, EditIcon, ArchiveIcon } from "./Icons.tsx";
 import type { ConversationListRow } from "../lib/db.ts";
 import type { MessageRow } from "../lib/db-contract.ts";
 import { LEAD_LABELS, type LeadLabel } from "../domain/whatsapp-rules.ts";
 import MessageBubble from "./MessageBubble.tsx";
 import ModeToggle from "./ModeToggle.tsx";
+import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface ConversationPanelProps {
 	conversation: ConversationListRow;
@@ -788,17 +795,28 @@ if (conversation.id !== prevConversationId) {
 												</div>
 												<div className="flex items-center justify-between gap-2 border-t border-outline-variant/10 pt-2 mt-0.5">
 													<span className="text-[9px] uppercase tracking-wider font-bold text-on-surface-variant">Etapa</span>
-													<select
-														value={deal.stage}
-														onChange={(e) => handleUpdateDealStage(deal.id, e.target.value)}
-														className="text-[10px] font-bold bg-surface border border-outline-variant/40 rounded-lg px-2 py-1 focus:outline-none focus:border-primary text-on-surface cursor-pointer"
-													>
-														<option value="lead">Prospecto</option>
-														<option value="contacted">Contactado</option>
-														<option value="proposal_sent">Propuesta Enviada</option>
-														<option value="won">Ganado</option>
-														<option value="lost">Perdido</option>
-													</select>
+													<DropdownMenu>
+														<DropdownMenuTrigger asChild>
+															<Button
+																variant="outline"
+																className="text-[10px] font-bold bg-surface border border-outline-variant/40 rounded-lg px-2 py-1 h-auto flex items-center gap-1 cursor-pointer text-on-surface hover:bg-surface-bright"
+															>
+																{deal.stage === "lead" && "Prospecto"}
+																{deal.stage === "contacted" && "Contactado"}
+																{deal.stage === "proposal_sent" && "Propuesta Enviada"}
+																{deal.stage === "won" && "Ganado"}
+																{deal.stage === "lost" && "Perdido"}
+																<ChevronDown className="size-3 opacity-60" />
+															</Button>
+														</DropdownMenuTrigger>
+														<DropdownMenuContent className="bg-surface-container border border-outline-variant text-on-surface" align="end">
+															<DropdownMenuItem className="text-[10px] cursor-pointer focus:bg-primary/10 focus:text-primary" onClick={() => handleUpdateDealStage(deal.id, "lead")}>Prospecto</DropdownMenuItem>
+															<DropdownMenuItem className="text-[10px] cursor-pointer focus:bg-primary/10 focus:text-primary" onClick={() => handleUpdateDealStage(deal.id, "contacted")}>Contactado</DropdownMenuItem>
+															<DropdownMenuItem className="text-[10px] cursor-pointer focus:bg-primary/10 focus:text-primary" onClick={() => handleUpdateDealStage(deal.id, "proposal_sent")}>Propuesta Enviada</DropdownMenuItem>
+															<DropdownMenuItem className="text-[10px] cursor-pointer focus:bg-primary/10 focus:text-primary animate-pulse-once" onClick={() => handleUpdateDealStage(deal.id, "won")}>Ganado</DropdownMenuItem>
+															<DropdownMenuItem className="text-[10px] cursor-pointer focus:bg-primary/10 focus:text-primary" onClick={() => handleUpdateDealStage(deal.id, "lost")}>Perdido</DropdownMenuItem>
+														</DropdownMenuContent>
+													</DropdownMenu>
 												</div>
 											</div>
 										))}
