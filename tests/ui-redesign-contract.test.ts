@@ -88,6 +88,7 @@ describe("shadcn/ui redesign foundation contract", () => {
 			"src/components/ui/separator.tsx",
 			"src/components/ui/sheet.tsx",
 			"src/components/ui/skeleton.tsx",
+			"src/components/ui/switch.tsx",
 			"src/components/ui/tabs.tsx",
 			"src/components/ui/textarea.tsx",
 		];
@@ -100,6 +101,11 @@ describe("shadcn/ui redesign foundation contract", () => {
 		assert.match(dialog, /from "radix-ui"/);
 		assert.match(dialog, /data-slot="dialog-content"/);
 		assert.match(dialog, /data-open:animate-in/);
+
+		const switchComponent = readProjectFile("src/components/ui/switch.tsx");
+		assert.match(switchComponent, /from "react-aria-components"/);
+		assert.match(switchComponent, /composeRenderProps/);
+		assert.match(switchComponent, /group-data-\[selected\]:bg-primary/);
 	});
 
 	it("uses the design-system foundation in chat message bubbles", () => {
@@ -214,8 +220,9 @@ describe("shadcn/ui redesign foundation contract", () => {
 		const modeToggle = readProjectFile("src/components/ModeToggle.tsx");
 		const panel = readProjectFile("src/components/ConversationPanel.tsx");
 
-		assert.match(modeToggle, /role="switch"/);
-		assert.match(modeToggle, /aria-checked=\{currentMode === "HUMAN"\}/);
+		assert.match(modeToggle, /from "@\/components\/ui\/switch"/);
+		assert.match(modeToggle, /isSelected=\{currentMode === "HUMAN"\}/);
+		assert.match(modeToggle, /onChange=\{handleSwitchChange\}/);
 		assert.match(modeToggle, /fetch\(`\/api\/mode\/\$\{conversationId\}`/);
 		assert.doesNotMatch(modeToggle, />\s*.*MODO IA.*\s*<\/button>[\s\S]*>\s*.*HUMANO.*\s*<\/button>/);
 		assert.doesNotMatch(panel, /onClick=\{\(\) => onModeChanged\("HUMAN"\)\}/);

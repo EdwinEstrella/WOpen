@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 
 interface ModeToggleProps {
 	conversationId: number;
@@ -15,10 +17,11 @@ export default function ModeToggle({
 }: ModeToggleProps) {
 	const [loading, setLoading] = useState(false);
 
-	const nextMode = currentMode === "AI" ? "HUMAN" : "AI";
-
-	const handleToggle = async () => {
+	const handleSwitchChange = async (isHumanMode: boolean) => {
 		if (loading) return;
+		const nextMode = isHumanMode ? "HUMAN" : "AI";
+		if (nextMode === currentMode) return;
+
 		setLoading(true);
 		try {
 			const res = await fetch(`/api/mode/${conversationId}`, {
@@ -39,36 +42,38 @@ export default function ModeToggle({
 	};
 
 	return (
-		<div className="flex shrink-0 items-center gap-2">
-			<span className="font-display text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
+		<div className="flex shrink-0 items-center gap-2 rounded-full border border-border bg-surface/70 px-2 py-1 shadow-sm">
+			<span
+				className={cn(
+					"font-display text-[10px] font-bold uppercase tracking-wider transition-colors",
+					currentMode === "AI" ? "text-primary" : "text-on-surface-variant",
+				)}
+			>
 				IA
 			</span>
-			<button
-				type="button"
-				role="switch"
-				aria-checked={currentMode === "HUMAN"}
+			<Switch
+				isSelected={currentMode === "HUMAN"}
+				isDisabled={loading}
+				onChange={handleSwitchChange}
+				className="gap-0"
 				aria-label={
 					currentMode === "HUMAN"
 						? "Cambiar conversación a modo IA"
 						: "Cambiar conversación a modo humano"
 				}
-				onClick={handleToggle}
-				disabled={loading}
-				className={`relative h-8 w-16 rounded-full border transition-all duration-200 disabled:opacity-50 ${
-					currentMode === "HUMAN"
-						? "border-secondary bg-secondary/20"
-						: "border-primary bg-primary/20"
-				}`}
 			>
-				<span
-					className={`absolute top-1 size-6 rounded-full shadow-md transition-all duration-200 ${
-						currentMode === "HUMAN"
-							? "left-8 bg-secondary"
-							: "left-1 bg-primary"
-					}`}
-				/>
-			</button>
-			<span className="font-display text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
+				<span className="sr-only">
+					{currentMode === "HUMAN" ? "Modo humano" : "Modo IA"}
+				</span>
+			</Switch>
+			<span
+				className={cn(
+					"font-display text-[10px] font-bold uppercase tracking-wider transition-colors",
+					currentMode === "HUMAN"
+						? "text-primary"
+						: "text-on-surface-variant",
+				)}
+			>
 				Humano
 			</span>
 		</div>
