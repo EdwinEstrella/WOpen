@@ -47,7 +47,7 @@ function upsert(input: {
 	};
 }
 
-function makeDeps() {
+function makeDeps(overrides: Partial<InboundHandlerDeps> = {}) {
 	const repo = createInMemoryRepository();
 	const turnState = createInMemoryTurnState();
 	const calls: string[] = [];
@@ -89,6 +89,7 @@ function makeDeps() {
 		generateToken: () => "token-a",
 		readMessages: async () => {},
 		sendPresenceUpdate: async () => {},
+		...overrides,
 	};
 	return {
 		repo,
@@ -440,6 +441,21 @@ describe("owner-aware inbound handler AI/HUMAN customer paths", () => {
 		assert.ok(input);
 		assert.equal(input.queuedMessages[0]?.text.includes("[Audio: Nota de voz]"), false);
 		assert.equal(input.queuedMessages[0]?.text.startsWith("Nota de voz recibida."), true);
+	});
+
+	it("does not transcribe owner voice notes because only customer audio is AI-readable", async () => {
+		let transcriptionCalls = 0;
+		const { handler } = makeDeps({
+			downloadMedia: async () => Buffer.from("owner-audio"),
+			transcribeAudio: async () => {
+				transcriptionCalls += 1;
+				return "owner private transcript";
+			},
+		});
+
+		await handler.handleUpsert(upsert({ id: "m-owner-audio", fromMe: true, audio: true }));
+
+		assert.equal(transcriptionCalls, 0);
 	});
 
 	it("lock acquisition failure does not delete another processor's active turn state", async () => {

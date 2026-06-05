@@ -209,4 +209,16 @@ describe("shadcn/ui redesign foundation contract", () => {
 		assert.match(api, /listAutomations/);
 		assert.match(api, /setAutomationEnabled/);
 	});
+
+	it("uses a persisted switch for AI/HUMAN mode instead of local-only buttons", () => {
+		const modeToggle = readProjectFile("src/components/ModeToggle.tsx");
+		const panel = readProjectFile("src/components/ConversationPanel.tsx");
+
+		assert.match(modeToggle, /role="switch"/);
+		assert.match(modeToggle, /aria-checked=\{currentMode === "HUMAN"\}/);
+		assert.match(modeToggle, /fetch\(`\/api\/mode\/\$\{conversationId\}`/);
+		assert.doesNotMatch(modeToggle, />\s*.*MODO IA.*\s*<\/button>[\s\S]*>\s*.*HUMANO.*\s*<\/button>/);
+		assert.doesNotMatch(panel, /onClick=\{\(\) => onModeChanged\("HUMAN"\)\}/);
+		assert.match(panel, /<ModeToggle[\s\S]*currentMode=\{conversation\.mode\}/);
+	});
 });

@@ -868,9 +868,14 @@ if (conversation.id !== prevConversationId) {
 			{/* Composer / Input Inferior */}
 			<div className="p-4 bg-background border-t border-outline-variant shrink-0">
 				{isAi ? (
-					<div className="flex items-center justify-center gap-2.5 p-3 border border-outline-variant rounded-full text-on-surface-variant text-[11px] font-medium">
+					<div className="flex flex-wrap items-center justify-center gap-3 p-3 border border-outline-variant rounded-full text-on-surface-variant text-[11px] font-medium">
 						<RobotIcon className="text-primary" size={14} />
-						<span>El bot responde automaticamente. Cambia a modo <span className="text-primary cursor-pointer hover:underline" onClick={() => onModeChanged("HUMAN")}>Humano</span> si queres intervenir manualmente.</span>
+						<span>El bot responde automaticamente. Cambiá a humano para intervenir manualmente.</span>
+						<ModeToggle
+							conversationId={conversation.id}
+							currentMode={conversation.mode}
+							onModeChange={onModeChanged}
+						/>
 					</div>
 				) : (
 					<form onSubmit={handleSend} className="flex w-full flex-col gap-2">

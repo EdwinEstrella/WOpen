@@ -352,7 +352,7 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 					messageMetadata.mediaUrl = `/media/${filename}`;
 					console.log(`[bot] Guardado archivo multimedia (${mediaType}) en ${filePath}`);
 
-					if (mediaType === "audio" && deps.transcribeAudio) {
+					if (!fromMe && mediaType === "audio" && deps.transcribeAudio) {
 						try {
 							const transcript = await deps.transcribeAudio({
 								buffer,
