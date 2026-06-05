@@ -1,6 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { cn } from "@/lib/utils";
+import { ChevronDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 import type {
 	AutomationActionType,
@@ -21,6 +30,59 @@ const actionLabels: Record<AutomationActionType, string> = {
 	switch_mode: "Cambiar modo",
 	add_internal_note: "Nota interna",
 };
+
+interface CustomSelectProps<T> {
+	value: T;
+	onChange: (value: T) => void;
+	options: Array<{ value: T; label: string }>;
+	placeholder?: string;
+	disabled?: boolean;
+}
+
+function CustomSelect<T extends string | number>({
+	value,
+	onChange,
+	options,
+	placeholder = "Seleccionar...",
+	disabled,
+}: CustomSelectProps<T>) {
+	const selected = options.find((opt) => opt.value === value);
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild disabled={disabled}>
+				<Button
+					type="button"
+					variant="outline"
+					disabled={disabled}
+					className={cn(
+						"w-full justify-between text-left font-normal h-9 px-4 text-xs bg-surface-container-low border border-outline-variant/30 text-on-surface rounded-xl hover:bg-surface-bright/20 focus:ring-1 focus:ring-primary/20",
+						selected && "font-medium",
+					)}
+				>
+					<span className="truncate">{selected ? selected.label : placeholder}</span>
+					<ChevronDown className="size-3.5 opacity-50 shrink-0 ml-1" />
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent
+				className="max-h-60 overflow-y-auto min-w-[200px] bg-popover border border-border text-popover-foreground shadow-md"
+				align="start"
+			>
+				{options.map((opt) => (
+					<DropdownMenuItem
+						key={String(opt.value)}
+						onClick={() => onChange(opt.value)}
+						className={cn(
+							"text-xs cursor-pointer focus:bg-accent focus:text-accent-foreground",
+							opt.value === value && "bg-accent/40 text-foreground font-semibold",
+						)}
+					>
+						{opt.label}
+					</DropdownMenuItem>
+				))}
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+}
 
 function buildDefinition(input: {
 	conditionType: AutomationConditionType;
@@ -49,6 +111,24 @@ export default function AutomationsOverview() {
 	const [conditionValue, setConditionValue] = useState("");
 	const [actionType, setActionType] = useState<AutomationActionType>("send_whatsapp");
 	const [actionValue, setActionValue] = useState("");
+
+	const conditionOptions = useMemo<Array<{ value: AutomationConditionType; label: string }>>(
+		() => [
+			{ value: "always", label: "Siempre" },
+			{ value: "message_contains", label: "Mensaje contiene" },
+			{ value: "conversation_mode", label: "Modo de conversación" },
+		],
+		[],
+	);
+
+	const actionOptions = useMemo<Array<{ value: AutomationActionType; label: string }>>(
+		() => [
+			{ value: "send_whatsapp", label: "Enviar WhatsApp" },
+			{ value: "switch_mode", label: "Cambiar modo" },
+			{ value: "add_internal_note", label: "Nota interna" },
+		],
+		[],
+	);
 
 	const loadAutomations = async () => {
 		setLoading(true);
@@ -154,11 +234,11 @@ export default function AutomationsOverview() {
 
 				<label className="flex flex-col gap-1.5">
 					<span className="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">Condición</span>
-					<select value={conditionType} onChange={(e) => setConditionType(e.target.value as AutomationConditionType)} className="rounded-xl border border-outline-variant/30 bg-surface-container-low px-4 py-2 text-xs text-on-surface outline-none focus:border-primary">
-						<option value="always">Siempre</option>
-						<option value="message_contains">Mensaje contiene</option>
-						<option value="conversation_mode">Modo de conversación</option>
-					</select>
+					<CustomSelect
+						value={conditionType}
+						onChange={setConditionType}
+						options={conditionOptions}
+					/>
 				</label>
 
 				{conditionType !== "always" && (
@@ -170,11 +250,11 @@ export default function AutomationsOverview() {
 
 				<label className="flex flex-col gap-1.5">
 					<span className="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">Acción</span>
-					<select value={actionType} onChange={(e) => setActionType(e.target.value as AutomationActionType)} className="rounded-xl border border-outline-variant/30 bg-surface-container-low px-4 py-2 text-xs text-on-surface outline-none focus:border-primary">
-						<option value="send_whatsapp">Enviar WhatsApp</option>
-						<option value="switch_mode">Cambiar modo</option>
-						<option value="add_internal_note">Nota interna</option>
-					</select>
+					<CustomSelect
+						value={actionType}
+						onChange={setActionType}
+						options={actionOptions}
+					/>
 				</label>
 
 				<label className="flex flex-col gap-1.5">
