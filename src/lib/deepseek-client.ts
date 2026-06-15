@@ -1,4 +1,4 @@
-﻿import {
+import {
 	parseFollowUpDecision,
 	parseNormalReply,
 	type FollowUpDecisionParseResult,
@@ -22,6 +22,7 @@ export interface DeepSeekClientConfig {
 	model: string;
 	fetch: DeepSeekFetch;
 	baseUrl?: string;
+	isLocal?: boolean;
 }
 
 export interface DeepSeekHistoryMessage {
@@ -230,7 +231,7 @@ export function createDeepSeekClient(config: DeepSeekClientConfig) {
 				model: config.model,
 				messages,
 				temperature: 0.3,
-				response_format: { type: "json_object" },
+				...(config.isLocal ? {} : { response_format: { type: "json_object" } }),
 			}),
 		});
 		if (!response.ok)

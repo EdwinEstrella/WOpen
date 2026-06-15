@@ -56,5 +56,13 @@
     "react-doctor": "^0.4.0",
     "shadcn": "^4.10.0",
     "typescript": "^5.9.3"
+  },
+  "allowScripts": {
+    "@whiskeysockets/baileys@6.7.23": true,
+    "esbuild@0.28.0": true,
+    "msgpackr-extract@3.0.4": true,
+    "msw@2.14.6": true,
+    "protobufjs@7.6.2": true,
+    "sharp@0.34.5": true
   }
 }
