@@ -1,4 +1,4 @@
-﻿import {
+import {
 	parseFollowUpDecision,
 	parseNormalReply,
 	type FollowUpDecisionParseResult,
@@ -22,6 +22,7 @@ export interface DeepSeekClientConfig {
 	model: string;
 	fetch: DeepSeekFetch;
 	baseUrl?: string;
+	isLocal?: boolean;
 }
 
 export interface DeepSeekHistoryMessage {
@@ -230,14 +231,33 @@ export function createDeepSeekClient(config: DeepSeekClientConfig) {
 				model: config.model,
 				messages,
 				temperature: 0.3,
-				response_format: { type: "json_object" },
+				...(config.isLocal ? {} : { response_format: { type: "json_object" } }),
 			}),
 		});
 		if (!response.ok)
 			return { ok: false as const, reason: `deepseek_http_${response.status}` };
-		const content = extractContent(await response.json());
+		let content = extractContent(await response.json());
 		if (content === null)
 			return { ok: false as const, reason: "invalid_response_shape" };
+			
+		if (config.isLocal) {
+			let cleanRaw = content.trim();
+			if (cleanRaw.startsWith("```json")) {
+				cleanRaw = cleanRaw.substring(7);
+				if (cleanRaw.endsWith("```")) cleanRaw = cleanRaw.substring(0, cleanRaw.length - 3);
+				cleanRaw = cleanRaw.trim();
+			} else if (cleanRaw.startsWith("```")) {
+				cleanRaw = cleanRaw.substring(3);
+				if (cleanRaw.endsWith("```")) cleanRaw = cleanRaw.substring(0, cleanRaw.length - 3);
+				cleanRaw = cleanRaw.trim();
+			}
+			content = cleanRaw;
+			try {
+				JSON.parse(content);
+			} catch {
+				return { ok: false as const, reason: "invalid_json_format_from_local" };
+			}
+		}
 		return { ok: true as const, content };
 	}
 

@@ -318,7 +318,7 @@ export default function SettingsPanel() {
 					</h3>
 					<p className="text-[9px] text-on-surface-variant/80">
 						Elegir el proveedor correcto para cada capacidad. DeepSeek queda fuera de audio e imagenes porque su documentacion actual muestra chat/completions, no transcripcion ni vision general.
-						MiniMax entra solo como proveedor de chat; la documentacion verificada no expone transcripcion general ni vision estandar para este CRM.
+						MiniMax y Local entran solo como proveedor de chat; la documentacion verificada no expone transcripcion general ni vision estandar para este CRM.
 					</p>
 					<CapabilityProviderFields
 						title="Responder mensajes"
@@ -331,6 +331,7 @@ export default function SettingsPanel() {
 							{ value: "google", label: "Google Gemini" },
 							{ value: "deepseek", label: "DeepSeek" },
 							{ value: "minimax", label: "MiniMax" },
+							{ value: "local", label: "Local LLM" },
 						]}
 						settings={settings}
 						onChange={handleChange}

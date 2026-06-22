@@ -2,14 +2,22 @@ import { NextResponse } from "next/server";
 import { getSettings } from "../../../lib/db.ts";
 
 type Capability = "chat" | "audio" | "image";
-type Provider = "openai" | "google" | "deepseek" | "minimax";
+type Provider = "openai" | "google" | "deepseek" | "minimax" | "local";
 
 const PROVIDER_BASE_URL: Record<Provider, string> = {
 	openai: "https://api.openai.com/v1",
 	google: "https://generativelanguage.googleapis.com/v1beta",
 	deepseek: "https://api.deepseek.com",
 	minimax: "https://api.minimax.io/v1",
+	local: "http://localhost:11434/v1",
 };
+
+function getProviderBaseUrl(provider: Provider): string {
+	if (provider === "local") {
+		return (process.env.LOCAL_LLM_URL || PROVIDER_BASE_URL.local).replace(/\/$/, "");
+	}
+	return PROVIDER_BASE_URL[provider];
+}
 
 const FALLBACK_MODELS: Record<Provider, Record<Capability, string[]>> = {
 	openai: {
@@ -32,13 +40,19 @@ const FALLBACK_MODELS: Record<Provider, Record<Capability, string[]>> = {
 		audio: [],
 		image: [],
 	},
+	local: {
+		chat: ["llama3"],
+		audio: [],
+		image: [],
+	},
 };
 
 function isProvider(value: unknown): value is Provider {
 	return value === "openai" ||
 		value === "google" ||
 		value === "deepseek" ||
-		value === "minimax";
+		value === "minimax" ||
+		value === "local";
 }
 
 function isCapability(value: unknown): value is Capability {
@@ -49,6 +63,7 @@ function envApiKey(provider: Provider): string {
 	if (provider === "openai") return process.env.OPENAI_API_KEY || "";
 	if (provider === "google") return process.env.GEMINI_API_KEY || "";
 	if (provider === "deepseek") return process.env.DEEPSEEK_API_KEY || "";
+	if (provider === "local") return process.env.LOCAL_LLM_API_KEY || "local";
 	return process.env.MINIMAX_API_KEY || "";
 }
 
@@ -89,6 +104,10 @@ function filterModels(
 		return uniqueModels(models.filter((model) => model.includes("MiniMax")));
 	}
 
+	if (provider === "local") {
+		return uniqueModels(models); // local providers usually return all available models and we shouldn't restrict names
+	}
+
 	if (capability === "audio") {
 		return uniqueModels(
 			models.filter(
@@ -103,28 +122,35 @@ function filterModels(
 }
 
 async function fetchOpenAiCompatibleModels(
-	provider: "openai" | "deepseek" | "minimax",
+	provider: "openai" | "deepseek" | "minimax" | "local",
 	apiKey: string,
 	capability: Capability,
 ) {
 	if (provider === "minimax") return FALLBACK_MODELS.minimax[capability];
-	const response = await fetch(`${PROVIDER_BASE_URL[provider]}/models`, {
+	const baseUrl = getProviderBaseUrl(provider);
+	const response = await fetch(`${baseUrl}/models`, {
 		headers: { authorization: `Bearer ${apiKey}` },
 	});
 	if (!response.ok) throw new Error(`${provider}_models_http_${response.status}`);
 	const payload = await response.json();
-	const models = Array.isArray(payload.data)
-		? payload.data
-				.map((item: unknown) =>
-					typeof item === "object" &&
-					item !== null &&
-					"id" in item &&
-					typeof item.id === "string"
-						? item.id
-						: "",
-				)
-				.filter(Boolean)
-		: [];
+	const rawArray = Array.isArray(payload.data) 
+		? payload.data 
+		: Array.isArray(payload.models) 
+			? payload.models 
+			: Array.isArray(payload) 
+				? payload 
+				: [];
+	const models = rawArray
+		.map((item: unknown) => {
+			if (typeof item === "object" && item !== null) {
+				const obj = item as Record<string, unknown>;
+				if ("id" in obj && typeof obj.id === "string") return obj.id;
+				if ("name" in obj && typeof obj.name === "string") return obj.name;
+				if ("key" in obj && typeof obj.key === "string") return obj.key;
+			}
+			return "";
+		})
+		.filter(Boolean);
 	return filterModels(provider, capability, models);
 }
 
@@ -168,7 +194,7 @@ export async function POST(req: Request) {
 
 		if (
 			(capability === "audio" || capability === "image") &&
-			(provider === "deepseek" || provider === "minimax")
+			(provider === "deepseek" || provider === "minimax" || provider === "local")
 		) {
 			return NextResponse.json({ error: "Provider not supported for capability" }, { status: 400 });
 		}
