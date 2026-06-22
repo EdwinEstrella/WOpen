@@ -48,6 +48,7 @@ export default function LoginForm() {
 						className="mb-4 object-contain"
 						alt="Logo WOpen"
 						priority
+						unoptimized
 					/>
 					<h1 className="text-2xl font-bold text-white mb-2">
 						Acceso al Sistema
