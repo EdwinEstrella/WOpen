@@ -2,7 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 
 import type { MessageRow } from "./db-contract.ts";
-import { runtimePaths } from "./runtime-paths.ts";
+
+const mediaStorageDir = process.env.BOT_MEDIA_DIR
+	? path.resolve(/*turbopackIgnore: true*/ process.env.BOT_MEDIA_DIR)
+	: path.join(/*turbopackIgnore: true*/ process.cwd(), "data", "media");
+
+const publicMediaDir = path.join(/*turbopackIgnore: true*/ process.cwd(), "public", "media");
 
 function filenameFromMediaUrl(mediaUrl: unknown): string | null {
 	if (typeof mediaUrl !== "string") return null;
@@ -12,13 +17,16 @@ function filenameFromMediaUrl(mediaUrl: unknown): string | null {
 
 function mediaFileExists(filename: string): boolean {
 	const candidates = [
-		path.join(runtimePaths.mediaDir, filename),
-		path.join(/* turbopackIgnore: true */ process.cwd(), "public", "media", filename),
+		path.join(mediaStorageDir, filename),
+		path.join(publicMediaDir, filename),
 	];
 
 	return candidates.some((candidate) => {
 		try {
-			return fs.existsSync(candidate) && fs.statSync(candidate).isFile();
+			return (
+				fs.existsSync(/*turbopackIgnore: true*/ candidate) &&
+				fs.statSync(/*turbopackIgnore: true*/ candidate).isFile()
+			);
 		} catch {
 			return false;
 		}

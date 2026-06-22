@@ -2,11 +2,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { NextResponse } from "next/server";
 
-import { runtimePaths } from "../../../lib/runtime-paths.ts";
-
 interface Ctx {
 	params: Promise<{ filename: string }>;
 }
+
+const mediaStorageDir = process.env.BOT_MEDIA_DIR
+	? path.resolve(/*turbopackIgnore: true*/ process.env.BOT_MEDIA_DIR)
+	: path.join(/*turbopackIgnore: true*/ process.cwd(), "data", "media");
+
+const publicMediaDir = path.join(/*turbopackIgnore: true*/ process.cwd(), "public", "media");
 
 const CONTENT_TYPES: Record<string, string> = {
 	".ogg": "audio/ogg",
@@ -27,13 +31,16 @@ function isSafeMediaFilename(filename: string): boolean {
 
 function resolveExistingMediaFile(filename: string): string | null {
 	const candidates = [
-		path.join(runtimePaths.mediaDir, filename),
-		path.join(/* turbopackIgnore: true */ process.cwd(), "public", "media", filename),
+		path.join(mediaStorageDir, filename),
+		path.join(publicMediaDir, filename),
 	];
 
 	for (const candidate of candidates) {
-		const resolved = path.resolve(candidate);
-		if (fs.existsSync(resolved) && fs.statSync(resolved).isFile()) {
+		const resolved = path.resolve(/*turbopackIgnore: true*/ candidate);
+		if (
+			fs.existsSync(/*turbopackIgnore: true*/ resolved) &&
+			fs.statSync(/*turbopackIgnore: true*/ resolved).isFile()
+		) {
 			return resolved;
 		}
 	}
@@ -53,7 +60,7 @@ export async function GET(_req: Request, { params }: Ctx) {
 		return NextResponse.json({ error: "Media not found" }, { status: 404 });
 	}
 
-	const buffer = await fs.promises.readFile(filePath);
+	const buffer = await fs.promises.readFile(/*turbopackIgnore: true*/ filePath);
 	const ext = path.extname(filename).toLowerCase();
 
 	return new Response(buffer, {

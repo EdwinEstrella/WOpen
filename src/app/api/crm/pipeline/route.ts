@@ -5,6 +5,7 @@ import { runtimeCrmRepository as crmRepo } from "@/lib/repositories/runtime-crm"
 import type { CrmDealRow } from "@/lib/db-contract";
 
 const STAGES = ["lead", "contacted", "proposal_sent", "won", "lost"] as const;
+const STAGE_SET = new Set<string>(STAGES);
 
 function amountOf(deal: CrmDealRow) {
 	return typeof deal.amount === "number" ? deal.amount : Number(deal.amount ?? 0);
@@ -23,7 +24,7 @@ export function buildPipeline(deals: CrmDealRow[]) {
 	) as Record<(typeof STAGES)[number], { count: number; amount: number; deals: CrmDealRow[] }>;
 
 	for (const deal of deals) {
-		const stage = STAGES.includes(deal.stage as any) ? deal.stage : "lead";
+		const stage = STAGE_SET.has(deal.stage) ? deal.stage : "lead";
 		stages[stage].count += 1;
 		stages[stage].amount += amountOf(deal);
 		stages[stage].deals.push(deal);

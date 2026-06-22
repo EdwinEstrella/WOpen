@@ -11,6 +11,7 @@ import { LEAD_LABELS, type LeadLabel } from "../domain/whatsapp-rules.ts";
 import MessageBubble from "./MessageBubble.tsx";
 import ModeToggle from "./ModeToggle.tsx";
 import { Button } from "@/components/ui/button";
+import { Button as NeonButton } from "@/components/ui/neon-button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -731,7 +732,7 @@ if (conversation.id !== prevConversationId) {
 			</div>
 				</div>
 				{profileOpen && profilePortalElement && createPortal((
-					<aside className="flex h-full w-[min(420px,38vw)] min-w-[360px] shrink-0 flex-col overflow-hidden border-l border-outline-variant/30 bg-surface p-4 shadow-2xl animate-fade-in sm:p-5">
+					<aside className="flex h-full w-[min(420px,38vw)] min-w-[360px] shrink-0 flex-col overflow-hidden rounded-2xl border border-outline-variant/30 bg-surface p-4 shadow-2xl animate-fade-in sm:p-5">
 						<div className="mb-5 flex shrink-0 items-start justify-between gap-3 sm:mb-8">
 							<div className="min-w-0">
 								<p className="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">
@@ -974,13 +975,15 @@ if (conversation.id !== prevConversationId) {
 								)}
 							</div>
 
-							<button
+							<NeonButton
 								type="submit"
 								disabled={savingProfile || !hasChanges}
-								className="sticky bottom-0 w-full rounded-full bg-primary py-2.5 text-xs font-bold uppercase tracking-wider text-on-primary shadow-lg hover:brightness-110 disabled:opacity-50"
+								variant="solid"
+								size="lg"
+								className="mt-1 w-full bg-primary text-on-primary border-primary/30 text-xs font-bold uppercase tracking-wider shadow-lg hover:bg-primary/90 disabled:opacity-50"
 							>
 								{savingProfile ? "Guardando..." : "Guardar cliente"}
-							</button>
+							</NeonButton>
 						</form>
 					</aside>
 				), profilePortalElement)}
