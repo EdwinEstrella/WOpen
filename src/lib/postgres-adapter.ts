@@ -1,4 +1,4 @@
-﻿import {
+import {
 	DATABASE_SCHEMA_SQL,
 	DEFAULT_SETTINGS,
 	type ConversationEventRow,
@@ -270,49 +270,60 @@ export function createPostgresRepository(pool: PostgresPool) {
 			name?: string | null;
 		}): Promise<ConversationRow> {
 			const instanceId = input.instance_id ?? null;
-			const existing = await pool.query<ConversationRow>(
-				`SELECT * FROM conversations
-				 WHERE (instance_id IS NOT DISTINCT FROM $3)
-				   AND (phone = $1 OR jid = $2)
-				 ORDER BY id ASC
-				 LIMIT 1`,
-				[input.phone, input.jid ?? null, instanceId],
-			);
-			if (existing.rows[0]) {
-				const row = existing.rows[0];
-				const nextName = input.name?.trim();
-				const shouldUpdatePhone =
-					!!input.phone && !!input.jid && row.jid === input.jid && row.phone !== input.phone;
-				const shouldUpdateJid = !!input.jid && row.jid !== input.jid;
-				const shouldUpdateName = !!nextName && !row.name?.trim();
-				if (shouldUpdatePhone || shouldUpdateJid || shouldUpdateName) {
-					const updated = await pool.query<ConversationRow>(
-						`UPDATE conversations
-						 SET phone = CASE WHEN $1::text IS NULL THEN phone ELSE $1::text END,
-						     jid = CASE WHEN $2::text IS NULL THEN jid ELSE $2::text END,
-						     name = CASE WHEN $3::text IS NULL OR NULLIF(TRIM(name), '') IS NOT NULL THEN name ELSE $3::text END,
-						     updated_at = NOW()
-						 WHERE id = $4
-						 RETURNING *`,
-						[
-							shouldUpdatePhone ? input.phone : null,
-							input.jid ?? null,
-							nextName ?? null,
-							row.id,
-						],
-					);
-					return updated.rows[0];
+			return withTransaction(pool, async (client) => {
+				if (pool.connect) {
+					const hash = input.phone.split("").reduce((a, b) => {
+						a = (a << 5) - a + b.charCodeAt(0);
+						return a & a;
+					}, 0);
+					const lockId = Math.abs(hash) % 2147483647;
+					await client.query("SELECT pg_advisory_xact_lock($1)", [lockId]);
 				}
-				return row;
-			}
 
-			const created = await pool.query<ConversationRow>(
-				`INSERT INTO conversations (instance_id, phone, jid, name)
-				 VALUES ($1, $2, $3, $4)
-				 RETURNING *`,
-				[instanceId, input.phone, input.jid ?? null, input.name ?? null],
-			);
-			return created.rows[0];
+				const existing = await client.query<ConversationRow>(
+					`SELECT * FROM conversations
+					 WHERE (instance_id IS NOT DISTINCT FROM $3)
+					   AND (phone = $1 OR jid = $2)
+					 ORDER BY id ASC
+					 LIMIT 1`,
+					[input.phone, input.jid ?? null, instanceId],
+				);
+				if (existing.rows[0]) {
+					const row = existing.rows[0];
+					const nextName = input.name?.trim();
+					const shouldUpdatePhone =
+						!!input.phone && !!input.jid && row.jid === input.jid && row.phone !== input.phone;
+					const shouldUpdateJid = !!input.jid && row.jid !== input.jid;
+					const shouldUpdateName = !!nextName && !row.name?.trim();
+					if (shouldUpdatePhone || shouldUpdateJid || shouldUpdateName) {
+						const updated = await client.query<ConversationRow>(
+							`UPDATE conversations
+							 SET phone = CASE WHEN $1::text IS NULL THEN phone ELSE $1::text END,
+							     jid = CASE WHEN $2::text IS NULL THEN jid ELSE $2::text END,
+							     name = CASE WHEN $3::text IS NULL OR NULLIF(TRIM(name), '') IS NOT NULL THEN name ELSE $3::text END,
+							     updated_at = NOW()
+							 WHERE id = $4
+							 RETURNING *`,
+							[
+								shouldUpdatePhone ? input.phone : null,
+								input.jid ?? null,
+								nextName ?? null,
+								row.id,
+							],
+						);
+						return updated.rows[0];
+					}
+					return row;
+				}
+
+				const created = await client.query<ConversationRow>(
+					`INSERT INTO conversations (instance_id, phone, jid, name)
+					 VALUES ($1, $2, $3, $4)
+					 RETURNING *`,
+					[instanceId, input.phone, input.jid ?? null, input.name ?? null],
+				);
+				return created.rows[0];
+			});
 		},
 
 		async getConversationById(id: number): Promise<ConversationRow | null> {
