@@ -143,9 +143,10 @@ async function fetchOpenAiCompatibleModels(
 	const models = rawArray
 		.map((item: unknown) => {
 			if (typeof item === "object" && item !== null) {
-				if ("id" in item && typeof (item as any).id === "string") return (item as any).id;
-				if ("name" in item && typeof (item as any).name === "string") return (item as any).name;
-				if ("key" in item && typeof (item as any).key === "string") return (item as any).key;
+				const obj = item as Record<string, unknown>;
+				if ("id" in obj && typeof obj.id === "string") return obj.id;
+				if ("name" in obj && typeof obj.name === "string") return obj.name;
+				if ("key" in obj && typeof obj.key === "string") return obj.key;
 			}
 			return "";
 		})

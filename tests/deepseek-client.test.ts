@@ -230,4 +230,43 @@ describe("DeepSeek client adapter", () => {
 			/sk-secret|boom/,
 		);
 	});
+	it("strips markdown formatting and validates JSON when using local provider", async () => {
+		const markdownResponse = "```json\n" + validNormal + "\n```";
+		const { fetch, calls } = makeFetch([jsonResponse(markdownResponse)]);
+		const client = createDeepSeekClient({
+			apiKey: "local",
+			model: "llama3",
+			fetch,
+			isLocal: true,
+		});
+
+		const result = await client.generateNormalReply({
+			systemPrompt: "s",
+			history: [],
+			queuedMessages: [],
+		});
+
+		assert.equal(bodyAt(calls, 0).response_format, undefined); // should omit response_format
+		assert.equal(result.ok, true);
+		assert.equal(result.ok && result.parsed.ok, true);
+	});
+
+	it("returns safe failure on local provider when response is completely unparseable", async () => {
+		const { fetch } = makeFetch([jsonResponse("just text without valid json")]);
+		const client = createDeepSeekClient({
+			apiKey: "local",
+			model: "llama3",
+			fetch,
+			isLocal: true,
+		});
+
+		const result = await client.generateNormalReply({
+			systemPrompt: "s",
+			history: [],
+			queuedMessages: [],
+		});
+
+		assert.equal(result.ok, false);
+		assert.equal(result.ok ? "" : result.reason, "invalid_json_format_from_local");
+	});
 });
