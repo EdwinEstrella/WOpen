@@ -5,6 +5,7 @@ import {
 	fetchLatestBaileysVersion,
 	Browsers,
 	downloadMediaMessage,
+	jidNormalizedUser,
 } from "@whiskeysockets/baileys";
 import pino from "pino";
 import fs from "node:fs";
@@ -590,8 +591,9 @@ export async function startWASocket() {
 				const name = contact.name?.trim() || contact.notify?.trim() || contact.verifiedName?.trim();
 				if (name && name !== "WOpen" && name !== "Azokia" && name !== "Azokiallc") {
 					try {
-						const phone = contact.id.replace(/@.*/, "");
-						await getOrCreateConversation(phone, contact.id, name);
+						const normalizedId = jidNormalizedUser(contact.id);
+						const phone = normalizedId.replace(/@.*/, "");
+						await getOrCreateConversation(phone, normalizedId, name);
 					} catch (err) {
 						console.error("[bot-error] Falló al procesar contacts.upsert para el JID " + contact.id + ":", err);
 					}
@@ -606,8 +608,9 @@ export async function startWASocket() {
 				const name = contact.name?.trim() || contact.notify?.trim() || contact.verifiedName?.trim();
 				if (name && name !== "WOpen" && name !== "Azokia" && name !== "Azokiallc") {
 					try {
-						const phone = contact.id.replace(/@.*/, "");
-						await getOrCreateConversation(phone, contact.id, name);
+						const normalizedId = jidNormalizedUser(contact.id);
+						const phone = normalizedId.replace(/@.*/, "");
+						await getOrCreateConversation(phone, normalizedId, name);
 					} catch (err) {
 						console.error("[bot-error] Falló al procesar contacts.update para el JID " + contact.id + ":", err);
 					}

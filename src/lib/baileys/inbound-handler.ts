@@ -1,4 +1,4 @@
-﻿import {
+import {
 	decideOwnerKeywordAction,
 	parseNormalReply,
 	planHandoffActions,
@@ -15,6 +15,7 @@ import type {
 	ModeChangedBy,
 } from "../db-contract.ts";
 import type { CleanupResult, QueuedTurnMessage } from "../redis-turn-state.ts";
+import { jidNormalizedUser } from "@whiskeysockets/baileys";
 import { runtimePaths } from "../runtime-paths.ts";
 
 export interface WhatsAppMessage {
@@ -181,7 +182,7 @@ function isValidOneToOneNotify(
 	upsert: WhatsAppUpsert,
 	message: WhatsAppMessage,
 ): boolean {
-	const jid = message.key.remoteJid;
+	const jid = message.key.remoteJid ? jidNormalizedUser(message.key.remoteJid) : undefined;
 	return (
 		upsert.type === "notify" &&
 		!!jid &&
@@ -192,7 +193,7 @@ function isValidOneToOneNotify(
 }
 
 function canonicalChatJid(message: WhatsAppMessage): string {
-	const remoteJid = message.key.remoteJid as string;
+	const remoteJid = jidNormalizedUser(message.key.remoteJid as string);
 	if (remoteJid.endsWith("@lid") && message.key.senderPn) {
 		return message.key.senderPn;
 	}
@@ -292,7 +293,7 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 		const phone = phoneFromJid(chatJid);
 		const beforeConversation = await deps.repo.getOrCreateConversation({
 			phone,
-			jid: message.key.remoteJid,
+			jid: message.key.remoteJid ? jidNormalizedUser(message.key.remoteJid) : null,
 			name: fromMe ? null : (message.pushName ?? null),
 		});
 		if (
