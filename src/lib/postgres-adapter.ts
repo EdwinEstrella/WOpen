@@ -284,17 +284,31 @@ export function createPostgresRepository(pool: PostgresPool) {
 					`SELECT * FROM conversations
 					 WHERE (instance_id IS NOT DISTINCT FROM $3)
 					   AND (phone = $1 OR jid = $2)
-					 ORDER BY id ASC
-					 LIMIT 1`,
+					 ORDER BY
+					   CASE WHEN phone = $1 AND jid = $2 THEN 0
+					        WHEN phone = $1 THEN 1
+					        WHEN jid = $2 THEN 2
+					        ELSE 3 END,
+					   id ASC`,
 					[input.phone, input.jid ?? null, instanceId],
 				);
 				if (existing.rows[0]) {
 					const row = existing.rows[0];
 					const nextName = input.name?.trim();
-					const shouldUpdatePhone =
+					let shouldUpdatePhone =
 						!!input.phone && !!input.jid && row.jid === input.jid && row.phone !== input.phone;
-					const shouldUpdateJid = !!input.jid && row.jid !== input.jid;
+					let shouldUpdateJid = !!input.jid && row.jid !== input.jid;
 					const shouldUpdateName = !!nextName && !row.name?.trim();
+
+					if (existing.rows.length > 1) {
+						if (shouldUpdatePhone && existing.rows.some((r) => r.id !== row.id && r.phone === input.phone)) {
+							shouldUpdatePhone = false;
+						}
+						if (shouldUpdateJid && existing.rows.some((r) => r.id !== row.id && r.jid === input.jid)) {
+							shouldUpdateJid = false;
+						}
+					}
+
 					if (shouldUpdatePhone || shouldUpdateJid || shouldUpdateName) {
 						const updated = await client.query<ConversationRow>(
 							`UPDATE conversations
@@ -306,7 +320,7 @@ export function createPostgresRepository(pool: PostgresPool) {
 							 RETURNING *`,
 							[
 								shouldUpdatePhone ? input.phone : null,
-								input.jid ?? null,
+								shouldUpdateJid ? input.jid : null,
 								nextName ?? null,
 								row.id,
 							],

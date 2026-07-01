@@ -156,3 +156,7 @@ Chain strategy: stacked-to-main
 - [ ] Implement ContactsOverview data plumbing from persisted conversations and remove hardcoded contacts.
 - [ ] Update or remove stale tests that still assert the superseded deactivation-command / timed owner-reactivation model.
 - [ ] Keep lint/build/test evidence in SDD verify.
+
+## Corrective Tasks (Post-Amendment)
+
+- [x] Fix `getOrCreateConversation` phone vs LID collision to avoid unique constraint violations, including correct behavior during name backfill updates.

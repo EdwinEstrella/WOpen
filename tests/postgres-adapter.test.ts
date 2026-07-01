@@ -187,7 +187,7 @@ describe("postgres adapter", () => {
 			assert.match(text, /SET phone = CASE/);
 			assert.deepEqual(values, [
 				"18299727934",
-				"239917074530322@lid",
+				null,
 				null,
 				7,
 			]);
@@ -210,6 +210,95 @@ describe("postgres adapter", () => {
 
 		assert.equal(row.phone, "18299727934");
 		assert.equal(row.jid, "239917074530322@lid");
+	});
+
+	it("avoids unique constraint violation by not updating phone/jid when a collision exists between phone and LID rows", async () => {
+		const pg = new FakePg();
+		pg.respondWith((text, values) => {
+			assert.match(text, /phone = \$1 OR jid = \$2/);
+			return {
+				rows: [
+					// Sort order based on CASE WHEN: matching phone is first.
+					conversation({
+						id: 2,
+						phone: "18299727934",
+						jid: null,
+					}),
+					conversation({
+						id: 1,
+						phone: "239917074530322",
+						jid: "239917074530322@lid",
+					}),
+				],
+			};
+		});
+		// Since we matched the phone row (id 2), and LID row has the jid, we should NOT update JID of row 2.
+		// So it should NOT call update, just return row 2.
+		pg.respondWith(() => {
+			throw new Error("Should not try to update if it would violate unique constraint");
+		});
+		const repo = createPostgresRepository(pg);
+
+		const row = await repo.getOrCreateConversation({
+			phone: "18299727934",
+			jid: "239917074530322@lid",
+		});
+
+		assert.equal(row.id, 2);
+		assert.equal(row.phone, "18299727934");
+		assert.equal(row.jid, null);
+	});
+
+	it("avoids unique constraint violation when a collision exists and name is updated", async () => {
+		const pg = new FakePg();
+		pg.respondWith((text, values) => {
+			assert.match(text, /phone = \$1 OR jid = \$2/);
+			return {
+				rows: [
+					// Sort order based on CASE WHEN: matching phone is first.
+					conversation({
+						id: 2,
+						phone: "18299727934",
+						jid: null,
+						name: null,
+					}),
+					conversation({
+						id: 1,
+						phone: "239917074530322",
+						jid: "239917074530322@lid",
+					}),
+				],
+			};
+		});
+		pg.respondWith((text, values) => {
+			assert.match(text, /SET phone = CASE/);
+			assert.deepEqual(values, [
+				null,
+				null,
+				"New Name",
+				2,
+			]);
+			return {
+				rows: [
+					conversation({
+						id: 2,
+						phone: "18299727934",
+						jid: null,
+						name: "New Name",
+					}),
+				],
+			};
+		});
+		const repo = createPostgresRepository(pg);
+
+		const row = await repo.getOrCreateConversation({
+			phone: "18299727934",
+			jid: "239917074530322@lid",
+			name: "New Name",
+		});
+
+		assert.equal(row.id, 2);
+		assert.equal(row.name, "New Name");
 	});
 
 	it("inserts conversation when no existing phone or jid matches", async () => {

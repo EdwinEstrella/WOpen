@@ -746,3 +746,71 @@ Initial code implementation slice completed on 2026-06-01.
 
 - Current code amendment is larger than the original OpenSpec-only forecast but remains a single coherent behavior/UI apply slice.
 - Fresh review is required before completion.
+
+---
+
+## Phone and LID Collision Fix Slice � 2026-07-01
+
+### Completed Tasks
+
+- Fixed a bug where `getOrCreateConversation` hit a duplicate unique key (`conversations_phone_key`) when both a LID-based conversation row and a phone-based conversation row existed.
+- Removed `LIMIT 1` from the conflict search query and instead ordered the results prioritizing phone matches.
+- Handled potential unique-constraint collisions proactively by avoiding `phone` or `jid` updates if another matched row already owned those values.
+
+### Files Changed
+
+- `src/lib/postgres-adapter.ts` — fixed `getOrCreateConversation` to avoid updating fields if they conflict with other matched rows.
+- `tests/postgres-adapter.test.ts` — added strict TDD regression test for the phone vs LID collision scenario.
+
+### Test Commands Run
+
+| Phase | Command | Result |
+|-------|---------|--------|
+| RED | `npm test -- --test-name-pattern="avoids"` | Failed as expected: "Error: Should not try to update if it would violate unique constraint" |
+| GREEN | `npm test` | Passed with 163/163 tests across 49 suites. |
+| VERIFY | `npx tsc --noEmit` | Passed with no TypeScript output/errors. |
+
+### TDD Cycle Evidence
+
+| Cycle | RED Evidence | GREEN Evidence | Refactor/Triangulate Evidence |
+|-------|--------------|----------------|-------------------------------|
+| Phone/LID Collision | Wrote a test forcing `getOrCreateConversation` to choose between a phone row and a LID row; forced a throw if an update was attempted. Test failed on the throw. | Updated `postgres-adapter.ts` to fetch all matches, prioritize the phone match, and explicitly clear `shouldUpdatePhone` / `shouldUpdateJid` if it would cause a collision. Test passed. | Verified compilation via `npx tsc --noEmit` and ran the full suite. |
+
+### Workload / PR Boundary
+
+- Small, focused bugfix work-unit slice.
+- Review budget: < 30 lines changed.
+
+---
+
+## Phone/LID Collision and Name Backfill Fix Slice — 2026-07-01
+
+### Completed Tasks
+
+- Fixed a bug where `src/lib/postgres-adapter.ts` ignored the `shouldUpdateJid` collision check and erroneously included the conflicting JID in the `UPDATE` query when another field like `name` triggered the update.
+- Updated the `UPDATE` query to explicitly use `shouldUpdateJid ? input.jid : null` and `shouldUpdatePhone ? input.phone : null` to avoid generating duplicate key errors during name backfills.
+- Added strict TDD regression test specifically covering the collision-plus-name-backfill scenario where `shouldUpdateJid` must correctly prevent writing the conflicting JID.
+
+### Files Changed
+
+- `src/lib/postgres-adapter.ts` — updated `getOrCreateConversation` UPDATE query to correctly honor collision checks.
+- `tests/postgres-adapter.test.ts` — added `avoids unique constraint violation when a collision exists and name is updated` regression test and updated `repairs an existing LID conversation phone` test expectation.
+
+### Test Commands Run
+
+| Phase | Command | Result |
+|-------|---------|--------|
+| RED | `npm test -- --test-name-pattern="avoids unique constraint violation when a collision exists and name is updated"` | Failed as expected: `ERR_ASSERTION` due to the JID field ignoring `shouldUpdateJid` and passing the conflicting string instead of `null`. |
+| GREEN | `npm test` | Passed with 164/164 tests across 49 suites. |
+| VERIFY | `npx tsc --noEmit` | Passed with no TypeScript output/errors. |
+
+### TDD Cycle Evidence
+
+| Cycle | RED Evidence | GREEN Evidence | Refactor/Triangulate Evidence |
+|-------|--------------|----------------|-------------------------------|
+| Name Backfill Collision | Wrote a test forcing a name update during a phone vs LID collision. Test failed on strict assertion mismatch because the UPDATE query included the JID. | Updated the `UPDATE` query values array in `src/lib/postgres-adapter.ts` to respect `shouldUpdateJid` and `shouldUpdatePhone` flags. The test passed. | Also fixed an overly-strict historical test assertion that previously expected the JID to be updated during phone repairs. Full suite green. |
+
+### Workload / PR Boundary
+
+- Small, focused corrective work-unit slice.
+- Review budget: < 20 lines changed.
