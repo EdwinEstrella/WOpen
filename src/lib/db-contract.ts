@@ -706,6 +706,7 @@ export function createInMemoryRepository() {
 				conversation.followup_attempts = 0;
 				conversation.followup_blocked_at = null;
 				conversation.followup_blocked_reason = null;
+				conversation.is_archived = false;
 			} else if (message.role === "assistant")
 				conversation.last_assistant_message_at = createdAt;
 			else {

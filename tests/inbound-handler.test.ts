@@ -290,11 +290,20 @@ describe("owner-aware inbound handler AI/HUMAN customer paths", () => {
 			getConversationById: async (id) => base.repo.getConversationById(id),
 			insertMessageAndTouchConversation: async (input) =>
 				base.repo.insertMessageAndTouchConversation(input),
-			setMode: async (id, mode, input) => base.repo.setMode(id, mode, input),
-			recordConversationEvent: async (input) =>
-				base.repo.recordConversationEvent(input),
-			getSettings: async () => ({ ...base.repo.getSettings(), debounce_ms: 0 }),
-		};
+		async setMode(id, mode, input) {
+			return base.repo.setMode(id, mode, input);
+		},
+		async recordConversationEvent(input) {
+			return base.repo.recordConversationEvent(input);
+		},
+		async getSettings() {
+			return { ...base.repo.getSettings(), debounce_ms: 0 };
+		},
+		tryRestoreCrmLink: async (conversationId, normalizedPhone, instanceId) => {
+			base.calls.push(`tryRestoreCrmLink:${conversationId}:${normalizedPhone}`);
+			return true;
+		},
+	};
 		const asyncTurnState: InboundHandlerDeps["turnState"] = {
 			acceptDedupeMessage: async (messageId, options) =>
 				base.turnState.acceptDedupeMessage(messageId, options),
@@ -337,6 +346,34 @@ describe("owner-aware inbound handler AI/HUMAN customer paths", () => {
 		const convo = base.repo.getOrCreateConversation({ phone: "549111" });
 		assert.deepEqual(base.sent, ["Hola"]);
 		assert.equal(base.turnState.hasActiveTurnState(convo.id), false);
+	});
+
+	it("normalizes identity, tries to restore CRM link, and unarchives on user message", async () => {
+		const baseRepo = createInMemoryRepository();
+		const calls: string[] = [];
+		const testRepo = {
+			...baseRepo,
+			getSettings: () => ({ ...baseRepo.getSettings(), debounce_ms: 0 }),
+			tryRestoreCrmLink: async (conversationId: number, normalizedPhone: string, instanceId: number | null) => {
+				calls.push(`tryRestoreCrmLink:${conversationId}:${normalizedPhone}`);
+				return true;
+			},
+		};
+		const { handler, repo } = makeDeps({ repo: testRepo });
+		// repo returned is baseRepo, but we can use testRepo to get and update.
+		const convo = testRepo.getOrCreateConversation({
+			phone: "549111",
+			jid: "549111:2@s.whatsapp.net",
+		});
+		testRepo.updateConversation(convo.id, { is_archived: true });
+
+		await handler.handleUpsert(
+			upsert({ id: "m-reentry", fromMe: false, text: "Hola de nuevo", remoteJid: "549111:2@s.whatsapp.net" }),
+		);
+
+		const updatedConvo = testRepo.getConversationById(convo.id);
+		assert.equal(updatedConvo?.is_archived, false);
+		assert.equal(calls.includes(`tryRestoreCrmLink:${convo.id}:549111`), true);
 	});
 
 	it("HUMAN mode customer message persists and does not call DeepSeek", async () => {

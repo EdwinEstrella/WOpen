@@ -395,8 +395,9 @@ describe("postgres adapter", () => {
 		pg.respondWith((text, values) => {
 			assert.match(text, /followup_attempts = 0/);
 			assert.match(text, /last_user_message_at = \$2/);
+			assert.match(text, /is_archived = false/);
 			assert.deepEqual(values, [7, createdAt]);
-			return { rows: [conversation({ last_user_message_at: createdAt })] };
+			return { rows: [conversation({ last_user_message_at: createdAt, is_archived: false })] };
 		});
 		const repo = createPostgresRepository(pg);
 
@@ -693,5 +694,60 @@ describe("postgres adapter", () => {
 		const event = await repo.markFollowUpBlocked(7, "outside_24h_window", at);
 
 		assert.equal(event.event_type, "followup_blocked_24h");
+	});
+
+	it("restores CRM link only if exactly one tenant-scoped method matches", async () => {
+		const pg = new FakePg();
+		pg.respondWith((text, values) => {
+			assert.match(text, /SELECT 1 FROM conversation_crm_links/);
+			return { rows: [] };
+		});
+		pg.respondWith((text, values) => {
+			assert.match(text, /SELECT c\.id AS contact_id, l\.account_id/);
+			assert.deepEqual(values, ["5491112345678", 2]);
+			return { rows: [{ contact_id: 15, account_id: 42 }] };
+		});
+		pg.respondWith((text, values) => {
+			assert.match(text, /INSERT INTO conversation_crm_links/);
+			assert.deepEqual(values, [7, 15, 42]);
+			return { rows: [{ id: 100 }] };
+		});
+		
+		const repo = createPostgresRepository(pg) as any;
+		
+		const restored = await repo.tryRestoreCrmLink(7, "5491112345678", 2);
+		assert.equal(restored, true);
+	});
+
+	it("does not restore CRM link if multiple methods match", async () => {
+		const pg = new FakePg();
+		pg.respondWith((text, values) => {
+			assert.match(text, /SELECT 1 FROM conversation_crm_links/);
+			return { rows: [] };
+		});
+		pg.respondWith((text, values) => {
+			return { rows: [{ contact_id: 15 }, { contact_id: 16 }] };
+		});
+		const repo = createPostgresRepository(pg) as any;
+		
+		const restored = await repo.tryRestoreCrmLink(7, "5491112345678", null);
+		assert.equal(restored, false);
+		assert.equal(pg.calls.length, 2);
+	});
+
+	it("does not restore CRM link if zero methods match", async () => {
+		const pg = new FakePg();
+		pg.respondWith((text, values) => {
+			assert.match(text, /SELECT 1 FROM conversation_crm_links/);
+			return { rows: [] };
+		});
+		pg.respondWith((text, values) => {
+			return { rows: [] };
+		});
+		const repo = createPostgresRepository(pg) as any;
+		
+		const restored = await repo.tryRestoreCrmLink(7, "5491112345678", null);
+		assert.equal(restored, false);
+		assert.equal(pg.calls.length, 2);
 	});
 });

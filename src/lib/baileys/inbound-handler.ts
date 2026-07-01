@@ -2,6 +2,7 @@ import {
 	decideOwnerKeywordAction,
 	parseNormalReply,
 	planHandoffActions,
+	normalizeWhatsappIdentity,
 	type AutomationSettings,
 	type ConversationMode,
 	type MessageRole,
@@ -111,6 +112,11 @@ export interface HandlerRepository {
 		created_at?: Date;
 	}): MaybePromise<ConversationEventRow>;
 	getSettings(): MaybePromise<Record<string, unknown>>;
+	tryRestoreCrmLink?(
+		conversationId: number,
+		normalizedPhone: string,
+		instanceId: number | null,
+	): MaybePromise<boolean>;
 }
 
 export interface InboundHandlerDeps {
@@ -296,6 +302,14 @@ export function createInboundHandler(deps: InboundHandlerDeps) {
 			jid: message.key.remoteJid ? jidNormalizedUser(message.key.remoteJid) : null,
 			name: fromMe ? null : (message.pushName ?? null),
 		});
+
+		if (deps.repo.tryRestoreCrmLink) {
+			const normalizedPhone = normalizeWhatsappIdentity(phone);
+			// Assume instance_id is available on conversation row or pass null if missing
+			const instanceId = (beforeConversation as any).instance_id ?? null;
+			await deps.repo.tryRestoreCrmLink(beforeConversation.id, normalizedPhone, instanceId);
+		}
+
 		if (
 			deps.repo.updateConversation &&
 			deps.fetchProfilePictureUrl &&

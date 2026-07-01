@@ -7,6 +7,7 @@ import {
 	parseFollowUpDecision,
 	parseNormalReply,
 	planHandoffActions,
+	normalizeWhatsappIdentity,
 	type FollowUpCandidate,
 } from "../src/domain/whatsapp-rules.ts";
 
@@ -160,5 +161,13 @@ describe("Humano handoff contract", () => {
 			},
 		);
 		assert.equal(planHandoffActions({ required: false, reason: "" }), null);
+	});
+});
+
+describe("identity normalization", () => {
+	it("strips companion device suffixes and standardizes to base phone", () => {
+		assert.equal(normalizeWhatsappIdentity("5491112345678:52@s.whatsapp.net"), "5491112345678");
+		assert.equal(normalizeWhatsappIdentity("5491112345678:52"), "5491112345678");
+		assert.equal(normalizeWhatsappIdentity("171855029772514@lid"), "171855029772514@lid");
 	});
 });

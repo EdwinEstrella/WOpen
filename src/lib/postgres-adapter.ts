@@ -434,7 +434,8 @@ export function createPostgresRepository(pool: PostgresPool) {
 						 followup_attempts = 0,
 						 followup_blocked_at = NULL,
 						 followup_blocked_reason = NULL,
-						 unread_count = unread_count + 1`;
+						 unread_count = unread_count + 1,
+						 is_archived = false`;
 						} else if (existingMsg.role === "assistant") {
 							touchSql += ", last_assistant_message_at = $2";
 						} else {
@@ -479,7 +480,8 @@ export function createPostgresRepository(pool: PostgresPool) {
 				 followup_attempts = 0,
 				 followup_blocked_at = NULL,
 				 followup_blocked_reason = NULL,
-				 unread_count = unread_count + 1`;
+				 unread_count = unread_count + 1,
+				 is_archived = false`;
 				} else if (input.role === "assistant") {
 					touchSql += ", last_assistant_message_at = $2";
 				} else {
@@ -659,6 +661,43 @@ export function createPostgresRepository(pool: PostgresPool) {
 				reason,
 				metadata: { boundary: "whatsapp_freeform_window" },
 				created_at: blockedAt,
+			});
+		},
+
+		async tryRestoreCrmLink(
+			conversationId: number,
+			normalizedPhone: string,
+			instanceId: number | null,
+		): Promise<boolean> {
+			return withTransaction(pool, async (client) => {
+				const existingLink = await client.query(
+					`SELECT 1 FROM conversation_crm_links WHERE conversation_id = $1 LIMIT 1`,
+					[conversationId]
+				);
+				if (existingLink.rows.length > 0) return false;
+
+				const matches = await client.query<{ contact_id: number; account_id: number | null }>(
+					`SELECT c.id AS contact_id, l.account_id
+					 FROM crm_contact_methods m
+					 JOIN crm_contacts c ON m.contact_id = c.id
+					 LEFT JOIN crm_contact_account_links l ON c.id = l.contact_id
+					 WHERE m.normalized_value = $1
+					   AND m.method_type = 'whatsapp'
+					   AND (m.instance_id IS NOT DISTINCT FROM $2)
+					 GROUP BY c.id, l.account_id`,
+					[normalizedPhone, instanceId]
+				);
+
+				if (matches.rows.length !== 1) return false;
+
+				const { contact_id, account_id } = matches.rows[0];
+				await client.query(
+					`INSERT INTO conversation_crm_links (conversation_id, contact_id, account_id, created_at, updated_at)
+					 VALUES ($1, $2, $3, NOW(), NOW())
+					 ON CONFLICT (conversation_id) DO NOTHING`,
+					[conversationId, contact_id, account_id]
+				);
+				return true;
 			});
 		},
 	};

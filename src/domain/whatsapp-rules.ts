@@ -275,3 +275,11 @@ export function planHandoffActions(signal: HandoffSignal) {
 		reason: signal.reason,
 	};
 }
+
+export function normalizeWhatsappIdentity(phoneOrIdentifier: string): string {
+	let clean = phoneOrIdentifier;
+	if (clean.endsWith("@s.whatsapp.net")) {
+		clean = clean.replace("@s.whatsapp.net", "");
+	}
+	return clean.replace(/:\d+$/, "");
+}
